@@ -499,7 +499,7 @@ const clock = new THREE.Clock();
 function initScene() {
     const container = document.getElementById('canvas3d');
     scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x2a2a2e);
+    scene.background = new THREE.Color(0xf0f0f2);
 
     camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.01, 100);
     camera.position.set(0, 2.5, 3.5);
@@ -543,19 +543,19 @@ function initScene() {
     scene.add(new THREE.HemisphereLight(0xffffff, 0xe8e8ea, 0.6));
 
     // Grid & Floor
-    const grid = new THREE.GridHelper(4, 20, 0x444448, 0x333336);
+    const grid = new THREE.GridHelper(4, 20, 0xccccce, 0xdddddf);
     grid.material.opacity = 0.4; grid.material.transparent = true;
     scene.add(grid);
     const floor = new THREE.Mesh(
         new THREE.PlaneGeometry(8, 8),
-        new THREE.MeshStandardMaterial({ color: 0x1e1e20, roughness: 0.85, metalness: 0.1 })
+        new THREE.MeshStandardMaterial({ color: 0xe8e8ea, roughness: 0.85, metalness: 0.05 })
     );
     floor.rotation.x = -Math.PI / 2; floor.position.y = -0.01;
     floor.receiveShadow = true; scene.add(floor);
 
     // Car body outline (transparent)
     const bodyGeo = new THREE.BoxGeometry(1.4, 0.02, 2.0);
-    const bodyMat = new THREE.MeshStandardMaterial({ color: 0x3a3a3e, transparent: true, opacity: 0.2, roughness: 0.8 });
+    const bodyMat = new THREE.MeshStandardMaterial({ color: 0xc0c0c2, transparent: true, opacity: 0.2, roughness: 0.8 });
     const body = new THREE.Mesh(bodyGeo, bodyMat);
     body.position.set(0, 0.005, -0.05);
     scene.add(body);
@@ -605,37 +605,48 @@ function loadSeats() {
                 seat.pos[2] - center.z * scale
             );
 
-            // Material configs
-            const leatherMat = { color: 0xf0ebe4, roughness: 0.42, metalness: 0.0 };
-            const frameMat   = { color: 0x888890, roughness: 0.2,  metalness: 0.7 };
-            const accentMat  = { color: 0xe5dfd8, roughness: 0.38, metalness: 0.02 };
+            // Tesla-style dark material configs
+            const leatherMat = { color: 0x2c2c2e, roughness: 0.52, metalness: 0.04 };
+            const frameMat   = { color: 0x1a1a1c, roughness: 0.25, metalness: 0.6 };
+            const accentMat  = { color: 0x383838, roughness: 0.45, metalness: 0.05 };
             const frameNames = new Set(['01 Base', '02 Base rim', '03 Base controls']);
             const accentNames = new Set(['05 Bottom sides', '07 Seat back sides']);
 
             model.traverse(c => {
                 if (c.isMesh) {
                     c.castShadow = true; c.receiveShadow = true;
-                    // Choose material by node name (parent or self)
                     let cfg = leatherMat;
                     const nodeName = c.name || (c.parent && c.parent.name) || '';
                     if (frameNames.has(nodeName)) cfg = frameMat;
                     else if (accentNames.has(nodeName)) cfg = accentMat;
-                    c.material = new THREE.MeshStandardMaterial({
-                        color: cfg.color, roughness: cfg.roughness,
-                        metalness: cfg.metalness, envMapIntensity: 2.0,
-                    });
-                    // Capture skeleton from any SkinnedMesh
-                    if (c.isSkinnedMesh && c.skeleton && !seat.bones.Backrest) {
+                    // Modify existing material in-place (preserves skinning shader)
+                    if (c.material) {
+                        c.material.color.setHex(cfg.color);
+                        c.material.roughness = cfg.roughness;
+                        c.material.metalness = cfg.metalness;
+                        c.material.needsUpdate = true;
+                    }
+                    // Capture skeleton bones from SkinnedMesh
+                    if (c.isSkinnedMesh && c.skeleton) {
                         c.skeleton.bones.forEach(bone => {
-                            seat.bones[bone.name] = bone;
+                            if (!seat.bones[bone.name]) seat.bones[bone.name] = bone;
                         });
                     }
                 }
-                // Also try via isBone
                 if (c.isBone && !seat.bones[c.name]) {
                     seat.bones[c.name] = c;
                 }
             });
+
+            // Save bone rest poses for delta-based control
+            seat.boneRest = {};
+            Object.entries(seat.bones).forEach(([name, bone]) => {
+                seat.boneRest[name] = {
+                    px: bone.position.x, py: bone.position.y, pz: bone.position.z,
+                    rx: bone.rotation.x, ry: bone.rotation.y, rz: bone.rotation.z
+                };
+            });
+            console.log('Seat ' + i + ' bones:', Object.keys(seat.bones).join(', '));
 
             scene.add(model);
             seat.model = model;
@@ -677,7 +688,7 @@ function updateSeatHighlights() {
                 if (c.isMesh && c.material) {
                     if (isSel) {
                         c.material.emissive = new THREE.Color(SEAT_COLORS[i]);
-                        c.material.emissiveIntensity = 0.12;
+                        c.material.emissiveIntensity = 0.2;
                     } else {
                         c.material.emissive = new THREE.Color(0x000000);
                         c.material.emissiveIntensity = 0;
@@ -874,36 +885,34 @@ function setSeatPose(axis, val) {
 }
 
 function applyBonePose(s, axis, val) {
-    // GLTF converts Blender Z-up → Three.js Y-up
-    // Blender bone axes get remapped:
-    //   Blender X → Three.js X (recline rotation)
-    //   Blender Y → Three.js -Z (fore/aft)
-    //   Blender Z → Three.js Y (height)
+    const rest = s.boneRest || {};
     switch(axis) {
         case 'recline':
             document.getElementById('recVal').textContent = Math.round(val) + '°';
-            if (s.bones.Backrest) {
-                s.bones.Backrest.rotation.x = THREE.MathUtils.degToRad(val);
+            if (s.bones.Backrest && rest.Backrest) {
+                // Recline: rotate backrest around local X axis (delta from rest pose)
+                s.bones.Backrest.rotation.x = rest.Backrest.rx + THREE.MathUtils.degToRad(val);
             }
             break;
         case 'headrest':
             document.getElementById('hrVal').textContent = Math.round(val);
-            if (s.bones.Headrest) {
-                s.bones.Headrest.position.y = (val / 100) * 0.4;
+            if (s.bones.Headrest && rest.Headrest) {
+                // Headrest up/down: Blender Z → GLTF Y
+                s.bones.Headrest.position.y = rest.Headrest.py + (val / 100) * 0.5;
             }
             break;
         case 'slide':
             document.getElementById('slideVal').textContent = Math.round(val);
-            if (s.bones.Slide) {
-                // Fore/aft: Blender Y → GLTF -Z
-                s.bones.Slide.position.z = -(val / 100) * 0.3;
+            if (s.bones.Slide && rest.Slide) {
+                // Fore/aft: Blender Y → GLTF -Z (delta from rest)
+                s.bones.Slide.position.z = rest.Slide.pz - (val / 100) * 0.5;
             }
             break;
         case 'height':
             document.getElementById('heightVal').textContent = Math.round(val);
-            if (s.bones.Cushion) {
-                // Height: Blender Z → GLTF Y
-                s.bones.Cushion.position.y = (val / 100) * 0.15;
+            if (s.bones.Cushion && rest.Cushion) {
+                // Height: Blender Z → GLTF Y (delta from rest)
+                s.bones.Cushion.position.y = rest.Cushion.py + (val / 100) * 0.3;
             }
             break;
     }
