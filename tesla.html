@@ -399,8 +399,10 @@ function init() {
     d1.position.set(2.5, 4, 3); d1.castShadow = true;
     d1.shadow.mapSize.set(1024, 1024); d1.shadow.bias = -0.001;
     scene.add(d1);
-    scene.add(Object.assign(new THREE.DirectionalLight(0xf4f4ff, 0.45), {position: new THREE.Vector3(-3, 2, -1)}));
-    scene.add(Object.assign(new THREE.DirectionalLight(0xffffff, 0.25), {position: new THREE.Vector3(0, 5, 0)}));
+    const d2 = new THREE.DirectionalLight(0xf4f4ff, 0.45);
+    d2.position.set(-3, 2, -1); scene.add(d2);
+    const d3 = new THREE.DirectionalLight(0xffffff, 0.25);
+    d3.position.set(0, 5, 0); scene.add(d3);
     // Subtle warm fill from front-below
     const warm = new THREE.PointLight(0xffe8d6, 0.12, 4);
     warm.position.set(0, -0.2, 1); scene.add(warm);
