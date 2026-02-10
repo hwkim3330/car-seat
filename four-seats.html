@@ -950,12 +950,8 @@ function animatePoses(dt) {
             } else {
                 s.pose[k] = s.poseTarget[k];
             }
+            applyBonePose(s, k, s.pose[k]);
         });
-        // Apply bone transforms
-        if (s.bones.Backrest) s.bones.Backrest.rotation.x = THREE.MathUtils.degToRad(s.pose.recline) * 0.7;
-        if (s.bones.Headrest) s.bones.Headrest.position.y = (s.pose.headrest / 100) * 0.4;
-        if (s.bones.Slide) s.bones.Slide.position.y = (s.pose.slide / 100) * 0.3;
-        if (s.bones.Cushion) s.bones.Cushion.position.z = (s.pose.height / 100) * 0.15;
         if (done) s.poseTarget = null;
     });
 }
