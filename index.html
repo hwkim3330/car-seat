@@ -319,7 +319,7 @@
                     </div>
                     <i class="fas fa-eye toggle-icon"></i>
                 </div>
-                <div class="sensor-toggle" data-sensor="temperature" onclick="toggleSensor('temperature')">
+                <div class="sensor-toggle active" data-sensor="temperature" onclick="toggleSensor('temperature')">
                     <div class="sensor-info">
                         <div class="sensor-dot" style="background:#ff9f0a;"></div>
                         <div>
@@ -327,9 +327,9 @@
                             <div class="sensor-desc">Heating / cooling zone control</div>
                         </div>
                     </div>
-                    <i class="fas fa-eye-slash toggle-icon"></i>
+                    <i class="fas fa-eye toggle-icon"></i>
                 </div>
-                <div class="sensor-toggle" data-sensor="position" onclick="toggleSensor('position')">
+                <div class="sensor-toggle active" data-sensor="position" onclick="toggleSensor('position')">
                     <div class="sensor-info">
                         <div class="sensor-dot" style="background:#007aff;"></div>
                         <div>
@@ -337,9 +337,9 @@
                             <div class="sensor-desc">Seat adjustment tracking</div>
                         </div>
                     </div>
-                    <i class="fas fa-eye-slash toggle-icon"></i>
+                    <i class="fas fa-eye toggle-icon"></i>
                 </div>
-                <div class="sensor-toggle" data-sensor="motion" onclick="toggleSensor('motion')">
+                <div class="sensor-toggle active" data-sensor="motion" onclick="toggleSensor('motion')">
                     <div class="sensor-info">
                         <div class="sensor-dot" style="background:#30d158;"></div>
                         <div>
@@ -347,7 +347,7 @@
                             <div class="sensor-desc">Acceleration / vibration sensing</div>
                         </div>
                     </div>
-                    <i class="fas fa-eye-slash toggle-icon"></i>
+                    <i class="fas fa-eye toggle-icon"></i>
                 </div>
             </div>
 
@@ -390,7 +390,7 @@
             </div>
 
             <!-- Position Presets -->
-            <div class="panel-section" id="positionPanel" style="display:none;">
+            <div class="panel-section" id="positionPanel">
                 <div class="section-title"><i class="fas fa-arrows-alt"></i> Seat Position</div>
                 <div class="preset-grid" style="margin-bottom:14px;">
                     <button class="preset-btn active" onclick="applyPreset('normal',this)">Drive</button>
@@ -491,13 +491,13 @@
             </div>
 
             <!-- Temperature stats -->
-            <div class="panel-section" id="tempPanel" style="display:none;">
+            <div class="panel-section" id="tempPanel">
                 <div class="section-title"><i class="fas fa-thermometer-half"></i> Temperature</div>
                 <div id="tempZoneList"></div>
             </div>
 
             <!-- Position stats -->
-            <div class="panel-section" id="posPanel" style="display:none;">
+            <div class="panel-section" id="posPanel">
                 <div class="section-title"><i class="fas fa-arrows-alt"></i> Position</div>
                 <div class="stats-grid">
                     <div class="stat-card"><div class="value" id="rFB">0</div><div class="label">Fore/Aft (mm)</div></div>
@@ -508,7 +508,7 @@
             </div>
 
             <!-- Motion stats -->
-            <div class="panel-section" id="motionPanel" style="display:none;">
+            <div class="panel-section" id="motionPanel">
                 <div class="section-title"><i class="fas fa-wave-square"></i> Motion Data</div>
                 <div class="gauge-wrap">
                     <div class="gauge">
@@ -527,15 +527,15 @@
                 </div>
                 <div class="section-title" style="margin-bottom:6px;"><i class="fas fa-chart-line"></i> Acceleration</div>
                 <div class="motion-axis">
-                    <div class="motion-axis-label"><span>X Lateral</span><span id="rAX">0.00 G</span></div>
+                    <div class="motion-axis-label"><span>X Lateral (L/R)</span><span id="rAX">0.00 G</span></div>
                     <div class="motion-bar-bg"><div class="motion-bar" id="barAX" style="background:#ff3b30;width:50%;left:25%;"></div></div>
                 </div>
                 <div class="motion-axis">
-                    <div class="motion-axis-label"><span>Y Vertical</span><span id="rAY">0.00 G</span></div>
+                    <div class="motion-axis-label"><span>Y Vertical (U/D)</span><span id="rAY">0.00 G</span></div>
                     <div class="motion-bar-bg"><div class="motion-bar" id="barAY" style="background:#30d158;width:50%;left:25%;"></div></div>
                 </div>
                 <div class="motion-axis">
-                    <div class="motion-axis-label"><span>Z Longitudinal</span><span id="rAZ">0.00 G</span></div>
+                    <div class="motion-axis-label"><span>Z Longitudinal (F/B)</span><span id="rAZ">0.00 G</span></div>
                     <div class="motion-bar-bg"><div class="motion-bar" id="barAZ" style="background:#007aff;width:50%;left:25%;"></div></div>
                 </div>
                 <div class="peak-row">
@@ -562,7 +562,7 @@
 
 <script>
 // ==================== State ====================
-const activeSensors = new Set(['pressure']);
+const activeSensors = new Set(['pressure','temperature','position','motion']);
 let simulationRunning = true;
 const thresholds = { pressure: 80, temperature: 40, vibration: 0.7 };
 
@@ -786,10 +786,10 @@ function setupPressureOverlays() {
 // ==================== Motion Arrows ====================
 function setupMotionArrows() {
     arrowGroup = new THREE.Group();
-    arrowGroup.visible = false;
+    arrowGroup.visible = true;
     arrowX = new THREE.ArrowHelper(new THREE.Vector3(1,0,0), new THREE.Vector3(0,0.5,0.3), 0.2, 0xff3b30, 0.04, 0.025);
     arrowY = new THREE.ArrowHelper(new THREE.Vector3(0,1,0), new THREE.Vector3(0,0.5,0.3), 0.2, 0x30d158, 0.04, 0.025);
-    arrowZ = new THREE.ArrowHelper(new THREE.Vector3(0,0,1), new THREE.Vector3(0,0.5,0.3), 0.2, 0x007aff, 0.04, 0.025);
+    arrowZ = new THREE.ArrowHelper(new THREE.Vector3(0,0,-1), new THREE.Vector3(0,0.5,0.3), 0.2, 0x007aff, 0.04, 0.025);
     arrowGroup.add(arrowX, arrowY, arrowZ);
     seatGroup.add(arrowGroup);
 }
@@ -914,7 +914,7 @@ function updateMotionVisuals(time) {
     arrowY.setLength(Math.max(0.05,Math.abs(motionState.accelY)*s),0.04,0.025);
     arrowY.setDirection(new THREE.Vector3(0,Math.sign(motionState.accelY)||1,0).normalize());
     arrowZ.setLength(Math.max(0.05,Math.abs(motionState.accelZ)*s),0.04,0.025);
-    arrowZ.setDirection(new THREE.Vector3(0,0,Math.sign(motionState.accelZ)||1).normalize());
+    arrowZ.setDirection(new THREE.Vector3(0,0,-(Math.sign(motionState.accelZ)||1)).normalize());
     if (motionState.vibAmp > 0.01) {
         seatGroup.rotation.z = Math.sin(time*motionState.vibFreq*0.3)*motionState.vibAmp*0.002;
         seatGroup.position.y = (seatState.upDown/100*0.04) + Math.sin(time*motionState.vibFreq*0.5)*motionState.vibAmp*0.003;

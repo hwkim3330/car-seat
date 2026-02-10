@@ -237,17 +237,17 @@
                     <div class="s-info"><div class="s-bar" style="background:var(--red);"></div><div><div class="s-name">Pressure</div><div class="s-desc">Occupancy &amp; load</div></div></div>
                     <i class="fas fa-eye s-eye"></i>
                 </div>
-                <div class="s-tog" data-s="temperature" onclick="toggleSensor('temperature')">
+                <div class="s-tog on" data-s="temperature" onclick="toggleSensor('temperature')">
                     <div class="s-info"><div class="s-bar" style="background:var(--orange);"></div><div><div class="s-name">Temperature</div><div class="s-desc">Heating / cooling</div></div></div>
-                    <i class="fas fa-eye-slash s-eye"></i>
+                    <i class="fas fa-eye s-eye"></i>
                 </div>
-                <div class="s-tog" data-s="position" onclick="toggleSensor('position')">
+                <div class="s-tog on" data-s="position" onclick="toggleSensor('position')">
                     <div class="s-info"><div class="s-bar" style="background:var(--blue);"></div><div><div class="s-name">Position</div><div class="s-desc">Seat adjustment</div></div></div>
-                    <i class="fas fa-eye-slash s-eye"></i>
+                    <i class="fas fa-eye s-eye"></i>
                 </div>
-                <div class="s-tog" data-s="motion" onclick="toggleSensor('motion')">
+                <div class="s-tog on" data-s="motion" onclick="toggleSensor('motion')">
                     <div class="s-info"><div class="s-bar" style="background:var(--green);"></div><div><div class="s-name">Motion</div><div class="s-desc">Accel / vibration</div></div></div>
-                    <i class="fas fa-eye-slash s-eye"></i>
+                    <i class="fas fa-eye s-eye"></i>
                 </div>
             </div>
             <div class="p-sec">
@@ -284,7 +284,7 @@
                     </div>
                 </div>
             </div>
-            <div class="p-sec" id="posPanel" style="display:none;">
+            <div class="p-sec" id="posPanel">
                 <div class="sec-t">Seat position</div>
                 <div class="pg" style="margin-bottom:12px;">
                     <button class="pb on" onclick="preset('normal',this)">Drive</button>
@@ -332,11 +332,11 @@
                 </div>
                 <div style="margin-top:10px;"><div class="cl"><span>Pressure map</span></div><canvas id="miniHeatmap" width="160" height="160"></canvas></div>
             </div>
-            <div class="p-sec" id="rTemp" style="display:none;">
+            <div class="p-sec" id="rTemp">
                 <div class="sec-t">Temperature</div>
                 <div id="tzList"></div>
             </div>
-            <div class="p-sec" id="rPos" style="display:none;">
+            <div class="p-sec" id="rPos">
                 <div class="sec-t">Position</div>
                 <div class="sg">
                     <div class="sc"><div class="v" id="rFB">0</div><div class="l">Fore/aft (mm)</div></div>
@@ -345,7 +345,7 @@
                     <div class="sc"><div class="v" id="rHR">0</div><div class="l">Headrest (mm)</div></div>
                 </div>
             </div>
-            <div class="p-sec" id="rMot" style="display:none;">
+            <div class="p-sec" id="rMot">
                 <div class="sec-t">Motion</div>
                 <div class="gauge-wrap">
                     <div class="gauge">
@@ -363,9 +363,9 @@
                     <div class="sc"><div class="v" id="rRoadD">Normal</div><div class="l">Road surface</div></div>
                 </div>
                 <div class="sec-t" style="margin-top:4px;">ACCELERATION</div>
-                <div class="ma"><div class="ma-l"><span>X lateral</span><span id="rAX">0.00 G</span></div><div class="mb-bg"><div class="mb" id="bAX" style="background:var(--red);width:50%;left:25%;"></div></div></div>
-                <div class="ma"><div class="ma-l"><span>Y vertical</span><span id="rAY">0.00 G</span></div><div class="mb-bg"><div class="mb" id="bAY" style="background:var(--green);width:50%;left:25%;"></div></div></div>
-                <div class="ma"><div class="ma-l"><span>Z longitudinal</span><span id="rAZ">0.00 G</span></div><div class="mb-bg"><div class="mb" id="bAZ" style="background:var(--blue);width:50%;left:25%;"></div></div></div>
+                <div class="ma"><div class="ma-l"><span>X Lateral (L/R)</span><span id="rAX">0.00 G</span></div><div class="mb-bg"><div class="mb" id="bAX" style="background:var(--red);width:50%;left:25%;"></div></div></div>
+                <div class="ma"><div class="ma-l"><span>Y Vertical (U/D)</span><span id="rAY">0.00 G</span></div><div class="mb-bg"><div class="mb" id="bAY" style="background:var(--green);width:50%;left:25%;"></div></div></div>
+                <div class="ma"><div class="ma-l"><span>Z Longitudinal (F/B)</span><span id="rAZ">0.00 G</span></div><div class="mb-bg"><div class="mb" id="bAZ" style="background:var(--blue);width:50%;left:25%;"></div></div></div>
                 <div class="peak-row">
                     <div class="peak-badge"><div class="pk-v" id="pkAX" style="color:var(--red);">0.00</div><div class="pk-l">PEAK X</div></div>
                     <div class="peak-badge"><div class="pk-v" id="pkAY" style="color:var(--green);">0.00</div><div class="pk-l">PEAK Y</div></div>
@@ -386,7 +386,7 @@
 const $ = id => document.getElementById(id);
 
 // === State ===
-const AS = new Set(['pressure']);
+const AS = new Set(['pressure','temperature','position','motion']);
 let simOn = true;
 const TH = { pressure:80, temperature:40, vibration:0.7 };
 const S = { occ:true, w:70, spd:0, fb:0, ud:0, rec:18, hr:0 };
@@ -590,10 +590,10 @@ function setupPressure() {
 }
 
 function setupArrows() {
-    arGrp = new THREE.Group(); arGrp.visible = false;
+    arGrp = new THREE.Group(); arGrp.visible = true;
     arX = new THREE.ArrowHelper(new THREE.Vector3(1,0,0), new THREE.Vector3(0,0.4,0.25), 0.2, 0xd1293d, 0.035, 0.02);
     arY = new THREE.ArrowHelper(new THREE.Vector3(0,1,0), new THREE.Vector3(0,0.4,0.25), 0.2, 0x1a9956, 0.035, 0.02);
-    arZ = new THREE.ArrowHelper(new THREE.Vector3(0,0,1), new THREE.Vector3(0,0.4,0.25), 0.2, 0x3566cc, 0.035, 0.02);
+    arZ = new THREE.ArrowHelper(new THREE.Vector3(0,0,-1), new THREE.Vector3(0,0.4,0.25), 0.2, 0x3566cc, 0.035, 0.02);
     arGrp.add(arX, arY, arZ);
     baseGroup.add(arGrp);
 }
@@ -723,7 +723,7 @@ function updMotVis(t) {
     arY.setLength(Math.max(0.04, Math.abs(MO.ay)*s), 0.035, 0.02);
     arY.setDirection(new THREE.Vector3(0,Math.sign(MO.ay)||1,0).normalize());
     arZ.setLength(Math.max(0.04, Math.abs(MO.az)*s), 0.035, 0.02);
-    arZ.setDirection(new THREE.Vector3(0,0,Math.sign(MO.az)||1).normalize());
+    arZ.setDirection(new THREE.Vector3(0,0,-(Math.sign(MO.az)||1)).normalize());
     // Vibration — subtle shake
     if (MO.vib > 0.005) {
         const v = MO.vib * 0.0015;
