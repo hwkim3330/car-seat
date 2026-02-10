@@ -486,65 +486,105 @@ let scene, camera, renderer, controls;
 const clock3 = new THREE.Clock();
 const seatObjs = {};
 const seatLayout = {
-    driver:     { x: -0.55, z: 0.3  },
-    passenger:  { x:  0.55, z: 0.3  },
-    rear_left:  { x: -0.55, z: -0.55 },
-    rear_right: { x:  0.55, z: -0.55 }
+    driver:     { x: -0.32, z: 0.18  },
+    passenger:  { x:  0.32, z: 0.18  },
+    rear_left:  { x: -0.32, z: -0.32 },
+    rear_right: { x:  0.32, z: -0.32 }
 };
 let pressCanvasCushion, pressCtxCushion, pressTexCushion, pressOverlayCushion;
 let pressCanvasBack, pressCtxBack, pressTexBack, pressOverlayBack;
 let activePressureSeat = 'driver';
 
+// Rounded rect shape helper
+function roundedRectShape(w, h, r) {
+    const s = new THREE.Shape();
+    s.moveTo(-w/2+r, -h/2);
+    s.lineTo(w/2-r, -h/2);
+    s.quadraticCurveTo(w/2, -h/2, w/2, -h/2+r);
+    s.lineTo(w/2, h/2-r);
+    s.quadraticCurveTo(w/2, h/2, w/2-r, h/2);
+    s.lineTo(-w/2+r, h/2);
+    s.quadraticCurveTo(-w/2, h/2, -w/2, h/2-r);
+    s.lineTo(-w/2, -h/2+r);
+    s.quadraticCurveTo(-w/2, -h/2, -w/2+r, -h/2);
+    return s;
+}
+
+function roundedBoxGeo(w, h, d, r) {
+    const shape = roundedRectShape(w, h, Math.min(r, w/2, h/2));
+    return new THREE.ExtrudeGeometry(shape, { depth: d, bevelEnabled: true, bevelThickness: Math.min(r*0.4, 0.008), bevelSize: Math.min(r*0.4, 0.008), bevelSegments: 3 });
+}
+
 function initScene() {
     const container = document.getElementById('canvas3d');
     scene = new THREE.Scene();
-    scene.background = new THREE.Color(0xeeeef0);
+    scene.background = new THREE.Color(0xf0f0f2);
 
-    camera = new THREE.PerspectiveCamera(45, container.clientWidth/container.clientHeight, 0.01, 100);
-    camera.position.set(0, 2.0, 2.8);
+    camera = new THREE.PerspectiveCamera(40, container.clientWidth/container.clientHeight, 0.01, 100);
+    camera.position.set(0, 1.8, 2.2);
 
-    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(container.clientWidth, container.clientHeight);
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.2;
+    renderer.toneMappingExposure = 1.15;
+    renderer.outputEncoding = THREE.sRGBEncoding;
     container.appendChild(renderer.domElement);
 
     controls = new THREE.OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
-    controls.dampingFactor = 0.08;
-    controls.target.set(0, 0.25, -0.1);
-    controls.minDistance = 1;
-    controls.maxDistance = 6;
-    controls.maxPolarAngle = Math.PI * 0.85;
+    controls.dampingFactor = 0.07;
+    controls.target.set(0, 0.22, -0.06);
+    controls.minDistance = 0.8;
+    controls.maxDistance = 5;
+    controls.maxPolarAngle = Math.PI * 0.82;
 
-    scene.add(new THREE.AmbientLight(0xffffff, 0.65));
-    const main = new THREE.DirectionalLight(0xffffff, 1.0);
-    main.position.set(3, 5, 4); main.castShadow = true;
-    main.shadow.mapSize.set(2048, 2048); main.shadow.bias = -0.001;
-    scene.add(main);
-    scene.add(new THREE.DirectionalLight(0xffffff, 0.4).translateX(-3).translateY(2).translateZ(-1));
-    scene.add(new THREE.DirectionalLight(0xf0f0ff, 0.25).translateY(1).translateZ(-3));
+    // Studio lighting
+    scene.add(new THREE.AmbientLight(0xf5f0eb, 0.6));
+    const key = new THREE.DirectionalLight(0xfff8f0, 1.1);
+    key.position.set(2.5, 4, 3); key.castShadow = true;
+    key.shadow.mapSize.set(2048, 2048); key.shadow.bias = -0.0005;
+    key.shadow.camera.near = 0.5; key.shadow.camera.far = 12;
+    key.shadow.camera.left = -2; key.shadow.camera.right = 2;
+    key.shadow.camera.top = 2; key.shadow.camera.bottom = -2;
+    scene.add(key);
+    const fill = new THREE.DirectionalLight(0xe8eaf0, 0.45);
+    fill.position.set(-3, 2, -1); scene.add(fill);
+    const rim = new THREE.DirectionalLight(0xdde0f0, 0.3);
+    rim.position.set(0, 1, -4); scene.add(rim);
 
-    const grid = new THREE.GridHelper(4, 20, 0xd8d8dc, 0xe5e5e8);
-    grid.material.opacity = 0.4; grid.material.transparent = true;
-    scene.add(grid);
-
-    const floor = new THREE.Mesh(new THREE.PlaneGeometry(8, 8), new THREE.MeshStandardMaterial({ color: 0xe8e8ec, roughness: 0.95 }));
-    floor.rotation.x = -Math.PI/2; floor.position.y = -0.01; floor.receiveShadow = true;
+    // Subtle ground plane (no grid)
+    const floor = new THREE.Mesh(
+        new THREE.CircleGeometry(2.5, 64),
+        new THREE.MeshStandardMaterial({ color: 0xe5e5e8, roughness: 0.92, metalness: 0 })
+    );
+    floor.rotation.x = -Math.PI/2; floor.position.y = -0.005; floor.receiveShadow = true;
     scene.add(floor);
 
+    // Car floor outline between seats
+    const floorShape = roundedRectShape(0.9, 0.75, 0.08);
+    const carFloor = new THREE.Mesh(
+        new THREE.ShapeGeometry(floorShape),
+        new THREE.MeshStandardMaterial({ color: 0xd8d8dc, roughness: 0.85, metalness: 0, side: THREE.DoubleSide })
+    );
+    carFloor.rotation.x = -Math.PI/2;
+    carFloor.position.set(0, 0.001, -0.06);
+    scene.add(carFloor);
+
+    // Center console
+    const consoleMat = new THREE.MeshStandardMaterial({ color: 0x58585c, roughness: 0.4, metalness: 0.3 });
+    const consoleGeo = roundedBoxGeo(0.10, 0.50, 0.06, 0.02);
+    const consoleMesh = new THREE.Mesh(consoleGeo, consoleMat);
+    consoleMesh.rotation.x = -Math.PI/2;
+    consoleMesh.position.set(0, 0.04, -0.06);
+    consoleMesh.castShadow = true;
+    scene.add(consoleMesh);
+
+    // Build seats
     for (const [seatId, pos] of Object.entries(seatLayout)) {
         seatObjs[seatId] = buildOneSeat(pos.x, pos.z, seatId);
-    }
-
-    for (const [seatId, pos] of Object.entries(seatLayout)) {
-        const label = makeLabelSprite(seatId === 'rear_left' ? 'Rear L' : seatId === 'rear_right' ? 'Rear R' : seatId.charAt(0).toUpperCase() + seatId.slice(1));
-        label.position.set(pos.x, 0.85, pos.z);
-        label.scale.set(0.3, 0.15, 1);
-        scene.add(label);
     }
 
     setupPressureOverlays('driver');
@@ -559,10 +599,12 @@ function initScene() {
 
 function buildOneSeat(posX, posZ, seatId) {
     const isOccupied = seats[seatId].occupied;
-    const baseColor = isOccupied ? 0x48484a : 0x8e8e93;
-    const seatMat = () => new THREE.MeshStandardMaterial({ color: baseColor, roughness: 0.6, metalness: 0.02 });
-    const frameMat = new THREE.MeshStandardMaterial({ color: 0x636366, roughness: 0.35, metalness: 0.5 });
-    const bolMat = () => new THREE.MeshStandardMaterial({ color: isOccupied ? 0x5a5a5e : 0x9a9aa0, roughness: 0.55, metalness: 0.02 });
+    const leatherColor = isOccupied ? 0x2c2c2e : 0x636366;
+    const bolsterColor = isOccupied ? 0x3a3a3c : 0x6e6e73;
+    const leatherMat = () => new THREE.MeshStandardMaterial({ color: leatherColor, roughness: 0.55, metalness: 0.0 });
+    const bolsterMat = () => new THREE.MeshStandardMaterial({ color: bolsterColor, roughness: 0.5, metalness: 0.0 });
+    const frameMat = new THREE.MeshStandardMaterial({ color: 0x48484a, roughness: 0.3, metalness: 0.6 });
+    const stitchMat = new THREE.MeshStandardMaterial({ color: 0x5a5a5e, roughness: 0.8, metalness: 0 });
 
     const root = new THREE.Group();
     root.position.set(posX, 0, posZ);
@@ -571,82 +613,105 @@ function buildOneSeat(posX, posZ, seatId) {
     const base = new THREE.Group();
     root.add(base);
 
-    const railGeo = new THREE.BoxGeometry(0.04, 0.02, 0.38);
-    [-0.13, 0.13].forEach(x => {
+    // Rails (thin metal)
+    const railGeo = new THREE.BoxGeometry(0.025, 0.012, 0.32);
+    [-0.12, 0.12].forEach(x => {
         const r = new THREE.Mesh(railGeo, frameMat);
-        r.position.set(x, 0.01, 0); r.castShadow = true; base.add(r);
+        r.position.set(x, 0.006, 0); r.castShadow = true; base.add(r);
+    });
+    // Cross bars
+    const crossGeo = new THREE.BoxGeometry(0.20, 0.008, 0.025);
+    [-0.10, 0.10].forEach(z => {
+        const c = new THREE.Mesh(crossGeo, frameMat);
+        c.position.set(0, 0.008, z); base.add(c);
     });
 
-    const cushion = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.06, 0.38), seatMat());
-    cushion.position.set(0, 0.08, 0); cushion.castShadow = true; cushion.receiveShadow = true;
+    // Cushion (rounded)
+    const cushGeo = roundedBoxGeo(0.30, 0.30, 0.05, 0.03);
+    const cushion = new THREE.Mesh(cushGeo, leatherMat());
+    cushion.rotation.x = -Math.PI/2;
+    cushion.position.set(0, 0.05, 0.01);
+    cushion.castShadow = true; cushion.receiveShadow = true;
     base.add(cushion);
 
-    const bolGeo = new THREE.BoxGeometry(0.05, 0.10, 0.36);
-    const lBol = new THREE.Mesh(bolGeo, bolMat()); lBol.position.set(-0.21, 0.12, 0); lBol.castShadow = true; base.add(lBol);
-    const rBol = new THREE.Mesh(bolGeo, bolMat()); rBol.position.set(0.21, 0.12, 0); rBol.castShadow = true; base.add(rBol);
+    // Cushion stitch line (decorative center seam)
+    const stitchGeo = new THREE.BoxGeometry(0.005, 0.003, 0.26);
+    const stitch = new THREE.Mesh(stitchGeo, stitchMat);
+    stitch.position.set(0, 0.08, 0.01);
+    base.add(stitch);
 
+    // Cushion bolsters (rounded cylinders)
+    const bolGeo = new THREE.CylinderGeometry(0.025, 0.028, 0.28, 12);
+    const lBol = new THREE.Mesh(bolGeo, bolsterMat());
+    lBol.rotation.x = Math.PI/2;
+    lBol.position.set(-0.16, 0.075, 0.01); lBol.castShadow = true; base.add(lBol);
+    const rBol = new THREE.Mesh(bolGeo, bolsterMat());
+    rBol.rotation.x = Math.PI/2;
+    rBol.position.set(0.16, 0.075, 0.01); rBol.castShadow = true; base.add(rBol);
+
+    // Backrest pivot
     const pivot = new THREE.Group();
-    pivot.position.set(0, 0.11, -0.16);
+    pivot.position.set(0, 0.08, -0.12);
     base.add(pivot);
 
-    const backrest = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.48, 0.06), seatMat());
-    backrest.position.set(0, 0.24, -0.01); backrest.castShadow = true;
+    // Backrest (rounded)
+    const backGeo = roundedBoxGeo(0.28, 0.40, 0.045, 0.025);
+    const backrest = new THREE.Mesh(backGeo, leatherMat());
+    backrest.position.set(0, 0.22, -0.01);
+    backrest.castShadow = true;
     pivot.add(backrest);
 
-    const bbGeo = new THREE.BoxGeometry(0.05, 0.44, 0.05);
-    const lBB = new THREE.Mesh(bbGeo, bolMat()); lBB.position.set(-0.20, 0.24, 0.01); pivot.add(lBB);
-    const rBB = new THREE.Mesh(bbGeo, bolMat()); rBB.position.set(0.20, 0.24, 0.01); pivot.add(rBB);
+    // Backrest stitch
+    const bStitch = new THREE.Mesh(new THREE.BoxGeometry(0.005, 0.34, 0.003), stitchMat);
+    bStitch.position.set(0, 0.22, 0.015); pivot.add(bStitch);
 
-    const headrest = new THREE.Mesh(new THREE.BoxGeometry(0.19, 0.14, 0.05), seatMat());
-    headrest.position.set(0, 0.54, -0.01); headrest.castShadow = true;
-    pivot.add(headrest);
+    // Backrest bolsters (cylinders)
+    const bbGeo = new THREE.CylinderGeometry(0.022, 0.025, 0.36, 12);
+    const lBB = new THREE.Mesh(bbGeo, bolsterMat()); lBB.position.set(-0.155, 0.22, 0.005); lBB.castShadow = true; pivot.add(lBB);
+    const rBB = new THREE.Mesh(bbGeo, bolsterMat()); rBB.position.set(0.155, 0.22, 0.005); rBB.castShadow = true; pivot.add(rBB);
+
+    // Headrest (pill shape: cylinder + 2 half spheres)
+    const hrGroup = new THREE.Group();
+    hrGroup.position.set(0, 0.48, -0.01);
+    const hrBody = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.06, 16), leatherMat());
+    hrBody.rotation.z = Math.PI/2;
+    hrGroup.add(hrBody);
+    const hrCapGeo = new THREE.SphereGeometry(0.04, 16, 8, 0, Math.PI*2, 0, Math.PI/2);
+    const hrCapL = new THREE.Mesh(hrCapGeo, leatherMat());
+    hrCapL.rotation.z = Math.PI/2; hrCapL.position.set(-0.03, 0, 0);
+    hrGroup.add(hrCapL);
+    const hrCapR = new THREE.Mesh(hrCapGeo, leatherMat());
+    hrCapR.rotation.z = -Math.PI/2; hrCapR.position.set(0.03, 0, 0);
+    hrGroup.add(hrCapR);
+    // Headrest posts
+    const postGeo = new THREE.CylinderGeometry(0.006, 0.006, 0.06, 6);
+    const postL = new THREE.Mesh(postGeo, frameMat); postL.position.set(-0.03, -0.06, 0); hrGroup.add(postL);
+    const postR = new THREE.Mesh(postGeo, frameMat); postR.position.set(0.03, -0.06, 0); hrGroup.add(postR);
+    hrGroup.castShadow = true;
+    pivot.add(hrGroup);
+    const headrest = hrGroup;
 
     pivot.rotation.x = -THREE.MathUtils.degToRad(18);
 
-    const indGeo = new THREE.SphereGeometry(0.018, 8, 8);
-    const indColor = isOccupied ? (seats[seatId].type === 'child' ? 0xc49a5b : 0x5ca06e) : 0xaeaeb2;
+    // Occupancy indicator (subtle dot)
+    const indGeo = new THREE.SphereGeometry(0.012, 12, 12);
+    const indColor = isOccupied ? (seats[seatId].type === 'child' ? 0xc49a5b : 0x5ca06e) : 0xc7c7cc;
     const indicator = new THREE.Mesh(indGeo, new THREE.MeshBasicMaterial({ color: indColor }));
-    indicator.position.set(0, 0.78, 0);
+    indicator.position.set(0, 0.70, 0);
     root.add(indicator);
 
-    return { root, base, pivot, cushion, backrest, headrest, lBol, rBol, lBB, rBB, indicator, allMeshes: [cushion, backrest, headrest, lBol, rBol, lBB, rBB] };
-}
-
-function makeLabelSprite(text) {
-    const canvas = document.createElement('canvas');
-    canvas.width = 256; canvas.height = 64;
-    const ctx = canvas.getContext('2d');
-    ctx.fillStyle = 'rgba(255,255,255,0.8)';
-    ctx.roundRect(0, 0, 256, 64, 10); ctx.fill();
-    ctx.strokeStyle = 'rgba(0,0,0,0.06)'; ctx.lineWidth = 2; ctx.stroke();
-    ctx.fillStyle = '#48484a'; ctx.font = '500 26px Inter, sans-serif';
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(text, 128, 32);
-    const tex = new THREE.CanvasTexture(canvas);
-    tex.minFilter = THREE.LinearFilter;
-    const mat = new THREE.SpriteMaterial({ map: tex, transparent: true });
-    return new THREE.Sprite(mat);
+    return { root, base, pivot, cushion, backrest: backrest, headrest, lBol, rBol, lBB, rBB, indicator, allMeshes: [cushion, backrest, hrBody, hrCapL, hrCapR, lBol, rBol, lBB, rBB] };
 }
 
 function highlightSeat(seatId) {
     for (const [id, obj] of Object.entries(seatObjs)) {
-        const isOcc = seats[id].occupied;
-        const color = isOcc ? 0x48484a : 0x8e8e93;
-        const bolColor = isOcc ? 0x5a5a5e : 0x9a9aa0;
-        obj.cushion.material.color.setHex(color);
-        obj.backrest.material.color.setHex(color);
-        obj.headrest.material.color.setHex(color);
-        obj.lBol.material.color.setHex(bolColor);
-        obj.rBol.material.color.setHex(bolColor);
-        obj.lBB.material.color.setHex(bolColor);
-        obj.rBB.material.color.setHex(bolColor);
         obj.allMeshes.forEach(m => { m.material.emissive = new THREE.Color(0); m.material.emissiveIntensity = 0; });
     }
     const sel = seatObjs[seatId];
     if (sel) {
         sel.allMeshes.forEach(m => {
             m.material.emissive = new THREE.Color(0x5856D6);
-            m.material.emissiveIntensity = 0.1;
+            m.material.emissiveIntensity = 0.12;
         });
     }
 }
@@ -666,11 +731,11 @@ function setupPressureOverlays(seatId) {
     pressTexCushion = new THREE.CanvasTexture(pressCanvasCushion);
     pressTexCushion.minFilter = THREE.LinearFilter;
     pressOverlayCushion = new THREE.Mesh(
-        new THREE.PlaneGeometry(0.36, 0.36),
+        new THREE.PlaneGeometry(0.28, 0.28),
         new THREE.MeshBasicMaterial({ map: pressTexCushion, transparent: true, opacity: 0.8, depthWrite: false, side: THREE.DoubleSide })
     );
     pressOverlayCushion.rotation.x = -Math.PI/2;
-    pressOverlayCushion.position.set(0, 0.115, 0);
+    pressOverlayCushion.position.set(0, 0.085, 0.01);
     obj.base.add(pressOverlayCushion);
 
     pressCanvasBack = document.createElement('canvas');
@@ -679,10 +744,10 @@ function setupPressureOverlays(seatId) {
     pressTexBack = new THREE.CanvasTexture(pressCanvasBack);
     pressTexBack.minFilter = THREE.LinearFilter;
     pressOverlayBack = new THREE.Mesh(
-        new THREE.PlaneGeometry(0.34, 0.44),
+        new THREE.PlaneGeometry(0.26, 0.36),
         new THREE.MeshBasicMaterial({ map: pressTexBack, transparent: true, opacity: 0.7, depthWrite: false, side: THREE.DoubleSide })
     );
-    pressOverlayBack.position.set(0, 0.24, 0.02);
+    pressOverlayBack.position.set(0, 0.22, 0.02);
     obj.pivot.add(pressOverlayBack);
 }
 
@@ -834,10 +899,10 @@ function updateSeatColor() {
 function updateSeatPositionVisuals() {
     const obj = seatObjs[currentSeat];
     if (!obj) return;
-    obj.root.position.z = seatLayout[currentSeat].z + seatPos.fa/100*0.1;
-    obj.base.position.y = seatPos.h/100*0.04;
+    obj.root.position.z = seatLayout[currentSeat].z + seatPos.fa/100*0.08;
+    obj.base.position.y = seatPos.h/100*0.03;
     if (obj.pivot) obj.pivot.rotation.x = -THREE.MathUtils.degToRad(seatPos.r);
-    if (obj.headrest) obj.headrest.position.y = 0.54 + seatPos.hr/100*0.07;
+    if (obj.headrest) obj.headrest.position.y = 0.48 + seatPos.hr/100*0.06;
 }
 
 function updateMassageVisuals(time) {
