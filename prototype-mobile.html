@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+    <meta name="theme-color" content="#0a0e17">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>KETI Smart Seat — Mobile App Prototype</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="icon" href="favicon.ico">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        *{margin:0;padding:0;box-sizing:border-box;}
+        body{font-family:'Inter',-apple-system,sans-serif;background:#0a0e17;color:#e2e8f0;overflow:hidden;-webkit-font-smoothing:antialiased;max-width:430px;margin:0 auto;position:relative;}
+        :root{
+            --bg:#0a0e17;--bg2:#111827;--bg3:#1e293b;--bg4:#334155;
+            --border:rgba(255,255,255,0.06);--border2:rgba(255,255,255,0.1);
+            --text:#f1f5f9;--text2:#94a3b8;--text3:#64748b;
+            --accent:#3b82f6;--accent2:#06b6d4;--green:#22c55e;--red:#ef4444;
+            --orange:#f59e0b;--purple:#8b5cf6;--pink:#ec4899;
+        }
+
+        /* ===== LOGIN ===== */
+        .login-view{position:fixed;inset:0;background:var(--bg);z-index:100;display:flex;align-items:center;justify-content:center;padding:20px;}
+        .login-view.hidden{display:none;}
+        .login-card{width:100%;max-width:360px;text-align:center;}
+        .login-card .logo{font-size:56px;margin-bottom:16px;color:var(--accent2);}
+        .login-card h1{font-size:24px;font-weight:700;margin-bottom:4px;}
+        .login-card .sub{font-size:13px;color:var(--text3);margin-bottom:32px;}
+        .login-input{width:100%;padding:14px 16px;border-radius:12px;border:1px solid var(--border2);background:var(--bg3);color:var(--text);font-size:16px;font-family:inherit;margin-bottom:12px;outline:none;}
+        .login-input:focus{border-color:var(--accent);}
+        .login-btn{width:100%;padding:14px;border-radius:12px;border:none;background:var(--accent);color:white;font-size:16px;font-weight:600;font-family:inherit;cursor:pointer;margin-top:8px;}
+        .login-btn:active{background:#2563eb;transform:scale(0.98);}
+        .login-error{color:var(--red);font-size:12px;margin-top:8px;min-height:18px;}
+
+        /* ===== APP SHELL ===== */
+        .app-view{position:fixed;inset:0;display:flex;flex-direction:column;display:none;}
+        .app-view.active{display:flex;}
+
+        /* Header */
+        .app-header{padding:env(safe-area-inset-top,12px) 16px 8px;background:var(--bg2);border-bottom:1px solid var(--border);}
+        .app-header-row{display:flex;align-items:center;justify-content:space-between;}
+        .app-header h1{font-size:18px;font-weight:700;display:flex;align-items:center;gap:6px;}
+        .app-header h1 i{color:var(--accent2);}
+        .app-header .status{font-size:11px;color:var(--green);display:flex;align-items:center;gap:4px;}
+        .app-header .status .dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 2s ease-in-out infinite;}
+        @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
+
+        /* Content area */
+        .app-content{flex:1;overflow-y:auto;padding:12px 16px 90px;-webkit-overflow-scrolling:touch;}
+
+        /* Tab bar */
+        .tab-bar{position:fixed;bottom:0;left:0;right:0;max-width:430px;margin:0 auto;background:var(--bg2);border-top:1px solid var(--border);display:flex;padding:6px 0 env(safe-area-inset-bottom,8px);z-index:50;}
+        .tab-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 0;cursor:pointer;color:var(--text3);transition:color .2s;-webkit-tap-highlight-color:transparent;}
+        .tab-item.active{color:var(--accent);}
+        .tab-item i{font-size:18px;}
+        .tab-item span{font-size:9px;font-weight:600;}
+        .tab-item .badge{position:absolute;top:-2px;right:calc(50% - 16px);background:var(--red);color:white;font-size:8px;font-weight:700;padding:1px 4px;border-radius:6px;min-width:14px;text-align:center;}
+
+        /* Pages */
+        .page{display:none;}
+        .page.active{display:block;}
+
+        /* ===== CARDS ===== */
+        .card{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:12px;}
+        .card-title{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;display:flex;align-items:center;gap:5px;}
+        .card-title i{font-size:10px;}
+
+        /* ===== STATUS PAGE ===== */
+        .seat-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+        .seat-card{background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:14px;text-align:center;cursor:pointer;transition:all .2s;}
+        .seat-card:active{transform:scale(0.97);}
+        .seat-card.occupied{border-color:rgba(34,197,94,.3);}
+        .seat-card.selected{border-color:var(--accent);background:rgba(59,130,246,.08);}
+        .seat-card .s-icon{font-size:24px;margin-bottom:6px;}
+        .seat-card .s-name{font-size:12px;font-weight:600;margin-bottom:3px;}
+        .seat-card .s-badge{font-size:9px;font-weight:600;padding:2px 8px;border-radius:6px;display:inline-block;}
+        .s-badge.occ{background:rgba(34,197,94,.12);color:var(--green);}
+        .s-badge.empty{background:rgba(100,116,139,.12);color:var(--text3);}
+        .s-badge.child{background:rgba(245,158,11,.12);color:var(--orange);}
+
+        /* Bio cards */
+        .bio-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;}
+        .bio-item{background:var(--bg3);border-radius:10px;padding:10px;text-align:center;border:1px solid var(--border);}
+        .bio-val{font-size:20px;font-weight:700;font-variant-numeric:tabular-nums;}
+        .bio-label{font-size:8px;color:var(--text3);margin-top:2px;text-transform:uppercase;letter-spacing:.3px;font-weight:500;}
+
+        /* State badge */
+        .state-badge{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:8px;font-size:11px;font-weight:600;}
+        .state-badge.normal{background:rgba(34,197,94,.12);color:var(--green);}
+        .state-badge.drowsy{background:rgba(239,68,68,.12);color:var(--red);}
+        .state-badge.stressed{background:rgba(245,158,11,.12);color:var(--orange);}
+        .state-badge.fatigued{background:rgba(139,92,246,.12);color:var(--purple);}
+
+        /* Progress bar */
+        .prog-bar{height:6px;background:var(--bg4);border-radius:3px;overflow:hidden;margin:4px 0;}
+        .prog-fill{height:100%;border-radius:3px;transition:width .3s;}
+        .prog-labels{display:flex;justify-content:space-between;font-size:8px;color:var(--text3);}
+
+        /* Waveform */
+        .wave-box{background:var(--bg3);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-top:8px;}
+        .wave-box canvas{width:100%;height:44px;display:block;}
+
+        /* ===== REMOTE PAGE ===== */
+        .remote-btn{display:flex;align-items:center;gap:12px;width:100%;padding:14px;border-radius:12px;border:1px solid var(--border2);background:transparent;color:var(--text);font-family:inherit;cursor:pointer;text-align:left;transition:all .2s;margin-bottom:8px;}
+        .remote-btn:active{transform:scale(0.97);background:var(--bg3);}
+        .remote-btn.primary{border-color:rgba(59,130,246,.3);background:rgba(59,130,246,.05);}
+        .remote-btn i{font-size:18px;width:24px;text-align:center;}
+        .remote-btn .rb-title{font-size:13px;font-weight:500;}
+        .remote-btn .rb-desc{font-size:10px;color:var(--text3);margin-top:1px;}
+
+        /* Level selector */
+        .lvl-row{display:flex;gap:4px;margin-top:8px;}
+        .lvl-btn{flex:1;padding:10px;border-radius:10px;border:1px solid var(--border2);background:transparent;color:var(--text3);font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;text-align:center;transition:all .2s;}
+        .lvl-btn:active{transform:scale(0.95);}
+        .lvl-btn.active.heat{background:#ef4444;border-color:#ef4444;color:white;}
+        .lvl-btn.active.cool{background:#3b82f6;border-color:#3b82f6;color:white;}
+        .lvl-btn.active.mass{background:#8b5cf6;border-color:#8b5cf6;color:white;}
+        .lvl-btn.active.neutral{background:var(--accent2);border-color:var(--accent2);color:white;}
+
+        /* ===== PRESETS PAGE ===== */
+        .preset-item{display:flex;align-items:center;justify-content:space-between;padding:14px;border-radius:12px;background:var(--bg3);border:1px solid var(--border);margin-bottom:8px;cursor:pointer;transition:all .2s;}
+        .preset-item:active{transform:scale(0.97);}
+        .preset-name{font-size:13px;font-weight:500;}
+        .preset-meta{font-size:10px;color:var(--text3);margin-top:2px;}
+        .preset-fav{color:var(--orange);font-size:10px;margin-right:4px;}
+        .preset-actions{display:flex;gap:6px;}
+        .preset-action-btn{padding:6px 12px;border-radius:8px;border:1px solid var(--border2);background:transparent;color:var(--text3);font-size:11px;font-weight:500;font-family:inherit;cursor:pointer;}
+        .preset-action-btn.apply{color:var(--accent);border-color:rgba(59,130,246,.3);}
+        .preset-action-btn:active{transform:scale(0.95);}
+
+        /* ===== SETTINGS PAGE ===== */
+        .setting-item{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border);}
+        .setting-item:last-child{border-bottom:none;}
+        .setting-label{font-size:13px;font-weight:500;}
+        .setting-desc{font-size:10px;color:var(--text3);margin-top:1px;}
+        .toggle-switch{width:44px;height:24px;border-radius:12px;background:var(--bg4);cursor:pointer;position:relative;transition:background .2s;flex-shrink:0;}
+        .toggle-switch::after{content:'';position:absolute;width:20px;height:20px;border-radius:50%;background:white;top:2px;left:2px;transition:transform .2s;}
+        .toggle-switch.on{background:var(--green);}
+        .toggle-switch.on::after{transform:translateX(20px);}
+
+        /* ===== TOAST ===== */
+        .toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:10px 20px;font-size:13px;font-weight:500;z-index:200;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap;}
+        .toast.show{opacity:1;}
+
+        /* ===== SCROLLBAR ===== */
+        ::-webkit-scrollbar{width:0;height:0;}
+    </style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div class="login-view" id="loginView">
+    <div class="login-card">
+        <div class="logo"><i class="fas fa-car-side"></i></div>
+        <h1>Smart Seat</h1>
+        <div class="sub">KETI Monitoring & Control v2.0</div>
+        <input class="login-input" type="email" id="loginEmail" placeholder="demo@keti.re.kr" value="demo@keti.re.kr">
+        <input class="login-input" type="password" id="loginPass" placeholder="demo1234" value="demo1234">
+        <button class="login-btn" onclick="doLogin()">Sign In</button>
+        <div class="login-error" id="loginError"></div>
+    </div>
+</div>
+
+<!-- APP -->
+<div class="app-view" id="appView">
+    <!-- Header -->
+    <div class="app-header">
+        <div class="app-header-row">
+            <h1><i class="fas fa-car-side"></i> Smart Seat</h1>
+            <div class="status"><div class="dot"></div>Connected</div>
+        </div>
+    </div>
+
+    <!-- Content -->
+    <div class="app-content">
+        <!-- STATUS PAGE -->
+        <div class="page active" id="page-status">
+            <!-- 4-Seat Overview -->
+            <div class="card">
+                <div class="card-title"><i class="fas fa-chair"></i> Seat Overview (APP-04)</div>
+                <div class="seat-grid" id="seatGrid">
+                    <div class="seat-card occupied selected" data-seat="driver" onclick="mSelectSeat('driver',this)">
+                        <div class="s-icon"><i class="fas fa-user-tie" style="color:var(--accent);"></i></div>
+                        <div class="s-name">Driver</div>
+                        <div class="s-badge occ">Occupied</div>
+                    </div>
+                    <div class="seat-card occupied" data-seat="passenger" onclick="mSelectSeat('passenger',this)">
+                        <div class="s-icon"><i class="fas fa-user" style="color:var(--green);"></i></div>
+                        <div class="s-name">Passenger</div>
+                        <div class="s-badge occ">Occupied</div>
+                    </div>
+                    <div class="seat-card" data-seat="rear_left" onclick="mSelectSeat('rear_left',this)">
+                        <div class="s-icon"><i class="fas fa-user" style="color:var(--text3);"></i></div>
+                        <div class="s-name">Rear Left</div>
+                        <div class="s-badge empty">Empty</div>
+                    </div>
+                    <div class="seat-card occupied" data-seat="rear_right" onclick="mSelectSeat('rear_right',this)">
+                        <div class="s-icon"><i class="fas fa-child" style="color:var(--orange);"></i></div>
+                        <div class="s-name">Rear Right</div>
+                        <div class="s-badge child">Child</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Driver Biometrics -->
+            <div class="card" id="bioCard">
+                <div class="card-title"><i class="fas fa-heart-pulse" style="color:var(--red);"></i> Driver Biometrics (MON-05/06)</div>
+                <div class="bio-grid">
+                    <div class="bio-item"><div class="bio-val" style="color:var(--red);" id="mHR">72</div><div class="bio-label">BPM</div></div>
+                    <div class="bio-item"><div class="bio-val" style="color:var(--accent2);" id="mRR">16</div><div class="bio-label">RPM</div></div>
+                    <div class="bio-item"><div class="bio-val" id="mPosture">82</div><div class="bio-label">Posture</div></div>
+                </div>
+                <div class="wave-box"><canvas id="mHRWave" width="400" height="44"></canvas></div>
+            </div>
+
+            <!-- Driver State -->
+            <div class="card">
+                <div class="card-title"><i class="fas fa-brain" style="color:var(--purple);"></i> Driver State (MON-07)</div>
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+                    <div class="state-badge normal" id="mStateBadge"><i class="fas fa-check-circle"></i> Normal</div>
+                    <span style="font-size:10px;color:var(--text3);">Confidence: <span id="mConf">94%</span></span>
+                </div>
+                <div style="font-size:10px;color:var(--text3);margin-bottom:3px;">Drowsiness Risk</div>
+                <div class="prog-bar"><div class="prog-fill" id="mDrowsy" style="width:12%;background:var(--green);"></div></div>
+                <div style="font-size:10px;color:var(--text3);margin-top:8px;margin-bottom:3px;">Stress Level</div>
+                <div class="prog-bar"><div class="prog-fill" id="mStress" style="width:25%;background:var(--green);"></div></div>
+            </div>
+
+            <!-- Asymmetry -->
+            <div class="card">
+                <div class="card-title"><i class="fas fa-scale-balanced"></i> Asymmetry (MON-04)</div>
+                <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);"><span>Left</span><span id="mAsymVal">3.2%</span><span>Right</span></div>
+                <div class="prog-bar" style="height:8px;position:relative;">
+                    <div style="position:absolute;left:0;top:0;height:100%;background:var(--accent);border-radius:3px;transition:width .3s;" id="mAsymL"></div>
+                    <div style="position:absolute;right:0;top:0;height:100%;background:var(--accent2);border-radius:3px;transition:width .3s;" id="mAsymR"></div>
+                </div>
+            </div>
+
+            <!-- Seat State -->
+            <div class="card">
+                <div class="card-title"><i class="fas fa-thermometer-half"></i> Seat State</div>
+                <div class="bio-grid">
+                    <div class="bio-item"><div class="bio-val" style="color:var(--orange);" id="mHeatLvl">0</div><div class="bio-label">Heating</div></div>
+                    <div class="bio-item"><div class="bio-val" style="color:var(--accent);" id="mVentLvl">0</div><div class="bio-label">Ventilation</div></div>
+                    <div class="bio-item"><div class="bio-val" style="color:var(--purple);" id="mMassage">OFF</div><div class="bio-label">Massage</div></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- REMOTE PAGE -->
+        <div class="page" id="page-remote">
+            <div class="card">
+                <div class="card-title"><i class="fas fa-satellite-dish"></i> Quick Actions (APP-02)</div>
+                <button class="remote-btn primary" onclick="mQuickHeat()">
+                    <i class="fas fa-fire" style="color:var(--orange);"></i>
+                    <div><div class="rb-title">Pre-heat Seats</div><div class="rb-desc">Turn on heating level 2 for all seats</div></div>
+                </button>
+                <button class="remote-btn primary" onclick="mQuickCool()">
+                    <i class="fas fa-snowflake" style="color:var(--accent);"></i>
+                    <div><div class="rb-title">Pre-cool Seats</div><div class="rb-desc">Turn on ventilation level 2 for all seats</div></div>
+                </button>
+                <button class="remote-btn" onclick="mRemoteStart()">
+                    <i class="fas fa-car" style="color:var(--accent2);"></i>
+                    <div><div class="rb-title">Remote Start</div><div class="rb-desc">Start vehicle with current preset</div></div>
+                </button>
+            </div>
+
+            <!-- Heating Control -->
+            <div class="card">
+                <div class="card-title"><i class="fas fa-fire" style="color:var(--orange);"></i> ACT-01 Heating</div>
+                <div class="lvl-row">
+                    <button class="lvl-btn heat active" onclick="mSetHeat(0,this)">OFF</button>
+                    <button class="lvl-btn heat" onclick="mSetHeat(1,this)">1</button>
+                    <button class="lvl-btn heat" onclick="mSetHeat(2,this)">2</button>
+                    <button class="lvl-btn heat" onclick="mSetHeat(3,this)">3</button>
+                </div>
+            </div>
+
+            <!-- Ventilation Control -->
+            <div class="card">
+                <div class="card-title"><i class="fas fa-snowflake" style="color:var(--accent);"></i> ACT-02 Ventilation</div>
+                <div class="lvl-row">
+                    <button class="lvl-btn cool active" onclick="mSetVent(0,this)">OFF</button>
+                    <button class="lvl-btn cool" onclick="mSetVent(1,this)">1</button>
+                    <button class="lvl-btn cool" onclick="mSetVent(2,this)">2</button>
+                    <button class="lvl-btn cool" onclick="mSetVent(3,this)">3</button>
+                </div>
+            </div>
+
+            <!-- Massage -->
+            <div class="card">
+                <div class="card-title"><i class="fas fa-hand-sparkles" style="color:var(--purple);"></i> ACT-04 Massage</div>
+                <div class="lvl-row">
+                    <button class="lvl-btn mass" onclick="mSetMassage('off',this)">OFF</button>
+                    <button class="lvl-btn mass" onclick="mSetMassage('wave',this)">Wave</button>
+                    <button class="lvl-btn mass" onclick="mSetMassage('pulse',this)">Pulse</button>
+                    <button class="lvl-btn mass" onclick="mSetMassage('stretch',this)">Stretch</button>
+                </div>
+            </div>
+
+            <!-- Drive Mode -->
+            <div class="card">
+                <div class="card-title"><i class="fas fa-gauge-high"></i> ACT-05 Drive Mode</div>
+                <div class="lvl-row">
+                    <button class="lvl-btn neutral active" onclick="mSetMode('comfort',this)">Comfort</button>
+                    <button class="lvl-btn neutral" onclick="mSetMode('sport',this)">Sport</button>
+                    <button class="lvl-btn neutral" onclick="mSetMode('eco',this)">Eco</button>
+                    <button class="lvl-btn neutral" onclick="mSetMode('custom',this)">Custom</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- PRESETS PAGE -->
+        <div class="page" id="page-presets">
+            <div class="card">
+                <div class="card-title"><i class="fas fa-bookmark"></i> Presets (APP-03)</div>
+                <button class="remote-btn primary" onclick="mNewPreset()" style="margin-bottom:12px;">
+                    <i class="fas fa-plus"></i>
+                    <div><div class="rb-title">Create New Preset</div></div>
+                </button>
+                <div id="mPresetList"></div>
+            </div>
+            <div class="card">
+                <div class="card-title"><i class="fas fa-user-gear"></i> Profiles (APP-06)</div>
+                <div id="mProfileList"></div>
+            </div>
+            <div class="card">
+                <div class="card-title"><i class="fas fa-car"></i> Vehicle (APP-01)</div>
+                <div style="display:flex;align-items:center;gap:10px;padding:4px 0;">
+                    <i class="fas fa-link" style="color:var(--green);font-size:14px;"></i>
+                    <div><div style="font-size:12px;font-weight:500;">KETI Demo Vehicle</div><div style="font-size:10px;color:var(--text3);">VIN: KETI2024DEMO001</div></div>
+                    <div class="s-badge occ" style="margin-left:auto;">Paired</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SETTINGS PAGE -->
+        <div class="page" id="page-settings">
+            <div class="card">
+                <div class="card-title"><i class="fas fa-bell"></i> Notifications (APP-05)</div>
+                <div class="setting-item">
+                    <div><div class="setting-label">Push Alerts</div><div class="setting-desc">Drowsiness, posture, temperature warnings</div></div>
+                    <div class="toggle-switch on" onclick="this.classList.toggle('on')"></div>
+                </div>
+                <div class="setting-item">
+                    <div><div class="setting-label">Sound Alerts</div><div class="setting-desc">Audible notifications</div></div>
+                    <div class="toggle-switch" onclick="this.classList.toggle('on')"></div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title"><i class="fas fa-shield-halved"></i> Safety (ACT-06)</div>
+                <div class="setting-item">
+                    <div><div class="setting-label">Motion Lock</div><div class="setting-desc">Lock position controls while driving</div></div>
+                    <div class="toggle-switch on" onclick="this.classList.toggle('on')"></div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title"><i class="fas fa-user"></i> Account</div>
+                <div class="setting-item">
+                    <div><div class="setting-label" id="mEmail">demo@keti.re.kr</div><div class="setting-desc">Logged in</div></div>
+                </div>
+            </div>
+            <button class="remote-btn" onclick="mLogout()" style="justify-content:center;color:var(--red);border-color:rgba(239,68,68,.3);">
+                <i class="fas fa-right-from-bracket"></i><div class="rb-title">Sign Out</div>
+            </button>
+            <div style="text-align:center;padding:20px;font-size:10px;color:var(--text3);">KETI Smart Seat System v2.0<br>Prototype App</div>
+        </div>
+    </div>
+
+    <!-- Tab Bar -->
+    <div class="tab-bar">
+        <div class="tab-item active" data-tab="status" onclick="mSwitchTab('status',this)"><i class="fas fa-chart-pie"></i><span>Status</span></div>
+        <div class="tab-item" data-tab="remote" onclick="mSwitchTab('remote',this)"><i class="fas fa-satellite-dish"></i><span>Remote</span></div>
+        <div class="tab-item" data-tab="presets" onclick="mSwitchTab('presets',this)"><i class="fas fa-bookmark"></i><span>Presets</span></div>
+        <div class="tab-item" data-tab="settings" onclick="mSwitchTab('settings',this)"><i class="fas fa-gear"></i><span>Settings</span></div>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ==================== STATE ====================
+let currentSeat = 'driver';
+const seats = {
+    driver:     { occupied: true, type: 'adult', weight: 70 },
+    passenger:  { occupied: true, type: 'adult', weight: 65 },
+    rear_left:  { occupied: false, type: 'empty', weight: 0 },
+    rear_right: { occupied: true, type: 'child', weight: 25 }
+};
+const act = { heating: 0, ventilation: 0, massage: 'off', mode: 'comfort' };
+const bio = { hr: 72, rr: 16, posture: 82, asymmetry: 3.2, state: 'normal', drowsy: 12, stress: 25, conf: 94 };
+const hrData = [];
+const WLEN = 200;
+
+// Presets
+const presets = [
+    { id: 1, name: 'Morning Commute', fav: true, heat: 2, vent: 0 },
+    { id: 2, name: 'Sport Mode', fav: false, heat: 0, vent: 1 },
+    { id: 3, name: 'Relaxation', fav: true, heat: 1, vent: 0 },
+];
+const profiles = [
+    { id: 1, name: 'Commute Profile', mode: 'comfort' },
+    { id: 2, name: 'Sport Profile', mode: 'sport' },
+];
+
+// ==================== AUTH ====================
+function doLogin() {
+    const email = document.getElementById('loginEmail').value;
+    const pass = document.getElementById('loginPass').value;
+    if (email === 'demo@keti.re.kr' && pass === 'demo1234') {
+        document.getElementById('loginView').classList.add('hidden');
+        document.getElementById('appView').classList.add('active');
+        document.getElementById('mEmail').textContent = email;
+        mRenderPresets();
+        mRenderProfiles();
+        startSimulation();
+        showToast('Welcome!');
+    } else {
+        document.getElementById('loginError').textContent = 'Invalid credentials';
+    }
+}
+function mLogout() {
+    document.getElementById('loginView').classList.remove('hidden');
+    document.getElementById('appView').classList.remove('active');
+}
+
+// ==================== TABS ====================
+function mSwitchTab(tab, btn) {
+    document.querySelectorAll('.tab-item').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+    document.querySelectorAll('.page').forEach(p => p.classList.toggle('active', p.id === 'page-' + tab));
+}
+
+// ==================== SEAT SELECT ====================
+function mSelectSeat(seatId, el) {
+    currentSeat = seatId;
+    document.querySelectorAll('.seat-card').forEach(c => c.classList.remove('selected'));
+    el.classList.add('selected');
+}
+
+// ==================== REMOTE CONTROLS ====================
+function mSetHeat(level, btn) {
+    act.heating = level;
+    btn.parentElement.querySelectorAll('.lvl-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    showToast(`Heating: ${level === 0 ? 'OFF' : 'Level ' + level}`);
+}
+function mSetVent(level, btn) {
+    act.ventilation = level;
+    btn.parentElement.querySelectorAll('.lvl-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    showToast(`Ventilation: ${level === 0 ? 'OFF' : 'Level ' + level}`);
+}
+function mSetMassage(prog, btn) {
+    act.massage = prog;
+    btn.parentElement.querySelectorAll('.lvl-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    showToast(`Massage: ${prog === 'off' ? 'OFF' : prog}`);
+}
+function mSetMode(mode, btn) {
+    act.mode = mode;
+    btn.parentElement.querySelectorAll('.lvl-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    showToast(`Mode: ${mode}`);
+}
+function mQuickHeat() { act.heating = 2; showToast('Pre-heating seats...'); }
+function mQuickCool() { act.ventilation = 2; showToast('Pre-cooling seats...'); }
+function mRemoteStart() { showToast('Remote start initiated'); }
+
+// ==================== PRESETS ====================
+function mRenderPresets() {
+    const el = document.getElementById('mPresetList');
+    el.innerHTML = presets.map(p => `
+        <div class="preset-item" onclick="mApplyPreset(${p.id})">
+            <div>
+                <div class="preset-name">${p.fav ? '<span class="preset-fav"><i class="fas fa-star"></i></span>' : ''}${p.name}</div>
+                <div class="preset-meta">Heat: ${p.heat} | Vent: ${p.vent}</div>
+            </div>
+            <div class="preset-actions">
+                <button class="preset-action-btn apply" onclick="event.stopPropagation();mApplyPreset(${p.id})">Apply</button>
+                <button class="preset-action-btn" onclick="event.stopPropagation();mDeletePreset(${p.id})"><i class="fas fa-trash" style="font-size:10px;"></i></button>
+            </div>
+        </div>`).join('');
+}
+function mRenderProfiles() {
+    const el = document.getElementById('mProfileList');
+    el.innerHTML = profiles.map(p => `
+        <div class="preset-item" onclick="showToast('Profile loaded: ${p.name}')">
+            <div>
+                <div class="preset-name"><i class="fas fa-user" style="color:var(--accent);margin-right:4px;font-size:10px;"></i>${p.name}</div>
+                <div class="preset-meta">${p.mode}</div>
+            </div>
+        </div>`).join('');
+}
+function mApplyPreset(id) {
+    const p = presets.find(x => x.id === id);
+    if (p) { act.heating = p.heat; act.ventilation = p.vent; showToast(`Applied: ${p.name}`); }
+}
+function mDeletePreset(id) {
+    const idx = presets.findIndex(p => p.id === id);
+    if (idx >= 0) { presets.splice(idx, 1); mRenderPresets(); showToast('Deleted'); }
+}
+function mNewPreset() {
+    const name = prompt('Preset name:');
+    if (!name) return;
+    presets.push({ id: Date.now(), name, fav: false, heat: act.heating, vent: act.ventilation });
+    mRenderPresets();
+    showToast('Preset saved');
+}
+
+// ==================== SIMULATION ====================
+let simTime = 0;
+function startSimulation() {
+    setInterval(() => {
+        simTime += 0.15;
+        simulateBio();
+        updateUI();
+    }, 150);
+}
+
+function simulateBio() {
+    bio.hr = 72 + Math.sin(simTime * 0.1) * 5 + Math.sin(simTime * 0.03) * 3 + (Math.random()-0.5) * 2;
+    bio.rr = 16 + Math.sin(simTime * 0.08) * 2 + (Math.random()-0.5) * 1;
+    bio.posture = 82 + Math.sin(simTime * 0.05) * 8 + (Math.random()-0.5) * 2;
+    bio.asymmetry = 3.2 + Math.sin(simTime * 0.07) * 2 + (Math.random()-0.5) * 0.5;
+    bio.drowsy = 12 + Math.sin(simTime * 0.02) * 10;
+    bio.stress = 25 + Math.sin(simTime * 0.03) * 15;
+    bio.drowsy = Math.max(0, Math.min(100, bio.drowsy));
+    bio.stress = Math.max(0, Math.min(100, bio.stress));
+
+    if (bio.drowsy > 60) bio.state = 'drowsy';
+    else if (bio.stress > 70) bio.state = 'stressed';
+    else bio.state = 'normal';
+
+    bio.conf = 94 - Math.abs(bio.drowsy - 50) * 0.1 + (Math.random()-0.5) * 3;
+    bio.conf = Math.max(70, Math.min(99, bio.conf));
+
+    // HR waveform
+    hrData.push(Math.sin(simTime * 5) * 0.3 + Math.sin(simTime * 10) * 0.5 * Math.exp(-((simTime * 5) % (Math.PI * 2) - 1) ** 2));
+    if (hrData.length > WLEN) hrData.shift();
+}
+
+function updateUI() {
+    // Bio
+    document.getElementById('mHR').textContent = Math.round(bio.hr);
+    document.getElementById('mRR').textContent = Math.round(bio.rr);
+    document.getElementById('mPosture').textContent = Math.round(bio.posture);
+    const ps = bio.posture;
+    document.getElementById('mPosture').style.color = ps > 70 ? 'var(--green)' : ps > 50 ? 'var(--orange)' : 'var(--red)';
+
+    // State
+    const badge = document.getElementById('mStateBadge');
+    const icons = { normal: 'fa-check-circle', drowsy: 'fa-moon', stressed: 'fa-bolt' };
+    badge.className = 'state-badge ' + bio.state;
+    badge.innerHTML = `<i class="fas ${icons[bio.state] || 'fa-check-circle'}"></i> ${bio.state.charAt(0).toUpperCase() + bio.state.slice(1)}`;
+    document.getElementById('mConf').textContent = Math.round(bio.conf) + '%';
+
+    const drowsy = document.getElementById('mDrowsy');
+    drowsy.style.width = bio.drowsy + '%';
+    drowsy.style.background = bio.drowsy > 60 ? 'var(--red)' : bio.drowsy > 30 ? 'var(--orange)' : 'var(--green)';
+
+    const stress = document.getElementById('mStress');
+    stress.style.width = bio.stress + '%';
+    stress.style.background = bio.stress > 70 ? 'var(--red)' : bio.stress > 40 ? 'var(--orange)' : 'var(--green)';
+
+    // Asymmetry
+    document.getElementById('mAsymVal').textContent = bio.asymmetry.toFixed(1) + '%';
+    document.getElementById('mAsymL').style.width = (50 - bio.asymmetry/2) + '%';
+    document.getElementById('mAsymR').style.width = (50 - bio.asymmetry/2) + '%';
+
+    // Seat state
+    document.getElementById('mHeatLvl').textContent = act.heating || '0';
+    document.getElementById('mVentLvl').textContent = act.ventilation || '0';
+    document.getElementById('mMassage').textContent = act.massage === 'off' ? 'OFF' : act.massage;
+
+    // Waveform
+    drawMobileWave();
+}
+
+function drawMobileWave() {
+    const c = document.getElementById('mHRWave');
+    if (!c || !hrData.length) return;
+    const ctx = c.getContext('2d');
+    const W = c.width, H = c.height;
+    ctx.clearRect(0, 0, W, H);
+    ctx.beginPath(); ctx.moveTo(0, H/2); ctx.lineTo(W, H/2);
+    ctx.strokeStyle = 'rgba(255,255,255,0.05)'; ctx.lineWidth = 1; ctx.stroke();
+    ctx.beginPath(); ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 1.5; ctx.globalAlpha = 0.8;
+    for (let i = 0; i < hrData.length; i++) {
+        const x = (i / WLEN) * W;
+        const y = H/2 - hrData[i] * H * 0.35;
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke(); ctx.globalAlpha = 1;
+}
+
+// ==================== TOAST ====================
+let toastTimer;
+function showToast(msg) {
+    const t = document.getElementById('toast'); t.textContent = msg;
+    t.classList.add('show'); clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 2000);
+}
+</script>
+</body>
+</html>

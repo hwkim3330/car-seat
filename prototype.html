@@ -1,0 +1,1305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KETI Smart Seat System v2.0 — App Prototype</title>
+    <script src="libs/three.min.js"></script>
+    <script src="libs/OrbitControls.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="icon" href="favicon.ico">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        *{margin:0;padding:0;box-sizing:border-box;}
+        body{font-family:'Inter',-apple-system,sans-serif;background:#0a0e17;color:#e2e8f0;overflow:hidden;-webkit-font-smoothing:antialiased;}
+        :root{
+            --bg:#0a0e17;--bg2:#111827;--bg3:#1e293b;--bg4:#334155;
+            --border:rgba(255,255,255,0.06);--border2:rgba(255,255,255,0.1);
+            --text:#f1f5f9;--text2:#94a3b8;--text3:#64748b;
+            --accent:#3b82f6;--accent2:#06b6d4;--green:#22c55e;--red:#ef4444;
+            --orange:#f59e0b;--purple:#8b5cf6;--pink:#ec4899;
+        }
+
+        /* ===== LOGIN ===== */
+        .login-overlay{position:fixed;inset:0;background:var(--bg);z-index:1000;display:flex;align-items:center;justify-content:center;}
+        .login-overlay.hidden{display:none;}
+        .login-card{background:var(--bg2);border:1px solid var(--border2);border-radius:20px;padding:40px;width:380px;text-align:center;}
+        .login-card .logo{font-size:48px;margin-bottom:16px;color:var(--accent2);}
+        .login-card h1{font-size:24px;font-weight:700;margin-bottom:4px;}
+        .login-card .sub{font-size:13px;color:var(--text3);margin-bottom:28px;}
+        .login-input{width:100%;padding:12px 16px;border-radius:10px;border:1px solid var(--border2);background:var(--bg3);color:var(--text);font-size:14px;font-family:inherit;margin-bottom:12px;outline:none;transition:border-color 0.2s;}
+        .login-input:focus{border-color:var(--accent);}
+        .login-btn{width:100%;padding:12px;border-radius:10px;border:none;background:var(--accent);color:white;font-size:15px;font-weight:600;font-family:inherit;cursor:pointer;transition:all 0.2s;margin-top:8px;}
+        .login-btn:hover{background:#2563eb;}
+        .login-error{color:var(--red);font-size:12px;margin-top:8px;min-height:18px;}
+
+        /* ===== APP LAYOUT ===== */
+        .app{display:flex;flex-direction:column;height:100vh;}
+        .header{height:48px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 20px;flex-shrink:0;z-index:20;}
+        .header-left{display:flex;align-items:center;gap:12px;}
+        .header-left img{height:24px;opacity:0.9;}
+        .header-left h1{font-size:14px;font-weight:600;letter-spacing:-0.3px;}
+        .header-left .ver{font-size:10px;color:var(--accent2);font-weight:600;background:rgba(6,182,212,0.15);padding:2px 6px;border-radius:4px;margin-left:6px;}
+        .header-center{display:flex;gap:8px;align-items:center;}
+        .status-pill{display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:100px;font-size:11px;font-weight:500;background:rgba(34,197,94,0.1);color:var(--green);}
+        .status-dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 2s ease-in-out infinite;}
+        @keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.5;transform:scale(.85);}}
+        .header-right{display:flex;align-items:center;gap:8px;}
+        .header-user{font-size:12px;color:var(--text2);display:flex;align-items:center;gap:6px;}
+        .header-user i{color:var(--accent2);}
+        .clock{font-size:11px;color:var(--text3);font-weight:500;font-variant-numeric:tabular-nums;}
+
+        /* Buttons */
+        .btn{padding:5px 12px;border-radius:8px;border:1px solid var(--border2);background:transparent;color:var(--text2);font-size:11px;font-weight:500;font-family:inherit;cursor:pointer;display:inline-flex;align-items:center;gap:4px;transition:all .2s;}
+        .btn:hover{background:var(--bg3);color:var(--text);}
+        .btn-primary{background:var(--accent);border-color:var(--accent);color:white;}
+        .btn-primary:hover{background:#2563eb;}
+        .btn-danger{color:var(--red);border-color:rgba(239,68,68,.3);}
+        .btn-danger:hover{background:rgba(239,68,68,.1);}
+        .btn i{font-size:10px;}
+
+        /* Content */
+        .content{flex:1;display:flex;overflow:hidden;}
+
+        /* ===== LEFT PANEL ===== */
+        .left-panel{width:300px;flex-shrink:0;background:var(--bg2);border-right:1px solid var(--border);overflow-y:auto;display:flex;flex-direction:column;}
+        .panel-section{padding:14px 14px 10px;}
+        .panel-section+.panel-section{border-top:1px solid var(--border);}
+        .section-title{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px;display:flex;align-items:center;gap:5px;}
+        .section-title i{font-size:9px;color:var(--text3);}
+
+        /* Seat selector */
+        .seat-selector{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-bottom:10px;}
+        .seat-sel-btn{padding:6px 4px;border-radius:6px;border:1px solid var(--border2);background:transparent;color:var(--text3);font-size:10px;font-weight:500;cursor:pointer;text-align:center;transition:all .2s;font-family:inherit;}
+        .seat-sel-btn:hover{background:var(--bg3);}
+        .seat-sel-btn.active{background:var(--accent);border-color:var(--accent);color:white;}
+        .seat-sel-btn .occ-dot{display:block;width:6px;height:6px;border-radius:50%;margin:0 auto 3px;background:var(--text3);}
+        .seat-sel-btn.occupied .occ-dot{background:var(--green);}
+
+        /* Level controls */
+        .level-control{display:flex;align-items:center;gap:6px;margin-bottom:10px;}
+        .level-label{font-size:12px;font-weight:500;width:70px;color:var(--text2);}
+        .level-btns{display:flex;gap:3px;flex:1;}
+        .level-btn{flex:1;padding:6px;border-radius:6px;border:1px solid var(--border2);background:transparent;color:var(--text3);font-size:11px;font-weight:500;cursor:pointer;text-align:center;transition:all .2s;font-family:inherit;}
+        .level-btn:hover{background:var(--bg3);}
+        .level-btn.active{color:white;}
+        .level-btn.active.heat{background:#ef4444;border-color:#ef4444;}
+        .level-btn.active.cool{background:#3b82f6;border-color:#3b82f6;}
+        .level-btn.active.neutral{background:var(--accent2);border-color:var(--accent2);}
+
+        /* Massage programs */
+        .massage-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:4px;}
+        .massage-btn{padding:8px;border-radius:8px;border:1px solid var(--border2);background:transparent;color:var(--text3);font-size:11px;font-weight:500;cursor:pointer;text-align:center;transition:all .2s;font-family:inherit;}
+        .massage-btn:hover{background:var(--bg3);}
+        .massage-btn.active{background:var(--purple);border-color:var(--purple);color:white;}
+        .massage-btn i{display:block;font-size:14px;margin-bottom:3px;}
+
+        /* Pneumatic sliders */
+        .pneumatic-ch{display:flex;align-items:center;gap:6px;margin-bottom:6px;}
+        .pneumatic-ch label{font-size:11px;width:72px;color:var(--text3);}
+        .pneumatic-ch input[type=range]{flex:1;height:4px;-webkit-appearance:none;appearance:none;background:var(--bg4);border-radius:2px;outline:none;cursor:pointer;}
+        .pneumatic-ch input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--accent2);cursor:pointer;}
+        .pneumatic-ch .pn-val{font-size:11px;font-weight:600;width:24px;text-align:right;font-variant-numeric:tabular-nums;color:var(--accent2);}
+
+        /* Drive mode */
+        .drive-modes{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;}
+        .drive-btn{padding:8px 4px;border-radius:8px;border:1px solid var(--border2);background:transparent;color:var(--text3);font-size:10px;font-weight:500;cursor:pointer;text-align:center;transition:all .2s;font-family:inherit;}
+        .drive-btn:hover{background:var(--bg3);}
+        .drive-btn.active{background:var(--accent);border-color:var(--accent);color:white;}
+        .drive-btn i{display:block;font-size:14px;margin-bottom:3px;}
+
+        /* Position sliders */
+        .pos-ctrl{margin-bottom:10px;}
+        .pos-ctrl-label{display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin-bottom:4px;}
+        .pos-ctrl-label span:last-child{font-weight:600;color:var(--text2);font-variant-numeric:tabular-nums;}
+        .pos-ctrl input[type=range]{width:100%;height:4px;-webkit-appearance:none;appearance:none;background:var(--bg4);border-radius:2px;outline:none;cursor:pointer;}
+        .pos-ctrl input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--accent);cursor:pointer;}
+        .pos-ctrl input[type=range]:disabled{opacity:.3;cursor:not-allowed;}
+
+        /* Simulation */
+        .sim-bar{display:flex;align-items:center;gap:6px;padding:8px 10px;background:var(--bg3);border-radius:8px;margin-bottom:10px;}
+        .sim-dot{width:7px;height:7px;border-radius:50%;}
+        .sim-dot.on{background:var(--green);animation:pulse 1.5s ease-in-out infinite;}
+        .sim-dot.off{background:var(--orange);}
+        .sim-label{flex:1;font-size:11px;font-weight:500;color:var(--text2);}
+
+        /* Safety banner */
+        .safety-banner{display:none;padding:8px 10px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2);border-radius:8px;margin-bottom:10px;font-size:11px;color:var(--red);display:none;align-items:center;gap:6px;}
+        .safety-banner.show{display:flex;}
+        .safety-banner i{font-size:12px;}
+
+        /* ===== CENTER ===== */
+        .canvas-area{flex:1;position:relative;background:var(--bg);}
+        #canvas3d{width:100%;height:100%;display:block;}
+
+        /* Multi-seat overlay */
+        .multi-seat-bar{position:absolute;top:12px;left:50%;transform:translateX(-50%);display:flex;gap:8px;z-index:10;}
+        .mini-seat{background:rgba(17,24,39,.85);backdrop-filter:blur(10px);border:1px solid var(--border2);border-radius:12px;padding:10px 14px;min-width:120px;text-align:center;cursor:pointer;transition:all .2s;}
+        .mini-seat:hover{border-color:var(--accent);}
+        .mini-seat.active{border-color:var(--accent);background:rgba(59,130,246,.1);}
+        .mini-seat .ms-icon{font-size:18px;margin-bottom:4px;}
+        .mini-seat .ms-name{font-size:10px;font-weight:600;color:var(--text2);margin-bottom:2px;}
+        .mini-seat .ms-state{font-size:9px;font-weight:600;padding:2px 6px;border-radius:4px;display:inline-block;}
+        .mini-seat .ms-state.occupied{background:rgba(34,197,94,.15);color:var(--green);}
+        .mini-seat .ms-state.empty{background:rgba(100,116,139,.15);color:var(--text3);}
+
+        /* Legend */
+        .legend{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);background:rgba(17,24,39,.85);backdrop-filter:blur(10px);border:1px solid var(--border2);border-radius:10px;padding:8px 14px;display:flex;align-items:center;gap:8px;z-index:10;}
+        .legend-title{font-size:10px;color:var(--text2);font-weight:600;white-space:nowrap;}
+        .legend canvas{border-radius:4px;}
+        .legend-labels{display:flex;justify-content:space-between;width:180px;font-size:8px;color:var(--text3);font-weight:500;}
+
+        /* ===== RIGHT PANEL ===== */
+        .right-panel{width:320px;flex-shrink:0;background:var(--bg2);border-left:1px solid var(--border);overflow-y:auto;display:flex;flex-direction:column;}
+
+        /* Stat cards */
+        .stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;}
+        .stat-card{background:var(--bg3);border-radius:10px;padding:12px;border:1px solid var(--border);}
+        .stat-card .value{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.5px;color:var(--text);}
+        .stat-card .label{font-size:9px;color:var(--text3);margin-top:2px;text-transform:uppercase;letter-spacing:.3px;font-weight:500;}
+        .stat-card.blue .value{color:var(--accent);}
+        .stat-card.green .value{color:var(--green);}
+        .stat-card.orange .value{color:var(--orange);}
+        .stat-card.red .value{color:var(--red);}
+        .stat-card.cyan .value{color:var(--accent2);}
+        .stat-card.purple .value{color:var(--purple);}
+
+        /* Monitoring badges */
+        .mon-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:600;}
+        .mon-badge.normal{background:rgba(34,197,94,.12);color:var(--green);}
+        .mon-badge.drowsy{background:rgba(239,68,68,.12);color:var(--red);}
+        .mon-badge.stressed{background:rgba(245,158,11,.12);color:var(--orange);}
+        .mon-badge.fatigued{background:rgba(139,92,246,.12);color:var(--purple);}
+        .mon-badge.alert{background:rgba(245,158,11,.12);color:var(--orange);}
+
+        /* Waveform canvas */
+        .wave-canvas{width:100%;height:50px;border-radius:8px;background:var(--bg3);border:1px solid var(--border);}
+
+        /* Asymmetry bar */
+        .asym-bar{height:8px;background:var(--bg4);border-radius:4px;position:relative;overflow:hidden;margin:6px 0;}
+        .asym-fill-l{position:absolute;right:50%;top:0;height:100%;background:var(--accent);border-radius:4px 0 0 4px;transition:width .3s;}
+        .asym-fill-r{position:absolute;left:50%;top:0;height:100%;background:var(--accent2);border-radius:0 4px 4px 0;transition:width .3s;}
+        .asym-center{position:absolute;left:50%;top:-2px;width:2px;height:12px;background:var(--text3);transform:translateX(-50%);}
+        .asym-labels{display:flex;justify-content:space-between;font-size:9px;color:var(--text3);}
+
+        /* Posture gauge */
+        .posture-gauge{position:relative;width:100px;height:100px;margin:0 auto;}
+        .posture-gauge canvas{width:100%;height:100%;}
+        .posture-val{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+        .posture-num{font-size:24px;font-weight:700;font-variant-numeric:tabular-nums;}
+        .posture-unit{font-size:8px;color:var(--text3);font-weight:600;letter-spacing:.3px;}
+
+        /* Risk bar */
+        .risk-bar{height:6px;background:var(--bg4);border-radius:3px;overflow:hidden;margin:4px 0;}
+        .risk-fill{height:100%;border-radius:3px;transition:width .3s,background .3s;}
+        .risk-labels{display:flex;justify-content:space-between;font-size:8px;color:var(--text3);}
+
+        /* Alerts */
+        .alert-item{display:flex;gap:6px;padding:8px 10px;border-radius:8px;margin-bottom:4px;font-size:11px;background:var(--bg3);border:1px solid var(--border);}
+        .alert-item.warn{border-left:3px solid var(--orange);}
+        .alert-item.error{border-left:3px solid var(--red);}
+        .alert-item.info{border-left:3px solid var(--accent);}
+        .alert-time{color:var(--text3);font-size:9px;white-space:nowrap;font-weight:500;}
+        .alert-msg{color:var(--text2);line-height:1.4;}
+
+        /* Preset items */
+        .preset-item{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-radius:8px;background:var(--bg3);border:1px solid var(--border);margin-bottom:4px;cursor:pointer;transition:all .2s;}
+        .preset-item:hover{border-color:var(--accent);}
+        .preset-item.active{border-color:var(--accent);background:rgba(59,130,246,.08);}
+        .preset-name{font-size:12px;font-weight:500;}
+        .preset-meta{font-size:10px;color:var(--text3);margin-top:2px;}
+        .preset-fav{color:var(--orange);font-size:10px;margin-right:4px;}
+
+        /* Tabs within right panel */
+        .rpanel-tabs{display:flex;gap:0;border-bottom:1px solid var(--border);padding:0 14px;}
+        .rpanel-tab{padding:10px 12px;font-size:11px;font-weight:500;color:var(--text3);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;}
+        .rpanel-tab:hover{color:var(--text2);}
+        .rpanel-tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+        .rpanel-page{display:none;flex:1;overflow-y:auto;}
+        .rpanel-page.active{display:block;}
+
+        /* Toast */
+        .toast{position:fixed;bottom:20px;right:20px;background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:10px 18px;font-size:13px;font-weight:500;z-index:100;opacity:0;transform:translateY(10px);transition:all .3s;pointer-events:none;box-shadow:0 4px 20px rgba(0,0,0,.3);}
+        .toast.show{opacity:1;transform:translateY(0);}
+
+        /* Scrollbar */
+        ::-webkit-scrollbar{width:5px;}
+        ::-webkit-scrollbar-track{background:transparent;}
+        ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.08);border-radius:3px;}
+        ::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.15);}
+
+        /* Footer */
+        .footer-credit{padding:10px 14px;text-align:center;font-size:9px;color:var(--text3);border-top:1px solid var(--border);}
+
+        /* Classification icons */
+        .class-row{display:flex;gap:8px;margin-bottom:8px;}
+        .class-item{flex:1;text-align:center;padding:8px 4px;border-radius:8px;background:var(--bg3);border:1px solid var(--border);transition:all .2s;}
+        .class-item.active{border-color:var(--accent);background:rgba(59,130,246,.08);}
+        .class-item i{font-size:16px;display:block;margin-bottom:3px;}
+        .class-item span{font-size:9px;font-weight:500;color:var(--text3);}
+    </style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div class="login-overlay" id="loginOverlay">
+    <div class="login-card">
+        <div class="logo"><i class="fas fa-car-side"></i></div>
+        <h1>Smart Seat System</h1>
+        <div class="sub">KETI Monitoring & Control v2.0</div>
+        <input class="login-input" type="email" id="loginEmail" placeholder="demo@keti.re.kr" value="demo@keti.re.kr">
+        <input class="login-input" type="password" id="loginPass" placeholder="demo1234" value="demo1234">
+        <button class="login-btn" onclick="doLogin()">Sign In</button>
+        <div class="login-error" id="loginError"></div>
+    </div>
+</div>
+
+<!-- APP -->
+<div class="app" id="appView" style="display:none;">
+    <div class="header">
+        <div class="header-left">
+            <img src="keti.png" alt="KETI">
+            <h1>Smart Seat System<span class="ver">v2.0</span></h1>
+        </div>
+        <div class="header-center">
+            <div class="status-pill"><div class="status-dot"></div>System Online</div>
+            <div class="status-pill" style="background:rgba(6,182,212,.1);color:var(--accent2);"><div class="status-dot" style="background:var(--accent2);"></div>4 Seats</div>
+        </div>
+        <div class="header-right">
+            <span class="clock" id="clock">00:00:00</span>
+            <div class="header-user"><i class="fas fa-user-circle"></i><span id="userName">Demo User</span></div>
+            <button class="btn" onclick="exportData()"><i class="fas fa-download"></i> Export</button>
+            <button class="btn btn-danger" onclick="doLogout()"><i class="fas fa-right-from-bracket"></i></button>
+        </div>
+    </div>
+
+    <div class="content">
+        <!-- LEFT PANEL -->
+        <div class="left-panel">
+            <!-- Seat selector -->
+            <div class="panel-section">
+                <div class="section-title"><i class="fas fa-chair"></i> Seat Selection</div>
+                <div class="seat-selector" id="seatSelector">
+                    <button class="seat-sel-btn active occupied" data-seat="driver" onclick="selectSeat('driver',this)"><span class="occ-dot"></span>Driver</button>
+                    <button class="seat-sel-btn occupied" data-seat="passenger" onclick="selectSeat('passenger',this)"><span class="occ-dot"></span>Passenger</button>
+                    <button class="seat-sel-btn" data-seat="rear_left" onclick="selectSeat('rear_left',this)"><span class="occ-dot"></span>Rear L</button>
+                    <button class="seat-sel-btn occupied" data-seat="rear_right" onclick="selectSeat('rear_right',this)"><span class="occ-dot"></span>Rear R</button>
+                </div>
+            </div>
+
+            <!-- ACT-01: Heating -->
+            <div class="panel-section">
+                <div class="section-title"><i class="fas fa-fire"></i> ACT-01 Heating</div>
+                <div class="level-control">
+                    <span class="level-label">Level</span>
+                    <div class="level-btns">
+                        <button class="level-btn heat active" data-val="0" onclick="setHeating(0,this)">OFF</button>
+                        <button class="level-btn heat" data-val="1" onclick="setHeating(1,this)">1</button>
+                        <button class="level-btn heat" data-val="2" onclick="setHeating(2,this)">2</button>
+                        <button class="level-btn heat" data-val="3" onclick="setHeating(3,this)">3</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ACT-02: Ventilation -->
+            <div class="panel-section">
+                <div class="section-title"><i class="fas fa-snowflake"></i> ACT-02 Ventilation</div>
+                <div class="level-control">
+                    <span class="level-label">Level</span>
+                    <div class="level-btns">
+                        <button class="level-btn cool active" data-val="0" onclick="setVentilation(0,this)">OFF</button>
+                        <button class="level-btn cool" data-val="1" onclick="setVentilation(1,this)">1</button>
+                        <button class="level-btn cool" data-val="2" onclick="setVentilation(2,this)">2</button>
+                        <button class="level-btn cool" data-val="3" onclick="setVentilation(3,this)">3</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ACT-04: Massage -->
+            <div class="panel-section">
+                <div class="section-title"><i class="fas fa-hand-sparkles"></i> ACT-04 Massage</div>
+                <div class="massage-grid" id="massageGrid">
+                    <button class="massage-btn" onclick="setMassage('wave',this)"><i class="fas fa-water"></i>Wave</button>
+                    <button class="massage-btn" onclick="setMassage('pulse',this)"><i class="fas fa-heart-pulse"></i>Pulse</button>
+                    <button class="massage-btn" onclick="setMassage('stretch',this)"><i class="fas fa-expand"></i>Stretch</button>
+                    <button class="massage-btn" onclick="setMassage('pattern',this)"><i class="fas fa-bezier-curve"></i>Pattern</button>
+                </div>
+                <button class="btn" style="width:100%;justify-content:center;margin-top:6px;" onclick="stopMassage()"><i class="fas fa-stop"></i> Stop Massage</button>
+            </div>
+
+            <!-- ACT-03: Pneumatic 7ch -->
+            <div class="panel-section">
+                <div class="section-title"><i class="fas fa-wind"></i> ACT-03 Pneumatic (7ch)</div>
+                <div id="pneumaticControls">
+                    <div class="pneumatic-ch"><label>Lumbar L</label><input type="range" min="0" max="100" value="50" oninput="setPneumatic(0,this.value)"><span class="pn-val">50</span></div>
+                    <div class="pneumatic-ch"><label>Lumbar R</label><input type="range" min="0" max="100" value="50" oninput="setPneumatic(1,this.value)"><span class="pn-val">50</span></div>
+                    <div class="pneumatic-ch"><label>Bolster L</label><input type="range" min="0" max="100" value="30" oninput="setPneumatic(2,this.value)"><span class="pn-val">30</span></div>
+                    <div class="pneumatic-ch"><label>Bolster R</label><input type="range" min="0" max="100" value="30" oninput="setPneumatic(3,this.value)"><span class="pn-val">30</span></div>
+                    <div class="pneumatic-ch"><label>Cushion L</label><input type="range" min="0" max="100" value="40" oninput="setPneumatic(4,this.value)"><span class="pn-val">40</span></div>
+                    <div class="pneumatic-ch"><label>Cushion R</label><input type="range" min="0" max="100" value="40" oninput="setPneumatic(5,this.value)"><span class="pn-val">40</span></div>
+                    <div class="pneumatic-ch"><label>Thigh</label><input type="range" min="0" max="100" value="45" oninput="setPneumatic(6,this.value)"><span class="pn-val">45</span></div>
+                </div>
+            </div>
+
+            <!-- ACT-05: Drive Mode -->
+            <div class="panel-section">
+                <div class="section-title"><i class="fas fa-gauge-high"></i> ACT-05 Drive Mode</div>
+                <div class="drive-modes">
+                    <button class="drive-btn active" onclick="setDriveMode('comfort',this)"><i class="fas fa-couch"></i>Comfort</button>
+                    <button class="drive-btn" onclick="setDriveMode('sport',this)"><i class="fas fa-flag-checkered"></i>Sport</button>
+                    <button class="drive-btn" onclick="setDriveMode('eco',this)"><i class="fas fa-leaf"></i>Eco</button>
+                    <button class="drive-btn" onclick="setDriveMode('custom',this)"><i class="fas fa-sliders"></i>Custom</button>
+                </div>
+            </div>
+
+            <!-- ACT-06: Position + Safety -->
+            <div class="panel-section">
+                <div class="section-title"><i class="fas fa-arrows-alt"></i> Position / ACT-06 Safety</div>
+                <div class="safety-banner" id="safetyBanner"><i class="fas fa-triangle-exclamation"></i><span>Position locked — vehicle in motion (ACT-06)</span></div>
+                <div class="pos-ctrl">
+                    <div class="pos-ctrl-label"><span>Fore / Aft</span><span id="posFA">0 mm</span></div>
+                    <input type="range" min="-100" max="100" value="0" id="sliderFA" oninput="setPosition('fa',this.value)">
+                </div>
+                <div class="pos-ctrl">
+                    <div class="pos-ctrl-label"><span>Height</span><span id="posH">0 mm</span></div>
+                    <input type="range" min="-100" max="100" value="0" id="sliderH" oninput="setPosition('h',this.value)">
+                </div>
+                <div class="pos-ctrl">
+                    <div class="pos-ctrl-label"><span>Recline</span><span id="posR">18&deg;</span></div>
+                    <input type="range" min="5" max="50" value="18" id="sliderR" oninput="setPosition('r',this.value)">
+                </div>
+                <div class="pos-ctrl">
+                    <div class="pos-ctrl-label"><span>Headrest</span><span id="posHR">0 mm</span></div>
+                    <input type="range" min="0" max="100" value="0" id="sliderHR" oninput="setPosition('hr',this.value)">
+                </div>
+                <div class="preset-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:6px;">
+                    <button class="seat-sel-btn active" onclick="applyPosPreset('drive',this)">Drive</button>
+                    <button class="seat-sel-btn" onclick="applyPosPreset('sport',this)">Sport</button>
+                    <button class="seat-sel-btn" onclick="applyPosPreset('relax',this)">Relax</button>
+                    <button class="seat-sel-btn" onclick="applyPosPreset('entry',this)">Entry</button>
+                </div>
+            </div>
+
+            <!-- Simulation -->
+            <div class="panel-section">
+                <div class="section-title"><i class="fas fa-play-circle"></i> Simulation</div>
+                <div class="sim-bar">
+                    <div class="sim-dot on" id="simDot"></div>
+                    <span class="sim-label" id="simLabel">Running</span>
+                    <button class="btn" onclick="toggleSim()" id="simBtn" style="padding:3px 8px;"><i class="fas fa-pause"></i></button>
+                </div>
+                <div class="pos-ctrl">
+                    <div class="pos-ctrl-label"><span>Weight</span><span id="weightVal">70 kg</span></div>
+                    <input type="range" min="20" max="130" value="70" oninput="simState.weight=+this.value;document.getElementById('weightVal').textContent=this.value+' kg'">
+                </div>
+                <div class="pos-ctrl">
+                    <div class="pos-ctrl-label"><span>Vehicle Speed</span><span id="speedVal">0 km/h</span></div>
+                    <input type="range" min="0" max="200" value="0" id="speedSlider" oninput="setSpeed(+this.value)">
+                </div>
+            </div>
+
+            <div class="footer-credit">KETI — Korea Electronics Technology Institute</div>
+        </div>
+
+        <!-- CENTER: 3D Canvas -->
+        <div class="canvas-area">
+            <!-- Multi-seat bar -->
+            <div class="multi-seat-bar" id="multiSeatBar">
+                <div class="mini-seat active" data-seat="driver" onclick="selectSeatFromBar('driver',this)">
+                    <div class="ms-icon"><i class="fas fa-user-tie" style="color:var(--accent);"></i></div>
+                    <div class="ms-name">Driver</div>
+                    <div class="ms-state occupied">Occupied</div>
+                </div>
+                <div class="mini-seat" data-seat="passenger" onclick="selectSeatFromBar('passenger',this)">
+                    <div class="ms-icon"><i class="fas fa-user" style="color:var(--green);"></i></div>
+                    <div class="ms-name">Passenger</div>
+                    <div class="ms-state occupied">Occupied</div>
+                </div>
+                <div class="mini-seat" data-seat="rear_left" onclick="selectSeatFromBar('rear_left',this)">
+                    <div class="ms-icon"><i class="fas fa-user" style="color:var(--text3);"></i></div>
+                    <div class="ms-name">Rear Left</div>
+                    <div class="ms-state empty">Empty</div>
+                </div>
+                <div class="mini-seat" data-seat="rear_right" onclick="selectSeatFromBar('rear_right',this)">
+                    <div class="ms-icon"><i class="fas fa-child" style="color:var(--orange);"></i></div>
+                    <div class="ms-name">Rear Right</div>
+                    <div class="ms-state occupied">Child</div>
+                </div>
+            </div>
+            <div id="canvas3d"></div>
+            <div class="legend" id="legend">
+                <span class="legend-title">Pressure (kPa)</span>
+                <div>
+                    <canvas id="legendBar" width="180" height="10" style="border-radius:4px;"></canvas>
+                    <div class="legend-labels"><span>0</span><span>25</span><span>50</span><span>75</span><span>100</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT PANEL -->
+        <div class="right-panel">
+            <div class="rpanel-tabs">
+                <div class="rpanel-tab active" data-tab="monitor" onclick="switchRTab('monitor',this)">Monitoring</div>
+                <div class="rpanel-tab" data-tab="presets" onclick="switchRTab('presets',this)">Presets</div>
+                <div class="rpanel-tab" data-tab="alerts" onclick="switchRTab('alerts',this)">Alerts <span id="alertBadge" style="font-size:9px;background:var(--red);color:white;border-radius:8px;padding:1px 5px;margin-left:3px;display:none;">0</span></div>
+            </div>
+
+            <!-- Monitoring Tab -->
+            <div class="rpanel-page active" id="rtab-monitor">
+                <div class="panel-section">
+                    <!-- MON-01: Occupancy -->
+                    <div class="section-title"><i class="fas fa-user-check"></i> MON-01 Occupancy</div>
+                    <div class="stats-grid">
+                        <div class="stat-card green"><div class="value" id="monOccStatus">Occupied</div><div class="label">Status</div></div>
+                        <div class="stat-card blue"><div class="value" id="monWeight">70</div><div class="label">Weight (kg)</div></div>
+                    </div>
+                </div>
+
+                <div class="panel-section">
+                    <!-- MON-02: Classification -->
+                    <div class="section-title"><i class="fas fa-users"></i> MON-02 Classification</div>
+                    <div class="class-row" id="classRow">
+                        <div class="class-item active"><i class="fas fa-user-tie" style="color:var(--accent);"></i><span>Adult</span></div>
+                        <div class="class-item"><i class="fas fa-child" style="color:var(--orange);"></i><span>Child</span></div>
+                        <div class="class-item"><i class="fas fa-baby" style="color:var(--pink);"></i><span>Infant</span></div>
+                        <div class="class-item"><i class="fas fa-chair" style="color:var(--text3);"></i><span>Empty</span></div>
+                    </div>
+                </div>
+
+                <div class="panel-section">
+                    <!-- MON-03: Posture Score -->
+                    <div class="section-title"><i class="fas fa-person"></i> MON-03 Posture Score</div>
+                    <div style="display:flex;align-items:center;gap:16px;">
+                        <div class="posture-gauge">
+                            <canvas id="postureGauge" width="200" height="200"></canvas>
+                            <div class="posture-val">
+                                <div class="posture-num" id="postureScore">82</div>
+                                <div class="posture-unit">SCORE</div>
+                            </div>
+                        </div>
+                        <div style="flex:1;">
+                            <div style="font-size:11px;color:var(--text3);margin-bottom:4px;">Assessment</div>
+                            <div id="postureAssess" style="font-size:13px;font-weight:600;color:var(--green);">Good</div>
+                            <div style="font-size:10px;color:var(--text3);margin-top:8px;">Center of Gravity</div>
+                            <div id="postureCOG" style="font-size:12px;font-weight:500;">Centered</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel-section">
+                    <!-- MON-04: Asymmetry -->
+                    <div class="section-title"><i class="fas fa-scale-balanced"></i> MON-04 Asymmetry</div>
+                    <div class="asym-labels"><span>Left</span><span id="asymVal">3.2%</span><span>Right</span></div>
+                    <div class="asym-bar">
+                        <div class="asym-fill-l" id="asymL" style="width:48%;"></div>
+                        <div class="asym-fill-r" id="asymR" style="width:45%;"></div>
+                        <div class="asym-center"></div>
+                    </div>
+                </div>
+
+                <div class="panel-section">
+                    <!-- MON-05: Heart Rate -->
+                    <div class="section-title"><i class="fas fa-heart-pulse" style="color:var(--red);"></i> MON-05 Heart Rate</div>
+                    <div class="stats-grid">
+                        <div class="stat-card red"><div class="value" id="hrBPM">72</div><div class="label">BPM</div></div>
+                        <div class="stat-card"><div class="value" id="hrVar">Normal</div><div class="label">HRV Status</div></div>
+                    </div>
+                    <canvas class="wave-canvas" id="hrWave" width="280" height="50"></canvas>
+                </div>
+
+                <div class="panel-section">
+                    <!-- MON-06: Respiration -->
+                    <div class="section-title"><i class="fas fa-lungs" style="color:var(--accent2);"></i> MON-06 Respiration</div>
+                    <div class="stats-grid">
+                        <div class="stat-card cyan"><div class="value" id="rrRPM">16</div><div class="label">RPM</div></div>
+                        <div class="stat-card"><div class="value" id="rrStatus">Regular</div><div class="label">Pattern</div></div>
+                    </div>
+                    <canvas class="wave-canvas" id="rrWave" width="280" height="50"></canvas>
+                </div>
+
+                <div class="panel-section">
+                    <!-- MON-07: Driver State -->
+                    <div class="section-title"><i class="fas fa-brain" style="color:var(--purple);"></i> MON-07 Driver State</div>
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+                        <div id="driverStateBadge" class="mon-badge normal"><i class="fas fa-check-circle"></i> Normal</div>
+                        <div style="font-size:10px;color:var(--text3);">Confidence: <span id="stateConf">94%</span></div>
+                    </div>
+                    <div style="font-size:10px;color:var(--text3);margin-bottom:3px;">Drowsiness Risk</div>
+                    <div class="risk-bar"><div class="risk-fill" id="drowsyBar" style="width:12%;background:var(--green);"></div></div>
+                    <div class="risk-labels"><span>Low</span><span>Moderate</span><span>High</span></div>
+                    <div style="font-size:10px;color:var(--text3);margin-top:6px;margin-bottom:3px;">Stress Level</div>
+                    <div class="risk-bar"><div class="risk-fill" id="stressBar" style="width:25%;background:var(--green);"></div></div>
+                    <div class="risk-labels"><span>Relaxed</span><span>Normal</span><span>Stressed</span></div>
+                </div>
+
+                <div class="panel-section">
+                    <!-- Pressure Distribution -->
+                    <div class="section-title"><i class="fas fa-weight-hanging"></i> Pressure Distribution</div>
+                    <div class="stats-grid">
+                        <div class="stat-card"><div class="value" id="pressAvg">32.5</div><div class="label">Avg (kPa)</div></div>
+                        <div class="stat-card orange"><div class="value" id="pressPeak">67.8</div><div class="label">Peak (kPa)</div></div>
+                    </div>
+                    <canvas id="miniHeatmap" width="256" height="256" style="width:100%;border-radius:8px;background:var(--bg3);border:1px solid var(--border);margin-top:6px;"></canvas>
+                </div>
+            </div>
+
+            <!-- Presets Tab -->
+            <div class="rpanel-page" id="rtab-presets">
+                <div class="panel-section">
+                    <div class="section-title"><i class="fas fa-bookmark"></i> APP-02/03 Presets</div>
+                    <button class="btn btn-primary" style="width:100%;justify-content:center;margin-bottom:12px;" onclick="savePreset()"><i class="fas fa-plus"></i> Save Current as Preset</button>
+                    <div id="presetList"></div>
+                </div>
+                <div class="panel-section">
+                    <div class="section-title"><i class="fas fa-user-gear"></i> APP-06 Profiles</div>
+                    <div id="profileList"></div>
+                </div>
+                <div class="panel-section">
+                    <div class="section-title"><i class="fas fa-car-side"></i> APP-01 Vehicle</div>
+                    <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--bg3);border-radius:8px;border:1px solid var(--border);">
+                        <i class="fas fa-link" style="color:var(--green);"></i>
+                        <div><div style="font-size:12px;font-weight:500;">KETI Demo Vehicle</div><div style="font-size:10px;color:var(--text3);">VIN: KETI2024DEMO001 &bull; Paired</div></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Alerts Tab -->
+            <div class="rpanel-page" id="rtab-alerts">
+                <div class="panel-section">
+                    <div class="section-title"><i class="fas fa-bell"></i> APP-05 Alerts</div>
+                    <div id="alertList">
+                        <div style="font-size:12px;color:var(--text3);text-align:center;padding:24px;">No alerts yet</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ==================== STATE ====================
+let loggedIn = false;
+let currentSeat = 'driver';
+let simRunning = true;
+const simState = { weight: 70, speed: 0 };
+const seatPos = { fa: 0, h: 0, r: 18, hr: 0 };
+const actuation = { heating: 0, ventilation: 0, massage: null, driveMode: 'comfort', pneumatic: [50,50,30,30,40,40,45] };
+
+// Seats data (MON-01, MON-02)
+const seats = {
+    driver:     { occupied: true, type: 'adult', weight: 70 },
+    passenger:  { occupied: true, type: 'adult', weight: 65 },
+    rear_left:  { occupied: false, type: 'empty', weight: 0 },
+    rear_right: { occupied: true, type: 'child', weight: 25 }
+};
+
+// Biometrics (MON-05, MON-06, MON-07)
+const bio = { hr: 72, rr: 16, postureScore: 82, asymmetry: 3.2, driverState: 'normal', drowsyRisk: 12, stressLevel: 25, confidence: 94 };
+const hrHistory = [];
+const rrHistory = [];
+const WAVE_LEN = 200;
+
+// Alerts
+const alerts = [];
+let lastAlertTime = 0;
+
+// Pressure
+const pressureGrid = new Float32Array(16 * 16);
+
+// Presets
+const presets = [
+    { id: 1, name: 'Morning Commute', fav: true, heating: 2, vent: 0, massage: null, mode: 'comfort' },
+    { id: 2, name: 'Sport Mode', fav: false, heating: 0, vent: 1, massage: null, mode: 'sport' },
+    { id: 3, name: 'Relaxation', fav: true, heating: 1, vent: 0, massage: 'wave', mode: 'comfort' },
+];
+
+// Profiles
+const profiles = [
+    { id: 1, name: 'Commute Profile', mode: 'comfort' },
+    { id: 2, name: 'Sport Profile', mode: 'sport' },
+    { id: 3, name: 'Eco Profile', mode: 'eco' },
+];
+
+// Position presets
+const posPresets = {
+    drive: { fa: 0, h: 0, r: 18, hr: 0 },
+    sport: { fa: 30, h: -20, r: 12, hr: 30 },
+    relax: { fa: -50, h: 30, r: 38, hr: 50 },
+    entry: { fa: -100, h: 0, r: 18, hr: 0 }
+};
+let animTarget = null;
+
+// Three.js
+let scene, camera, renderer, controls;
+let seatRoot, baseGroup, backrestPivot;
+let cushionMesh, backrestMesh, headrestMesh, lBolster, rBolster, lBackBol, rBackBol;
+let pressOverlayCushion, pressOverlayBack;
+let pressCanvasCushion, pressCtxCushion, pressTexCushion;
+let pressCanvasBack, pressCtxBack, pressTexBack;
+const clock3 = new THREE.Clock();
+
+// ==================== AUTH ====================
+function doLogin() {
+    const email = document.getElementById('loginEmail').value;
+    const pass = document.getElementById('loginPass').value;
+    if (email === 'demo@keti.re.kr' && pass === 'demo1234') {
+        loggedIn = true;
+        document.getElementById('loginOverlay').classList.add('hidden');
+        document.getElementById('appView').style.display = '';
+        document.getElementById('userName').textContent = 'Demo User';
+        initScene();
+        drawLegendBar();
+        animate();
+        renderPresets();
+        renderProfiles();
+        showToast('Welcome, Demo User');
+    } else {
+        document.getElementById('loginError').textContent = 'Invalid credentials';
+    }
+}
+function doLogout() {
+    loggedIn = false;
+    document.getElementById('loginOverlay').classList.remove('hidden');
+    document.getElementById('appView').style.display = 'none';
+}
+
+// ==================== THREE.JS ====================
+function initScene() {
+    const container = document.getElementById('canvas3d');
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0a0e17);
+
+    camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.01, 100);
+    camera.position.set(1.2, 1.0, 1.5);
+
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.2;
+    container.appendChild(renderer.domElement);
+
+    controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
+    controls.target.set(0, 0.35, 0);
+    controls.minDistance = 0.5;
+    controls.maxDistance = 4;
+
+    // Dark scene lighting
+    scene.add(new THREE.AmbientLight(0x334466, 0.6));
+    const main = new THREE.DirectionalLight(0x88aaff, 1.0);
+    main.position.set(2, 4, 3); main.castShadow = true;
+    main.shadow.mapSize.set(1024, 1024);
+    scene.add(main);
+    const fill = new THREE.DirectionalLight(0x6688cc, 0.5);
+    fill.position.set(-3, 2, -1); scene.add(fill);
+    const rim = new THREE.DirectionalLight(0x4466aa, 0.3);
+    rim.position.set(0, 1, -3); scene.add(rim);
+
+    // Grid
+    const grid = new THREE.GridHelper(3, 15, 0x1a2332, 0x1a2332);
+    grid.material.opacity = 0.4; grid.material.transparent = true;
+    scene.add(grid);
+
+    // Floor
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(6, 6), new THREE.MeshStandardMaterial({ color: 0x0d1117, roughness: 0.95 }));
+    floor.rotation.x = -Math.PI / 2; floor.position.y = -0.01; floor.receiveShadow = true;
+    scene.add(floor);
+
+    seatRoot = new THREE.Group(); scene.add(seatRoot);
+    baseGroup = new THREE.Group(); seatRoot.add(baseGroup);
+
+    buildSeat();
+    setupPressureOverlays();
+
+    window.addEventListener('resize', () => {
+        camera.aspect = container.clientWidth / container.clientHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(container.clientWidth, container.clientHeight);
+    });
+}
+
+function buildSeat() {
+    const seatMat = () => new THREE.MeshStandardMaterial({ color: 0x2a2a2e, roughness: 0.55, metalness: 0.1 });
+    const frameMat = new THREE.MeshStandardMaterial({ color: 0x404050, roughness: 0.3, metalness: 0.6 });
+    const bolMat = () => new THREE.MeshStandardMaterial({ color: 0x333338, roughness: 0.5, metalness: 0.1 });
+
+    // Rails
+    const railGeo = new THREE.BoxGeometry(0.04, 0.02, 0.45);
+    [-0.15, 0.15].forEach(x => { const r = new THREE.Mesh(railGeo, frameMat); r.position.set(x, 0.01, 0); r.castShadow = true; baseGroup.add(r); });
+
+    // Cushion
+    cushionMesh = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.07, 0.44), seatMat());
+    cushionMesh.position.set(0, 0.09, 0); cushionMesh.castShadow = true; cushionMesh.receiveShadow = true;
+    baseGroup.add(cushionMesh);
+
+    // Cushion bolsters
+    const bolGeo = new THREE.BoxGeometry(0.06, 0.12, 0.42);
+    lBolster = new THREE.Mesh(bolGeo, bolMat()); lBolster.position.set(-0.24, 0.14, 0); lBolster.castShadow = true; baseGroup.add(lBolster);
+    rBolster = new THREE.Mesh(bolGeo, bolMat()); rBolster.position.set(0.24, 0.14, 0); rBolster.castShadow = true; baseGroup.add(rBolster);
+
+    // Backrest pivot
+    backrestPivot = new THREE.Group();
+    backrestPivot.position.set(0, 0.125, -0.18);
+    baseGroup.add(backrestPivot);
+
+    backrestMesh = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.55, 0.07), seatMat());
+    backrestMesh.position.set(0, 0.27, -0.015); backrestMesh.castShadow = true;
+    backrestPivot.add(backrestMesh);
+
+    const bbGeo = new THREE.BoxGeometry(0.06, 0.5, 0.06);
+    lBackBol = new THREE.Mesh(bbGeo, bolMat()); lBackBol.position.set(-0.23, 0.27, 0.01); backrestPivot.add(lBackBol);
+    rBackBol = new THREE.Mesh(bbGeo, bolMat()); rBackBol.position.set(0.23, 0.27, 0.01); backrestPivot.add(rBackBol);
+
+    headrestMesh = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.16, 0.06), seatMat());
+    headrestMesh.position.set(0, 0.61, -0.01); headrestMesh.castShadow = true;
+    backrestPivot.add(headrestMesh);
+
+    backrestPivot.rotation.x = -THREE.MathUtils.degToRad(seatPos.r);
+}
+
+function setupPressureOverlays() {
+    pressCanvasCushion = document.createElement('canvas');
+    pressCanvasCushion.width = 128; pressCanvasCushion.height = 128;
+    pressCtxCushion = pressCanvasCushion.getContext('2d');
+    pressTexCushion = new THREE.CanvasTexture(pressCanvasCushion);
+    pressTexCushion.minFilter = THREE.LinearFilter;
+    pressOverlayCushion = new THREE.Mesh(
+        new THREE.PlaneGeometry(0.42, 0.42),
+        new THREE.MeshBasicMaterial({ map: pressTexCushion, transparent: true, opacity: 0.85, depthWrite: false, side: THREE.DoubleSide })
+    );
+    pressOverlayCushion.rotation.x = -Math.PI / 2;
+    pressOverlayCushion.position.set(0, 0.131, 0);
+    baseGroup.add(pressOverlayCushion);
+
+    pressCanvasBack = document.createElement('canvas');
+    pressCanvasBack.width = 128; pressCanvasBack.height = 128;
+    pressCtxBack = pressCanvasBack.getContext('2d');
+    pressTexBack = new THREE.CanvasTexture(pressCanvasBack);
+    pressTexBack.minFilter = THREE.LinearFilter;
+    pressOverlayBack = new THREE.Mesh(
+        new THREE.PlaneGeometry(0.40, 0.50),
+        new THREE.MeshBasicMaterial({ map: pressTexBack, transparent: true, opacity: 0.75, depthWrite: false, side: THREE.DoubleSide })
+    );
+    pressOverlayBack.position.set(0, 0.27, 0.02);
+    if (backrestPivot) backrestPivot.add(pressOverlayBack);
+}
+
+// ==================== COLORS ====================
+function pressureColor(t) {
+    t = Math.max(0, Math.min(1, t));
+    let r, g, b;
+    if (t < 0.25) { const f=t/0.25; r=0; g=Math.round(f*255); b=255; }
+    else if (t < 0.5) { const f=(t-0.25)/0.25; r=0; g=255; b=Math.round(255*(1-f)); }
+    else if (t < 0.75) { const f=(t-0.5)/0.25; r=Math.round(255*f); g=255; b=0; }
+    else { const f=(t-0.75)/0.25; r=255; g=Math.round(255*(1-f)); b=0; }
+    return `rgba(${r},${g},${b},${0.3+t*0.7})`;
+}
+function gaussian2D(x, y, sx, sy) { return Math.exp(-(x*x)/(2*sx*sx) - (y*y)/(2*sy*sy)); }
+
+// ==================== SIMULATION ====================
+function simulatePressure(time) {
+    const s = seats[currentSeat];
+    if (!s.occupied) { pressureGrid.fill(0); return; }
+    const wF = s.weight / 80;
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+        const nx = (x/15)*2-1, ny = (y/15)*2-1;
+        const lp = gaussian2D(nx+0.35, ny-0.1, 0.28, 0.32);
+        const rp = gaussian2D(nx-0.35, ny-0.1, 0.28, 0.32);
+        const lt = gaussian2D(nx+0.3, ny+0.25, 0.22, 0.4) * 0.35;
+        const rt = gaussian2D(nx-0.3, ny+0.25, 0.22, 0.4) * 0.35;
+        pressureGrid[y*16+x] = Math.max(0, Math.min(1,
+            (lp+rp+lt+rt)*wF + Math.sin(time*0.35)*0.015 + (Math.random()-0.5)*0.008
+        ));
+    }
+}
+
+function simulateBiometrics(time, dt) {
+    // Heart rate (MON-05)
+    bio.hr = 72 + Math.sin(time * 0.1) * 5 + Math.sin(time * 0.03) * 3 + (Math.random()-0.5) * 2;
+    if (bio.driverState === 'stressed') bio.hr += 15;
+    if (bio.driverState === 'drowsy') bio.hr -= 8;
+    bio.hr = Math.max(55, Math.min(120, bio.hr));
+
+    // Respiration (MON-06)
+    bio.rr = 16 + Math.sin(time * 0.08) * 2 + (Math.random()-0.5) * 1;
+    if (bio.driverState === 'drowsy') bio.rr -= 4;
+    bio.rr = Math.max(8, Math.min(28, bio.rr));
+
+    // Waveform data
+    hrHistory.push(Math.sin(time * 5) * 0.3 + Math.sin(time * 10) * 0.5 * Math.exp(-((time * 5) % (Math.PI * 2) - 1) ** 2));
+    rrHistory.push(Math.sin(time * 1.2) * 0.7 + Math.sin(time * 2.4) * 0.2);
+    if (hrHistory.length > WAVE_LEN) hrHistory.shift();
+    if (rrHistory.length > WAVE_LEN) rrHistory.shift();
+
+    // Posture score (MON-03)
+    bio.postureScore = 82 + Math.sin(time * 0.05) * 8 + (Math.random()-0.5) * 2;
+    bio.postureScore = Math.max(40, Math.min(100, bio.postureScore));
+
+    // Asymmetry (MON-04)
+    bio.asymmetry = 3.2 + Math.sin(time * 0.07) * 2 + (Math.random()-0.5) * 0.5;
+    bio.asymmetry = Math.max(0, Math.min(20, bio.asymmetry));
+
+    // Driver state (MON-07) — changes occasionally
+    bio.drowsyRisk = 12 + Math.sin(time * 0.02) * 10 + simState.speed * 0.05;
+    bio.stressLevel = 25 + Math.sin(time * 0.03) * 15 + simState.speed * 0.1;
+    bio.drowsyRisk = Math.max(0, Math.min(100, bio.drowsyRisk));
+    bio.stressLevel = Math.max(0, Math.min(100, bio.stressLevel));
+
+    if (bio.drowsyRisk > 60) bio.driverState = 'drowsy';
+    else if (bio.stressLevel > 70) bio.driverState = 'stressed';
+    else if (bio.stressLevel > 50) bio.driverState = 'alert';
+    else bio.driverState = 'normal';
+
+    bio.confidence = 94 - Math.abs(bio.drowsyRisk - 50) * 0.1 + (Math.random()-0.5) * 3;
+    bio.confidence = Math.max(70, Math.min(99, bio.confidence));
+}
+
+// ==================== CONTROL HANDLERS ====================
+function selectSeat(seatId, btn) {
+    currentSeat = seatId;
+    document.querySelectorAll('.seat-sel-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.mini-seat').forEach(m => m.classList.toggle('active', m.dataset.seat === seatId));
+    updateMonitoringUI();
+}
+function selectSeatFromBar(seatId, el) {
+    currentSeat = seatId;
+    document.querySelectorAll('.mini-seat').forEach(m => m.classList.remove('active'));
+    el.classList.add('active');
+    document.querySelectorAll('.seat-sel-btn').forEach(b => b.classList.toggle('active', b.dataset.seat === seatId));
+    updateMonitoringUI();
+}
+
+function setHeating(level, btn) {
+    actuation.heating = level;
+    btn.parentElement.querySelectorAll('.level-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    // Visualize on seat
+    updateSeatColor();
+    showToast(`Heating: ${level === 0 ? 'OFF' : 'Level ' + level}`);
+}
+function setVentilation(level, btn) {
+    actuation.ventilation = level;
+    btn.parentElement.querySelectorAll('.level-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    updateSeatColor();
+    showToast(`Ventilation: ${level === 0 ? 'OFF' : 'Level ' + level}`);
+}
+function setMassage(program, btn) {
+    actuation.massage = program;
+    document.querySelectorAll('.massage-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    showToast(`Massage: ${program}`);
+}
+function stopMassage() {
+    actuation.massage = null;
+    document.querySelectorAll('.massage-btn').forEach(b => b.classList.remove('active'));
+    showToast('Massage stopped');
+}
+function setPneumatic(ch, val) {
+    actuation.pneumatic[ch] = +val;
+    const labels = document.querySelectorAll('.pneumatic-ch .pn-val');
+    if (labels[ch]) labels[ch].textContent = val;
+}
+function setDriveMode(mode, btn) {
+    actuation.driveMode = mode;
+    document.querySelectorAll('.drive-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    // Auto-adjust settings based on mode
+    if (mode === 'sport') {
+        actuation.pneumatic[2] = 70; actuation.pneumatic[3] = 70; // bolsters
+    } else if (mode === 'comfort') {
+        actuation.pneumatic[0] = 60; actuation.pneumatic[1] = 60; // lumbar
+    }
+    showToast(`Drive Mode: ${mode.charAt(0).toUpperCase() + mode.slice(1)}`);
+}
+function setPosition(axis, val) {
+    // ACT-06: Safety check
+    if (simState.speed > 5) {
+        showToast('Position locked — vehicle in motion (ACT-06)');
+        // Reset slider
+        document.getElementById('slider' + axis.toUpperCase()).value = seatPos[axis];
+        return;
+    }
+    seatPos[axis] = +val;
+    const labels = { fa: 'posFA', h: 'posH', r: 'posR', hr: 'posHR' };
+    const units = { fa: ' mm', h: ' mm', r: '\u00B0', hr: ' mm' };
+    document.getElementById(labels[axis]).textContent = val + units[axis];
+}
+function applyPosPreset(name, btn) {
+    if (simState.speed > 5) {
+        showToast('Position locked — vehicle in motion (ACT-06)');
+        return;
+    }
+    btn.parentElement.querySelectorAll('.seat-sel-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    animTarget = { ...posPresets[name] };
+}
+function setSpeed(v) {
+    simState.speed = v;
+    document.getElementById('speedVal').textContent = v + ' km/h';
+    // ACT-06 safety
+    const banner = document.getElementById('safetyBanner');
+    const posSliders = document.querySelectorAll('.pos-ctrl input[type=range]');
+    if (v > 5) {
+        banner.classList.add('show');
+        posSliders.forEach(s => s.disabled = true);
+    } else {
+        banner.classList.remove('show');
+        posSliders.forEach(s => s.disabled = false);
+    }
+}
+
+function toggleSim() {
+    simRunning = !simRunning;
+    document.getElementById('simDot').className = 'sim-dot ' + (simRunning ? 'on' : 'off');
+    document.getElementById('simLabel').textContent = simRunning ? 'Running' : 'Paused';
+    document.getElementById('simBtn').innerHTML = simRunning ? '<i class="fas fa-pause"></i>' : '<i class="fas fa-play"></i>';
+}
+
+// ==================== SEAT VISUALS ====================
+function updateSeatColor() {
+    if (!cushionMesh) return;
+    const meshes = [cushionMesh, backrestMesh, lBolster, rBolster, lBackBol, rBackBol, headrestMesh];
+    meshes.forEach(m => {
+        if (!m) return;
+        if (actuation.heating > 0) {
+            m.material.emissive = new THREE.Color(0xff4400);
+            m.material.emissiveIntensity = actuation.heating * 0.12;
+        } else if (actuation.ventilation > 0) {
+            m.material.emissive = new THREE.Color(0x0066ff);
+            m.material.emissiveIntensity = actuation.ventilation * 0.12;
+        } else {
+            m.material.emissive = new THREE.Color(0x000000);
+            m.material.emissiveIntensity = 0;
+        }
+    });
+}
+
+function updateSeatPositionVisuals() {
+    if (!seatRoot) return;
+    seatRoot.position.z = seatPos.fa / 100 * 0.12;
+    baseGroup.position.y = seatPos.h / 100 * 0.04;
+    if (backrestPivot) backrestPivot.rotation.x = -THREE.MathUtils.degToRad(seatPos.r);
+    if (headrestMesh) headrestMesh.position.y = 0.61 + seatPos.hr / 100 * 0.08;
+}
+
+// Massage vibration
+function updateMassageVisuals(time) {
+    if (!actuation.massage || !baseGroup) return;
+    const freq = actuation.massage === 'pulse' ? 15 : actuation.massage === 'wave' ? 4 : 8;
+    const amp = 0.002;
+    baseGroup.rotation.z = Math.sin(time * freq) * amp;
+}
+
+// ==================== PRESSURE HEATMAPS ====================
+function updatePressureOverlayCushion() {
+    const ctx = pressCtxCushion, w = 128, h = 128;
+    ctx.clearRect(0, 0, w, h);
+    const cw = w/16, ch = h/16;
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+        const v = pressureGrid[y*16+x];
+        if (v > 0.01) { ctx.fillStyle = pressureColor(v); ctx.beginPath(); ctx.arc(x*cw+cw/2, y*ch+ch/2, cw*0.6, 0, Math.PI*2); ctx.fill(); }
+    }
+    pressTexCushion.needsUpdate = true;
+}
+
+function updatePressureOverlayBack() {
+    const ctx = pressCtxBack, w = 128, h = 128;
+    ctx.clearRect(0, 0, w, h);
+    const s = seats[currentSeat];
+    if (!s.occupied) { pressTexBack.needsUpdate = true; return; }
+    const wF = s.weight / 80 * 0.4, cw = w/12, ch = h/16;
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 12; x++) {
+        const nx = (x/11)*2-1, ny = (y/15)*2-1;
+        const v = (gaussian2D(nx+0.3, ny+0.1, 0.4, 0.35) + gaussian2D(nx-0.3, ny+0.1, 0.4, 0.35)) * wF;
+        if (v > 0.01) { ctx.fillStyle = pressureColor(v); ctx.beginPath(); ctx.arc(x*cw+cw/2, y*ch+ch/2, cw*0.6, 0, Math.PI*2); ctx.fill(); }
+    }
+    pressTexBack.needsUpdate = true;
+}
+
+// ==================== UI UPDATES ====================
+let lastUI = 0;
+
+function updateMonitoringUI() {
+    const s = seats[currentSeat];
+    // MON-01
+    document.getElementById('monOccStatus').textContent = s.occupied ? 'Occupied' : 'Empty';
+    document.getElementById('monWeight').textContent = s.weight || '0';
+    const occCard = document.getElementById('monOccStatus').parentElement;
+    occCard.className = 'stat-card ' + (s.occupied ? 'green' : '');
+
+    // MON-02
+    const types = ['adult', 'child', 'infant', 'empty'];
+    document.querySelectorAll('#classRow .class-item').forEach((el, i) => {
+        el.classList.toggle('active', types[i] === s.type);
+    });
+
+    // MON-03
+    document.getElementById('postureScore').textContent = Math.round(bio.postureScore);
+    const ps = bio.postureScore;
+    const pColor = ps > 70 ? 'var(--green)' : ps > 50 ? 'var(--orange)' : 'var(--red)';
+    document.getElementById('postureScore').style.color = pColor;
+    document.getElementById('postureAssess').textContent = ps > 70 ? 'Good' : ps > 50 ? 'Fair' : 'Poor';
+    document.getElementById('postureAssess').style.color = pColor;
+    document.getElementById('postureCOG').textContent = bio.asymmetry < 5 ? 'Centered' : bio.asymmetry < 10 ? 'Slightly Off' : 'Off Center';
+    drawPostureGauge(ps);
+
+    // MON-04
+    document.getElementById('asymVal').textContent = bio.asymmetry.toFixed(1) + '%';
+    const leftPct = 50 - bio.asymmetry;
+    const rightPct = 50 + bio.asymmetry;
+    document.getElementById('asymL').style.width = Math.max(0, (50 - bio.asymmetry/2)) + '%';
+    document.getElementById('asymR').style.width = Math.max(0, (50 - bio.asymmetry/2)) + '%';
+
+    // MON-05
+    document.getElementById('hrBPM').textContent = Math.round(bio.hr);
+    document.getElementById('hrVar').textContent = bio.hr > 90 ? 'Elevated' : bio.hr < 60 ? 'Low' : 'Normal';
+
+    // MON-06
+    document.getElementById('rrRPM').textContent = Math.round(bio.rr);
+    document.getElementById('rrStatus').textContent = bio.rr > 20 ? 'Rapid' : bio.rr < 12 ? 'Slow' : 'Regular';
+
+    // MON-07
+    const badge = document.getElementById('driverStateBadge');
+    const stateIcons = { normal: 'fa-check-circle', drowsy: 'fa-moon', stressed: 'fa-bolt', alert: 'fa-exclamation-triangle', fatigued: 'fa-battery-quarter' };
+    badge.className = 'mon-badge ' + bio.driverState;
+    badge.innerHTML = `<i class="fas ${stateIcons[bio.driverState] || 'fa-check-circle'}"></i> ${bio.driverState.charAt(0).toUpperCase() + bio.driverState.slice(1)}`;
+    document.getElementById('stateConf').textContent = Math.round(bio.confidence) + '%';
+
+    const drowsyBar = document.getElementById('drowsyBar');
+    drowsyBar.style.width = bio.drowsyRisk + '%';
+    drowsyBar.style.background = bio.drowsyRisk > 60 ? 'var(--red)' : bio.drowsyRisk > 30 ? 'var(--orange)' : 'var(--green)';
+
+    const stressBar = document.getElementById('stressBar');
+    stressBar.style.width = bio.stressLevel + '%';
+    stressBar.style.background = bio.stressLevel > 70 ? 'var(--red)' : bio.stressLevel > 40 ? 'var(--orange)' : 'var(--green)';
+
+    // Pressure stats
+    let sum = 0, max = 0, cnt = 0;
+    for (let i = 0; i < pressureGrid.length; i++) {
+        if (pressureGrid[i] > 0.01) { sum += pressureGrid[i]; cnt++; max = Math.max(max, pressureGrid[i]); }
+    }
+    document.getElementById('pressAvg').textContent = cnt > 0 ? (sum/cnt*100).toFixed(1) : '0';
+    document.getElementById('pressPeak').textContent = (max*100).toFixed(1);
+
+    // Mini heatmap
+    const mc = document.getElementById('miniHeatmap');
+    const mctx = mc.getContext('2d');
+    mctx.clearRect(0, 0, 256, 256);
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+        const v = pressureGrid[y*16+x];
+        if (v > 0.01) { mctx.fillStyle = pressureColor(v); mctx.fillRect(x*16, y*16, 16, 16); }
+    }
+
+    // Alerts based on state
+    if (bio.driverState === 'drowsy') addAlert('error', 'Drowsiness detected — driver alert required');
+    if (bio.postureScore < 50) addAlert('warn', `Posture score low: ${Math.round(bio.postureScore)}/100`);
+    if (max * 100 > 85) addAlert('warn', `Peak pressure ${(max*100).toFixed(1)} kPa — potential discomfort`);
+}
+
+// Waveform drawing
+function drawWaveform(canvasId, data, color) {
+    const c = document.getElementById(canvasId);
+    if (!c || !data.length) return;
+    const ctx = c.getContext('2d');
+    const W = c.width, H = c.height;
+    ctx.clearRect(0, 0, W, H);
+    // Center line
+    ctx.beginPath(); ctx.moveTo(0, H/2); ctx.lineTo(W, H/2);
+    ctx.strokeStyle = 'rgba(255,255,255,0.05)'; ctx.lineWidth = 1; ctx.stroke();
+    // Wave
+    ctx.beginPath(); ctx.strokeStyle = color; ctx.lineWidth = 1.5; ctx.globalAlpha = 0.8;
+    for (let i = 0; i < data.length; i++) {
+        const x = (i / WAVE_LEN) * W;
+        const y = H/2 - data[i] * H * 0.35;
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke(); ctx.globalAlpha = 1;
+}
+
+// Posture gauge
+function drawPostureGauge(score) {
+    const c = document.getElementById('postureGauge');
+    if (!c) return;
+    const ctx = c.getContext('2d');
+    const W = c.width, H = c.height, cx = W/2, cy = H/2, R = W * 0.4;
+    ctx.clearRect(0, 0, W, H);
+    // Background
+    ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2);
+    ctx.lineWidth = 10; ctx.strokeStyle = 'rgba(255,255,255,0.06)'; ctx.stroke();
+    // Score arc
+    const pct = score / 100;
+    const color = score > 70 ? '#22c55e' : score > 50 ? '#f59e0b' : '#ef4444';
+    ctx.beginPath(); ctx.arc(cx, cy, R, -Math.PI/2, -Math.PI/2 + Math.PI * 2 * pct);
+    ctx.lineWidth = 10; ctx.strokeStyle = color; ctx.lineCap = 'round'; ctx.stroke();
+}
+
+// ==================== ALERTS ====================
+function addAlert(type, msg) {
+    const now = Date.now();
+    if (now - lastAlertTime < 5000) return;
+    if (alerts.length > 0 && alerts[0].msg === msg) return;
+    lastAlertTime = now;
+    alerts.unshift({ type, msg, time: new Date() });
+    if (alerts.length > 30) alerts.pop();
+    renderAlerts();
+}
+function renderAlerts() {
+    const el = document.getElementById('alertList');
+    const badge = document.getElementById('alertBadge');
+    if (alerts.length > 0) {
+        badge.style.display = '';
+        badge.textContent = alerts.length;
+    }
+    if (!alerts.length) { el.innerHTML = '<div style="font-size:12px;color:var(--text3);text-align:center;padding:24px;">No alerts yet</div>'; return; }
+    el.innerHTML = alerts.slice(0, 10).map(a => `
+        <div class="alert-item ${a.type}">
+            <span class="alert-time">${a.time.toLocaleTimeString()}</span>
+            <span class="alert-msg">${a.msg}</span>
+        </div>`).join('');
+}
+
+// ==================== PRESETS / PROFILES ====================
+function renderPresets() {
+    const el = document.getElementById('presetList');
+    el.innerHTML = presets.map(p => `
+        <div class="preset-item" onclick="applyPresetById(${p.id})">
+            <div>
+                <div class="preset-name">${p.fav ? '<span class="preset-fav"><i class="fas fa-star"></i></span>' : ''}${p.name}</div>
+                <div class="preset-meta">Heat: ${p.heating} | Vent: ${p.vent} | ${p.mode}</div>
+            </div>
+            <button class="btn" style="padding:3px 8px;font-size:10px;" onclick="event.stopPropagation();deletePreset(${p.id})"><i class="fas fa-trash"></i></button>
+        </div>`).join('');
+}
+function renderProfiles() {
+    const el = document.getElementById('profileList');
+    el.innerHTML = profiles.map(p => `
+        <div class="preset-item" onclick="showToast('Profile loaded: ${p.name}')">
+            <div>
+                <div class="preset-name"><i class="fas fa-user" style="color:var(--accent);margin-right:4px;font-size:10px;"></i>${p.name}</div>
+                <div class="preset-meta">${p.mode}</div>
+            </div>
+        </div>`).join('');
+}
+function applyPresetById(id) {
+    const p = presets.find(x => x.id === id);
+    if (!p) return;
+    actuation.heating = p.heating;
+    actuation.ventilation = p.vent;
+    actuation.massage = p.massage;
+    actuation.driveMode = p.mode;
+    updateSeatColor();
+    showToast(`Preset applied: ${p.name}`);
+}
+function savePreset() {
+    const name = prompt('Preset name:');
+    if (!name) return;
+    presets.push({ id: Date.now(), name, fav: false, heating: actuation.heating, vent: actuation.ventilation, massage: actuation.massage, mode: actuation.driveMode });
+    renderPresets();
+    showToast('Preset saved');
+}
+function deletePreset(id) {
+    const idx = presets.findIndex(p => p.id === id);
+    if (idx >= 0) { presets.splice(idx, 1); renderPresets(); showToast('Preset deleted'); }
+}
+
+// ==================== RIGHT PANEL TABS ====================
+function switchRTab(tab, btn) {
+    document.querySelectorAll('.rpanel-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+    document.querySelectorAll('.rpanel-page').forEach(p => p.classList.toggle('active', p.id === 'rtab-' + tab));
+}
+
+// ==================== EXPORT ====================
+function exportData() {
+    const data = {
+        timestamp: new Date().toISOString(),
+        system: 'KETI Smart Seat System v2.0',
+        seat: currentSeat,
+        biometrics: { ...bio },
+        actuation: { ...actuation },
+        position: { ...seatPos },
+        seats: { ...seats }
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = `smart-seat-${Date.now()}.json`; a.click();
+    showToast('Data exported');
+}
+
+// ==================== LEGEND ====================
+function drawLegendBar() {
+    const ctx = document.getElementById('legendBar').getContext('2d');
+    for (let x = 0; x < 180; x++) { ctx.fillStyle = pressureColor(x/180); ctx.fillRect(x, 0, 1, 10); }
+}
+
+// ==================== TOAST / CLOCK ====================
+let toastTimer;
+function showToast(msg) {
+    const t = document.getElementById('toast'); t.textContent = msg;
+    t.classList.add('show'); clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
+}
+function updateClock() { document.getElementById('clock').textContent = new Date().toLocaleTimeString(); }
+
+// ==================== ANIMATION LOOP ====================
+function animate() {
+    requestAnimationFrame(animate);
+    if (!loggedIn) return;
+    const dt = Math.min(clock3.getDelta(), 0.1);
+    const elapsed = clock3.getElapsedTime();
+
+    if (simRunning) {
+        simulatePressure(elapsed);
+        simulateBiometrics(elapsed, dt);
+    }
+
+    // Position animation
+    if (animTarget) {
+        let done = true;
+        ['fa', 'h', 'r', 'hr'].forEach(k => {
+            const diff = animTarget[k] - seatPos[k];
+            if (Math.abs(diff) > 0.5) { seatPos[k] += diff * dt * 3; done = false; }
+            else seatPos[k] = animTarget[k];
+        });
+        document.getElementById('sliderFA').value = seatPos.fa;
+        document.getElementById('sliderH').value = seatPos.h;
+        document.getElementById('sliderR').value = seatPos.r;
+        document.getElementById('sliderHR').value = seatPos.hr;
+        document.getElementById('posFA').textContent = Math.round(seatPos.fa) + ' mm';
+        document.getElementById('posH').textContent = Math.round(seatPos.h) + ' mm';
+        document.getElementById('posR').textContent = Math.round(seatPos.r) + '\u00B0';
+        document.getElementById('posHR').textContent = Math.round(seatPos.hr) + ' mm';
+        if (done) animTarget = null;
+    }
+
+    // Visuals
+    updatePressureOverlayCushion();
+    updatePressureOverlayBack();
+    updateSeatPositionVisuals();
+    updateMassageVisuals(elapsed);
+
+    // UI at reduced rate
+    if (elapsed - lastUI > 0.15) {
+        updateMonitoringUI();
+        drawWaveform('hrWave', hrHistory, '#ef4444');
+        drawWaveform('rrWave', rrHistory, '#06b6d4');
+        lastUI = elapsed;
+    }
+
+    controls.update();
+    renderer.render(scene, camera);
+}
+
+// ==================== INIT ====================
+setInterval(updateClock, 1000);
+updateClock();
+</script>
+</body>
+</html>

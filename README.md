@@ -14,6 +14,8 @@
 | **Cockpit** (Cyberpunk HUD) | [cockpit.html](https://hwkim3330.github.io/car-seat/cockpit.html) | 디지털 콕핏 — 사이버펑크 HUD 스타일, 스캔라인 오버레이 |
 | **Tesla Style** | [tesla.html](https://hwkim3330.github.io/car-seat/tesla.html) | 테슬라 스타일 — 미니멀 화이트 디자인 |
 | **Technical Report** | [report.html](https://hwkim3330.github.io/car-seat/report.html) | 기술 보고서 — 스마트 시트 생태계 R&D 전략 문서 |
+| **App Prototype** | [prototype.html](https://hwkim3330.github.io/car-seat/prototype.html) | 앱 프로토타입 — 로그인, MON/ACT/APP 전체 기능, 3D+생체 |
+| **Mobile Prototype** | [prototype-mobile.html](https://hwkim3330.github.io/car-seat/prototype-mobile.html) | 모바일 앱 프로토타입 — 4탭, 원격제어, 프리셋 |
 
 ## 주요 기능
 
@@ -62,6 +64,8 @@ car-seat/
 ├── cockpit.html        # 사이버펑크 HUD 버전
 ├── tesla.html          # 테슬라 스타일 버전
 ├── report.html         # 기술 보고서
+├── prototype.html      # 앱 프로토타입 (데스크톱)
+├── prototype-mobile.html # 앱 프로토타입 (모바일)
 ├── keti.png            # KETI 로고
 ├── favicon.ico         # 파비콘
 ├── libs/
@@ -103,6 +107,21 @@ car-seat/
 - 미니멀 화이트 디자인 (`#fafafa`)
 - 클린 타이포그래피 기반
 - 간결한 데이터 카드 레이아웃
+
+### App Prototype (`prototype.html`)
+- 풀스택 앱 프로토타입 — 로그인 → 대시보드
+- **MON-01~07**: 점유감지, 승객분류, 자세점수(게이지), 비대칭(L/R 바), 심박(BPM+파형), 호흡(RPM+파형), 상태추론(배지+리스크바)
+- **ACT-01~06**: 열선 3단, 통풍 3단, 공압 7채널, 마사지 4프로그램, 드라이브모드, 안전제약(속도>5 포지션 잠금)
+- **APP-01~06**: 차량 페어링, 원격 프리셋 시동, 프리셋 CRUD, 멀티시트 상태, 알림 센터, 프로필 로밍
+- Three.js 3D 시트 + 체압 히트맵 + 다크 테마
+
+### Mobile App Prototype (`prototype-mobile.html`)
+- 모바일 네이티브 앱 프로토타입 (PWA 스타일)
+- 4탭: Status / Remote / Presets / Settings
+- 원격 시트 제어 (열선/통풍/마사지/드라이브모드)
+- 실시간 생체 데이터 + 심박 파형
+- 프리셋/프로필 관리
+- 다크 테마, 터치 최적화
 
 ## 로컬 실행
 
