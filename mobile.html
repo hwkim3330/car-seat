@@ -311,13 +311,13 @@
             <div class="sensor-tab active" data-sensor="pressure" onclick="toggleSensor('pressure')">
                 <div class="dot" style="background:var(--red);"></div>Pressure
             </div>
-            <div class="sensor-tab" data-sensor="temperature" onclick="toggleSensor('temperature')">
+            <div class="sensor-tab active" data-sensor="temperature" onclick="toggleSensor('temperature')">
                 <div class="dot" style="background:var(--orange);"></div>Temp
             </div>
-            <div class="sensor-tab" data-sensor="position" onclick="toggleSensor('position')">
+            <div class="sensor-tab active" data-sensor="position" onclick="toggleSensor('position')">
                 <div class="dot" style="background:var(--blue);"></div>Position
             </div>
-            <div class="sensor-tab" data-sensor="motion" onclick="toggleSensor('motion')">
+            <div class="sensor-tab active" data-sensor="motion" onclick="toggleSensor('motion')">
                 <div class="dot" style="background:var(--green);"></div>Motion
             </div>
         </div>
@@ -377,13 +377,13 @@
             </div>
 
             <!-- Temperature controls -->
-            <div class="ctrl-card" id="tempCtrl" style="display:none;">
+            <div class="ctrl-card" id="tempCtrl">
                 <div class="ctrl-card-title"><i class="fas fa-thermometer-half"></i> Temperature Zones</div>
                 <div id="tempZoneList"></div>
             </div>
 
             <!-- Position controls -->
-            <div class="ctrl-card" id="posCtrl" style="display:none;">
+            <div class="ctrl-card" id="posCtrl">
                 <div class="ctrl-card-title"><i class="fas fa-arrows-alt"></i> Seat Position</div>
                 <div class="preset-row" style="margin-bottom:12px;">
                     <button class="preset-btn active" onclick="applyPreset('normal',this)">Drive</button>
@@ -410,7 +410,7 @@
             </div>
 
             <!-- Motion controls -->
-            <div class="ctrl-card" id="motionCtrl" style="display:none;">
+            <div class="ctrl-card" id="motionCtrl">
                 <div class="ctrl-card-title"><i class="fas fa-wave-square"></i> Motion Data</div>
                 <div class="ctrl-row">
                     <div class="ctrl-row-label"><span>Vehicle Speed</span><span class="ctrl-row-val" id="speedVal">0 km/h</span></div>
@@ -450,7 +450,7 @@
 
 <script>
 // ==================== State ====================
-const activeSensors = new Set(['pressure']);
+const activeSensors = new Set(['pressure','temperature','position','motion']);
 let simulationRunning = true;
 const thresholds = { pressure: 80, temperature: 40, vibration: 0.7 };
 
@@ -659,7 +659,7 @@ function setupPressureOverlays() {
 // ==================== Motion Arrows ====================
 function setupMotionArrows() {
     arrowGroup = new THREE.Group();
-    arrowGroup.visible = false;
+    arrowGroup.visible = true;
     arrowX = new THREE.ArrowHelper(new THREE.Vector3(1,0,0), new THREE.Vector3(0,0.5,0.3), 0.2, 0xff453a, 0.04, 0.025);
     arrowY = new THREE.ArrowHelper(new THREE.Vector3(0,1,0), new THREE.Vector3(0,0.5,0.3), 0.2, 0x30d158, 0.04, 0.025);
     arrowZ = new THREE.ArrowHelper(new THREE.Vector3(0,0,1), new THREE.Vector3(0,0.5,0.3), 0.2, 0x0a84ff, 0.04, 0.025);

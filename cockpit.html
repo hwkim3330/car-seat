@@ -214,17 +214,17 @@
                     <div class="st-i"><div class="st-bar" style="background:var(--mag);"></div><div><div class="st-n">Pressure</div><div class="st-d">16x16 grid / load</div></div></div>
                     <i class="fas fa-eye st-eye"></i>
                 </div>
-                <div class="st" data-s="temperature" onclick="tog('temperature')">
+                <div class="st on" data-s="temperature" onclick="tog('temperature')">
                     <div class="st-i"><div class="st-bar" style="background:var(--orange);"></div><div><div class="st-n">Temperature</div><div class="st-d">6-zone thermal</div></div></div>
-                    <i class="fas fa-eye-slash st-eye"></i>
+                    <i class="fas fa-eye st-eye"></i>
                 </div>
-                <div class="st" data-s="position" onclick="tog('position')">
+                <div class="st on" data-s="position" onclick="tog('position')">
                     <div class="st-i"><div class="st-bar" style="background:var(--cyan);"></div><div><div class="st-n">Position</div><div class="st-d">4-axis adjust</div></div></div>
-                    <i class="fas fa-eye-slash st-eye"></i>
+                    <i class="fas fa-eye st-eye"></i>
                 </div>
-                <div class="st" data-s="motion" onclick="tog('motion')">
+                <div class="st on" data-s="motion" onclick="tog('motion')">
                     <div class="st-i"><div class="st-bar" style="background:var(--green);"></div><div><div class="st-n">Motion</div><div class="st-d">3-axis accel</div></div></div>
-                    <i class="fas fa-eye-slash st-eye"></i>
+                    <i class="fas fa-eye st-eye"></i>
                 </div>
             </div>
             <div class="sec">
@@ -241,7 +241,7 @@
                     </div>
                 </div>
             </div>
-            <div class="sec" id="posP" style="display:none;">
+            <div class="sec" id="posP">
                 <div class="sec-t">Position</div>
                 <div class="pg" style="margin-bottom:10px;">
                     <button class="pb on" onclick="pre('normal',this)">Drive</button>
@@ -282,11 +282,11 @@
                 </div>
                 <div style="margin-top:8px;"><div class="cl"><span>Distribution</span></div><canvas id="miniHeatmap" width="140" height="140"></canvas></div>
             </div>
-            <div class="sec" id="rTe" style="display:none;">
+            <div class="sec" id="rTe">
                 <div class="sec-t">Thermal</div>
                 <div id="tzL"></div>
             </div>
-            <div class="sec" id="rPo" style="display:none;">
+            <div class="sec" id="rPo">
                 <div class="sec-t">Position</div>
                 <div class="sg">
                     <div class="sc"><div class="v" id="rFB">0</div><div class="l">Fore/aft mm</div></div>
@@ -295,7 +295,7 @@
                     <div class="sc"><div class="v" id="rHR">0</div><div class="l">Headrest mm</div></div>
                 </div>
             </div>
-            <div class="sec" id="rMo" style="display:none;">
+            <div class="sec" id="rMo">
                 <div class="sec-t">Motion</div>
                 <div class="gauge-wrap"><div class="gauge"><canvas id="gaugeC" width="200" height="200"></canvas><div class="gauge-val"><div class="gauge-num" id="gVal">0.00</div><div class="gauge-unit">VIB (G)</div></div></div></div>
                 <div class="sg" style="margin-bottom:8px;">
@@ -316,7 +316,7 @@
 <div class="toast" id="toast"></div>
 <script>
 const $=id=>document.getElementById(id);
-const AS=new Set(['pressure']);
+const AS=new Set(['pressure','temperature','position','motion']);
 let simOn=true;
 const TH={pressure:80,temperature:40,vibration:0.7};
 const S={occ:true,w:70,spd:0,fb:0,ud:0,rec:18,hr:0};
@@ -423,7 +423,7 @@ function setupPress(){
 }
 
 function setupArr(){
-    arG=new THREE.Group();arG.visible=false;
+    arG=new THREE.Group();arG.visible=true;
     arX=new THREE.ArrowHelper(new THREE.Vector3(1,0,0),new THREE.Vector3(0,0.4,0.25),0.2,0xff2d6a,0.03,0.018);
     arY=new THREE.ArrowHelper(new THREE.Vector3(0,1,0),new THREE.Vector3(0,0.4,0.25),0.2,0x00e676,0.03,0.018);
     arZ=new THREE.ArrowHelper(new THREE.Vector3(0,0,1),new THREE.Vector3(0,0.4,0.25),0.2,0x00dcff,0.03,0.018);
