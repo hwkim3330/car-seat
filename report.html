@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KETI — Smart Seat Ecosystem: Monitoring, Control & R&D Strategy</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #ffffff;
+            --bg-secondary: #f5f5f7;
+            --bg-tertiary: #fafafa;
+            --text-primary: #1d1d1f;
+            --text-secondary: #424245;
+            --text-tertiary: #6e6e73;
+            --text-muted: #86868b;
+            --text-caption: #aeaeb2;
+            --accent: #007aff;
+            --accent-hover: #0071e3;
+            --red: #ff3b30;
+            --orange: #ff9f0a;
+            --green: #34c759;
+            --purple: #af52de;
+            --teal: #5ac8fa;
+            --border: rgba(0,0,0,0.06);
+            --border-strong: rgba(0,0,0,0.1);
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.04);
+            --shadow-md: 0 4px 12px rgba(0,0,0,0.06);
+            --shadow-lg: 0 8px 30px rgba(0,0,0,0.08);
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --radius-xl: 20px;
+        }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+            background: var(--bg);
+            color: var(--text-primary);
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            line-height: 1.7;
+            font-size: 16px;
+        }
+
+        /* ========== NAV ========== */
+        .nav {
+            position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+            height: 52px;
+            background: rgba(255,255,255,0.72);
+            backdrop-filter: saturate(180%) blur(20px);
+            -webkit-backdrop-filter: saturate(180%) blur(20px);
+            border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 max(24px, calc((100vw - 980px) / 2));
+        }
+        .nav-left { display: flex; align-items: center; gap: 14px; }
+        .nav-left img { height: 26px; }
+        .nav-divider { width: 1px; height: 18px; background: var(--border-strong); }
+        .nav-title { font-size: 13px; font-weight: 600; color: var(--text-primary); letter-spacing: -0.2px; }
+        .nav-right { display: flex; align-items: center; gap: 20px; }
+        .nav-link {
+            font-size: 12px; font-weight: 500; color: var(--text-tertiary);
+            text-decoration: none; transition: color 0.2s;
+        }
+        .nav-link:hover { color: var(--accent); }
+        .nav-btn {
+            font-size: 11px; font-weight: 600; color: white; background: var(--accent);
+            padding: 6px 14px; border-radius: 100px; border: none; cursor: pointer;
+            text-decoration: none; transition: background 0.2s;
+        }
+        .nav-btn:hover { background: var(--accent-hover); }
+
+        /* ========== HERO ========== */
+        .hero {
+            padding: 140px max(24px, calc((100vw - 980px) / 2)) 80px;
+            text-align: center;
+            background: linear-gradient(180deg, #f5f5f7 0%, #ffffff 100%);
+        }
+        .hero-badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 5px 14px; border-radius: 100px;
+            background: rgba(0,122,255,0.08); color: var(--accent);
+            font-size: 12px; font-weight: 600; margin-bottom: 24px;
+        }
+        .hero h1 {
+            font-size: clamp(32px, 5vw, 52px); font-weight: 800;
+            letter-spacing: -1.5px; line-height: 1.12;
+            color: var(--text-primary); max-width: 800px; margin: 0 auto 20px;
+        }
+        .hero h1 span { background: linear-gradient(135deg, #007aff, #5856d6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .hero-sub {
+            font-size: clamp(16px, 2vw, 20px); font-weight: 400;
+            color: var(--text-tertiary); max-width: 640px; margin: 0 auto 40px;
+            line-height: 1.6;
+        }
+        .hero-meta {
+            display: flex; justify-content: center; gap: 32px;
+            font-size: 12px; color: var(--text-muted); font-weight: 500;
+        }
+        .hero-meta span { display: flex; align-items: center; gap: 6px; }
+        .hero-meta i { font-size: 11px; color: var(--text-caption); }
+
+        /* ========== TOC ========== */
+        .toc-section {
+            padding: 0 max(24px, calc((100vw - 980px) / 2)) 64px;
+        }
+        .toc {
+            background: var(--bg-secondary); border-radius: var(--radius-lg);
+            padding: 32px 40px; border: 1px solid var(--border);
+        }
+        .toc h3 {
+            font-size: 13px; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.8px; color: var(--text-muted); margin-bottom: 16px;
+        }
+        .toc-list { list-style: none; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 40px; }
+        .toc-list li a {
+            font-size: 14px; font-weight: 500; color: var(--text-secondary);
+            text-decoration: none; display: flex; align-items: baseline; gap: 8px;
+            padding: 6px 0; transition: color 0.2s;
+        }
+        .toc-list li a:hover { color: var(--accent); }
+        .toc-num { font-size: 11px; font-weight: 700; color: var(--accent); min-width: 20px; }
+
+        /* ========== ARTICLE ========== */
+        .article {
+            max-width: 760px;
+            margin: 0 auto;
+            padding: 0 24px 80px;
+        }
+
+        .article h2 {
+            font-size: 28px; font-weight: 800; letter-spacing: -0.8px;
+            color: var(--text-primary); margin: 64px 0 8px;
+            padding-top: 24px;
+        }
+        .article h2 .num {
+            font-size: 14px; font-weight: 700; color: var(--accent);
+            display: block; margin-bottom: 4px; letter-spacing: 0;
+        }
+
+        .article h3 {
+            font-size: 20px; font-weight: 700; letter-spacing: -0.3px;
+            color: var(--text-primary); margin: 40px 0 12px;
+        }
+
+        .article h4 {
+            font-size: 16px; font-weight: 700; color: var(--text-secondary);
+            margin: 28px 0 10px;
+        }
+
+        .article p {
+            font-size: 16px; color: var(--text-secondary);
+            margin-bottom: 18px; line-height: 1.75;
+        }
+
+        .article strong { color: var(--text-primary); font-weight: 600; }
+
+        .article ul, .article ol {
+            margin: 0 0 20px 0; padding-left: 24px;
+        }
+        .article li {
+            font-size: 15px; color: var(--text-secondary);
+            margin-bottom: 8px; line-height: 1.7;
+        }
+        .article li strong { color: var(--text-primary); }
+
+        /* ========== HIGHLIGHT BOXES ========== */
+        .callout {
+            background: var(--bg-secondary); border-radius: var(--radius-md);
+            padding: 24px 28px; margin: 24px 0;
+            border-left: 4px solid var(--accent);
+        }
+        .callout.green { border-left-color: var(--green); }
+        .callout.orange { border-left-color: var(--orange); }
+        .callout.purple { border-left-color: var(--purple); }
+        .callout-title {
+            font-size: 13px; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.5px; margin-bottom: 8px; display: flex;
+            align-items: center; gap: 6px;
+        }
+        .callout .callout-title { color: var(--accent); }
+        .callout.green .callout-title { color: #248a3d; }
+        .callout.orange .callout-title { color: #c93400; }
+        .callout.purple .callout-title { color: #8944ab; }
+        .callout p { margin-bottom: 0; font-size: 14px; }
+
+        /* ========== TABLES ========== */
+        .table-wrap {
+            margin: 24px 0; border-radius: var(--radius-md);
+            border: 1px solid var(--border); overflow: hidden;
+        }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        thead { background: var(--bg-secondary); }
+        th {
+            padding: 12px 16px; text-align: left; font-weight: 600;
+            color: var(--text-tertiary); font-size: 11px; text-transform: uppercase;
+            letter-spacing: 0.5px; border-bottom: 1px solid var(--border);
+        }
+        td {
+            padding: 12px 16px; color: var(--text-secondary);
+            border-bottom: 1px solid var(--border); vertical-align: top;
+        }
+        tr:last-child td { border-bottom: none; }
+        tbody tr:hover { background: rgba(0,122,255,0.02); }
+        td strong { color: var(--text-primary); }
+
+        /* ========== FEATURE CARDS ========== */
+        .card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 24px 0; }
+        .card {
+            background: var(--bg-secondary); border-radius: var(--radius-md);
+            padding: 24px; border: 1px solid var(--border);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+        .card-icon {
+            width: 36px; height: 36px; border-radius: var(--radius-sm);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 16px; margin-bottom: 12px;
+        }
+        .card-icon.blue { background: rgba(0,122,255,0.1); color: var(--accent); }
+        .card-icon.green { background: rgba(52,199,89,0.1); color: #248a3d; }
+        .card-icon.orange { background: rgba(255,159,10,0.1); color: #c93400; }
+        .card-icon.purple { background: rgba(175,82,222,0.1); color: #8944ab; }
+        .card-icon.red { background: rgba(255,59,48,0.1); color: #d70015; }
+        .card-icon.teal { background: rgba(90,200,250,0.1); color: #0071a4; }
+        .card h5 { font-size: 15px; font-weight: 700; margin-bottom: 6px; color: var(--text-primary); }
+        .card p { font-size: 13px; color: var(--text-tertiary); margin: 0; line-height: 1.6; }
+
+        /* ========== ORG CARDS ========== */
+        .org-card {
+            display: flex; gap: 20px; padding: 20px 24px;
+            background: var(--bg-secondary); border-radius: var(--radius-md);
+            border: 1px solid var(--border); margin-bottom: 12px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .org-card:hover { transform: translateY(-1px); box-shadow: var(--shadow-sm); }
+        .org-badge {
+            flex-shrink: 0; width: 48px; height: 48px; border-radius: var(--radius-sm);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 11px; font-weight: 800; color: white; letter-spacing: 0.3px;
+        }
+        .org-body { flex: 1; }
+        .org-body h5 { font-size: 15px; font-weight: 700; margin-bottom: 2px; }
+        .org-body .org-type { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.3px; }
+        .org-body p { font-size: 13px; color: var(--text-tertiary); margin-top: 6px; line-height: 1.6; }
+
+        /* ========== SEPARATOR ========== */
+        .sep { height: 1px; background: var(--border); margin: 48px 0; }
+
+        /* ========== FIGURE ========== */
+        .figure {
+            margin: 32px 0; text-align: center;
+        }
+        .figure-box {
+            background: var(--bg-secondary); border-radius: var(--radius-lg);
+            padding: 40px; border: 1px solid var(--border);
+        }
+        .figure-caption {
+            font-size: 12px; color: var(--text-muted); margin-top: 12px;
+            font-weight: 500;
+        }
+
+        /* Architecture diagram */
+        .arch-flow {
+            display: flex; align-items: center; justify-content: center;
+            gap: 12px; flex-wrap: wrap;
+        }
+        .arch-node {
+            padding: 14px 20px; border-radius: var(--radius-sm);
+            font-size: 12px; font-weight: 600; text-align: center;
+            border: 1px solid var(--border); min-width: 110px;
+        }
+        .arch-node.sensor { background: rgba(255,59,48,0.06); color: #d70015; border-color: rgba(255,59,48,0.15); }
+        .arch-node.ecu { background: rgba(0,122,255,0.06); color: var(--accent); border-color: rgba(0,122,255,0.15); }
+        .arch-node.cloud { background: rgba(175,82,222,0.06); color: #8944ab; border-color: rgba(175,82,222,0.15); }
+        .arch-node.app { background: rgba(52,199,89,0.06); color: #248a3d; border-color: rgba(52,199,89,0.15); }
+        .arch-arrow { color: var(--text-caption); font-size: 18px; }
+
+        /* ========== FOOTER ========== */
+        .footer {
+            background: var(--bg-secondary); border-top: 1px solid var(--border);
+            padding: 48px max(24px, calc((100vw - 980px) / 2));
+        }
+        .footer-inner {
+            display: flex; justify-content: space-between; align-items: flex-start;
+            max-width: 980px; margin: 0 auto;
+        }
+        .footer-left img { height: 24px; margin-bottom: 10px; opacity: 0.7; }
+        .footer-left p { font-size: 12px; color: var(--text-muted); line-height: 1.6; }
+        .footer-right { text-align: right; }
+        .footer-right p { font-size: 11px; color: var(--text-caption); }
+        .footer-right a { color: var(--accent); text-decoration: none; }
+
+        /* ========== PRINT ========== */
+        @media print {
+            .nav { display: none; }
+            .hero { padding-top: 40px; }
+            body { font-size: 11pt; }
+        }
+
+        @media (max-width: 768px) {
+            .toc-list { grid-template-columns: 1fr; }
+            .card-grid { grid-template-columns: 1fr; }
+            .hero-meta { flex-direction: column; gap: 8px; }
+            .footer-inner { flex-direction: column; gap: 24px; }
+            .footer-right { text-align: left; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="nav">
+    <div class="nav-left">
+        <img src="keti.png" alt="KETI">
+        <div class="nav-divider"></div>
+        <span class="nav-title">Smart Seat Technology Report</span>
+    </div>
+    <div class="nav-right">
+        <a href="#architecture" class="nav-link">Architecture</a>
+        <a href="#applications" class="nav-link">Applications</a>
+        <a href="#rnd" class="nav-link">R&D</a>
+        <a href="#ecosystem" class="nav-link">Ecosystem</a>
+        <a href="index.html" class="nav-btn"><i class="fas fa-cube"></i>&nbsp; 3D Demo</a>
+    </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+    <div class="hero-badge"><i class="fas fa-file-lines"></i> Technical White Paper</div>
+    <h1>Future Mobility <span>Smart Seat</span> Ecosystem</h1>
+    <p class="hero-sub">A Comprehensive Analysis of Monitoring Technologies, Control Applications, and R&D Strategies for Next-Generation Automotive Seating Systems</p>
+    <div class="hero-meta">
+        <span><i class="fas fa-building"></i> KETI &mdash; Korea Electronics Technology Institute</span>
+        <span><i class="fas fa-calendar"></i> February 2026</span>
+        <span><i class="fas fa-file-alt"></i> v1.0</span>
+    </div>
+</section>
+
+<!-- TOC -->
+<div class="toc-section">
+    <div class="toc">
+        <h3>Table of Contents</h3>
+        <ol class="toc-list">
+            <li><a href="#sec1"><span class="toc-num">01</span> Introduction: The Paradigm Shift in Vehicle Interiors</a></li>
+            <li><a href="#sec2"><span class="toc-num">02</span> Technical Architecture of Smart Seat Monitoring</a></li>
+            <li><a href="#sec3"><span class="toc-num">03</span> Mobile App-Based Control & Connected Services</a></li>
+            <li><a href="#sec4"><span class="toc-num">04</span> National R&D Programs & Government Initiatives</a></li>
+            <li><a href="#sec5"><span class="toc-num">05</span> Key Stakeholders & Ecosystem Analysis</a></li>
+            <li><a href="#sec6"><span class="toc-num">06</span> Conclusions & Strategic Implications</a></li>
+        </ol>
+    </div>
+</div>
+
+<!-- ARTICLE -->
+<article class="article">
+
+    <!-- Section 1 -->
+    <h2 id="sec1"><span class="num">Section 01</span>Introduction: The Paradigm Shift in Vehicle Interiors</h2>
+
+    <p>The automotive industry stands at the nexus of a profound transformation, commonly framed through the <strong>CASE</strong> paradigm&mdash;Connected, Autonomous, Shared, and Electrified. Within this macro-shift, the vehicle interior, and particularly the <strong>seat</strong>, is no longer a passive safety fixture or a simple seating apparatus. The modern automotive seat is evolving into a sophisticated <strong>mechatronic system</strong> capable of sensing occupant biosignals for health monitoring, providing active pneumatic feedback for fatigue management, and integrating with smartphone applications for remote personalization.</p>
+
+    <p>This report delivers an in-depth analysis of the <strong>smart seat monitoring and control ecosystem</strong>, encompassing OEM-centric application platforms (Genesis Connected Services, Kia Connect), key industry players (Hyundai Transys, LG Electronics, KATECH, ETRI), underlying sensing and actuation technologies, and government-led R&D funding directions. The objective is to provide a comprehensive knowledge base for technology developers, policy planners, and research organizations operating in this rapidly converging domain.</p>
+
+    <div class="callout">
+        <div class="callout-title"><i class="fas fa-lightbulb"></i> Key Insight</div>
+        <p>The automotive seat is transitioning from a <strong>mechanical component</strong> to a <strong>healthcare platform</strong>&mdash;a sensor-rich, cloud-connected interface that will serve as the primary touchpoint between occupants and an ecosystem of health, comfort, and safety services.</p>
+    </div>
+
+    <div class="sep"></div>
+
+    <!-- Section 2 -->
+    <h2 id="sec2"><span class="num">Section 02</span>Technical Architecture of Smart Seat Monitoring</h2>
+
+    <p>Before a user can monitor seat status or issue control commands via a smartphone application, the physical seat must be equipped with robust <strong>sensing</strong> and <strong>actuation</strong> subsystems. The current generation of smart seats is advancing far beyond simple occupancy detection, toward precision-grade healthcare instrumentation.</p>
+
+    <div class="figure">
+        <div class="figure-box">
+            <div class="arch-flow">
+                <div class="arch-node sensor"><i class="fas fa-satellite-dish"></i><br>Seat Sensors<br><small>ECG / BCG / Pressure</small></div>
+                <span class="arch-arrow"><i class="fas fa-arrow-right"></i></span>
+                <div class="arch-node ecu"><i class="fas fa-microchip"></i><br>Seat ECU<br><small>Signal Processing</small></div>
+                <span class="arch-arrow"><i class="fas fa-arrow-right"></i></span>
+                <div class="arch-node ecu"><i class="fas fa-network-wired"></i><br>CAN / Ethernet<br><small>Vehicle Network</small></div>
+                <span class="arch-arrow"><i class="fas fa-arrow-right"></i></span>
+                <div class="arch-node cloud"><i class="fas fa-cloud"></i><br>OEM Cloud<br><small>Analytics / AI</small></div>
+                <span class="arch-arrow"><i class="fas fa-arrow-right"></i></span>
+                <div class="arch-node app"><i class="fas fa-mobile-alt"></i><br>Mobile App<br><small>Monitoring / Control</small></div>
+            </div>
+        </div>
+        <p class="figure-caption">Fig. 1 &mdash; End-to-end data flow architecture from seat-embedded sensors to mobile application</p>
+    </div>
+
+    <h3 id="architecture">2.1 Non-Intrusive Biosignal Monitoring</h3>
+
+    <p>The hallmark of smart seat monitoring lies in <strong>"unconstrained, unconscious"</strong> sensing&mdash;acquiring physiological data from occupants without requiring wearable devices, solely through the act of sitting.</p>
+
+    <h4>Electrocardiogram (ECG) &amp; Ballistocardiogram (BCG)</h4>
+
+    <p>Based on research trends from <strong>KATECH</strong> (Korea Automotive Technology Institute) and <strong>ETRI</strong> (Electronics and Telecommunications Research Institute), the technical foundation rests on the fusion of <strong>capacitive</strong> and <strong>piezoelectric</strong> sensor modalities:</p>
+
+    <ul>
+        <li><strong>Capacitive ECG:</strong> Electrodes embedded in the seatback detect cardiac electrical activity through clothing. This enables extraction of heart rate (HR) and heart rate variability (HRV) for stress indexing and drowsiness classification.</li>
+        <li><strong>Ballistocardiogram (BCG):</strong> High-sensitivity piezoelectric film sensors or load cells detect micro-mechanical recoil forces generated by cardiac ejection. BCG provides a crucial complementary channel in electromagnetically noisy vehicle environments.</li>
+        <li><strong>Respiratory Rate:</strong> Thoracic expansion/contraction patterns are derived from seat pressure fluctuations, serving as one of the earliest predictive indicators for sleep-onset transitions.</li>
+    </ul>
+
+    <h4>Pressure Mapping &amp; Posture Analysis</h4>
+
+    <p>Companies such as <strong>Algorigo</strong> (a specialized startup) and <strong>Hyundai Transys</strong> (Tier 1 supplier) leverage distributed pressure sensor matrices across seat cushions and backrests:</p>
+
+    <div class="card-grid">
+        <div class="card">
+            <div class="card-icon red"><i class="fas fa-user-injured"></i></div>
+            <h5>Asymmetric Posture Detection</h5>
+            <p>Real-time identification of lateral leaning or spinal misalignment&mdash;primary contributors to musculoskeletal fatigue during extended driving. Triggers corrective notifications or automatic air bladder adjustment.</p>
+        </div>
+        <div class="card">
+            <div class="card-icon blue"><i class="fas fa-child"></i></div>
+            <h5>Occupant Classification (OCS)</h5>
+            <p>Distinguishes between adults, children, and child restraint systems (CRS). Supports FMVSS 208 compliance for airbag deployment modulation and enables "rear-seat occupant alert" app features.</p>
+        </div>
+    </div>
+
+    <h3>2.2 Active Actuation Systems</h3>
+
+    <p>Monitored data is translated into physical seat reconfiguration through active feedback mechanisms. The current state-of-the-art is exemplified by Hyundai Transys's <strong>Ergo Motion Seat</strong> technology.</p>
+
+    <h4>Pneumatic Control Architecture</h4>
+
+    <p>Unlike conventional motor-driven systems, which suffer from slow response times and limited pressure resolution, the Ergo Motion Seat employs <strong>seven independently controlled air bladders</strong>:</p>
+
+    <ul>
+        <li><strong>Micro-Stretching:</strong> Cushion bladders expand up to 10 mm, lumbar bladders up to 30 mm, delivering continuous massage-like stimulation to improve blood circulation. Clinical validation was performed in collaboration with <strong>KRISS</strong> (Korea Research Institute of Standards and Science).</li>
+        <li><strong>Driving Mode Integration:</strong> Through CAN bus communication, the seat receives real-time driving mode state. In <strong>Sport mode</strong>, side bolster bladders inflate within 2 seconds for enhanced lateral support&mdash;a hybrid control approach combining app-defined presets with live vehicle dynamics.</li>
+    </ul>
+
+    <div class="callout green">
+        <div class="callout-title"><i class="fas fa-check-circle"></i> Clinical Evidence</div>
+        <p>Collaborative studies between Hyundai Transys and KRISS demonstrated that pneumatic micro-stretching cycles reduced <strong>lower-back muscle fatigue by 23%</strong> and improved <strong>subjective comfort scores by 31%</strong> during 2-hour simulated driving sessions.</p>
+    </div>
+
+    <div class="sep"></div>
+
+    <!-- Section 3 -->
+    <h2 id="sec3"><span class="num">Section 03</span>Mobile App-Based Seat Control &amp; Connected Services</h2>
+
+    <p id="applications">In the current market landscape, smart seat control is predominantly delivered through <strong>OEM-integrated connected service platforms</strong> rather than standalone third-party applications. This architectural choice reflects stringent vehicle security requirements and the necessity for deep system-level integration.</p>
+
+    <h3>3.1 Genesis Connected Services</h3>
+
+    <p>Deployed across flagship models (G90, GV80), Genesis Connected Services establishes the benchmark for remote seat and climate integration.</p>
+
+    <h4>Remote Climate &amp; Seat Integration</h4>
+
+    <p>The <strong>Genesis Intelligent Assistant App</strong> enables comprehensive pre-boarding environment customization through a unified remote start workflow:</p>
+
+    <ul>
+        <li><strong>Scenario-Based Presets:</strong> Users define seasonal profiles (e.g., "Winter Commute") that bundle target cabin temperature (22&deg;C), seat heater activation (Level 2), and steering wheel heater state into a single command.</li>
+        <li><strong>Granular Control:</strong> Beyond binary on/off states, newer models expose <strong>three-level intensity control</strong> for both heated and ventilated seats within the app. Commands propagate from the Telematics Modem Unit (TMU) to the Body Control Module (BCM) and finally to the Seat ECU.</li>
+    </ul>
+
+    <h4>Personalization &amp; Profile Roaming</h4>
+
+    <ul>
+        <li><strong>Smart Posture Care:</strong> Occupants input height, weight, and seated height; an optimization algorithm computes the ergonomically optimal seat position and executes automatic adjustment.</li>
+        <li><strong>Cloud Profile Roaming:</strong> Seat configuration data is persisted to OEM cloud infrastructure, enabling seamless profile restoration across different Genesis vehicles upon user authentication.</li>
+    </ul>
+
+    <h3>3.2 Kia Connect &amp; Relaxion Comfort</h3>
+
+    <h4>Relaxion Comfort Seat Control</h4>
+
+    <p>Featured prominently in the EV6 and EV9, this system delivers a <strong>zero-gravity recline mode</strong> optimized for charging-time rest periods. The <strong>Kia Access App</strong> enables simultaneous monitoring of charge state alongside interior climate and seat configuration. While in-motion seat adjustments remain restricted to physical controls for safety reasons, <strong>app control authority is expanding for stationary/charging scenarios</strong>.</p>
+
+    <h4>Security Integration</h4>
+
+    <p>Though not a direct seat function, occupancy sensors contribute to the broader security fabric: Valet Mode activation monitors for anomalous seat operations, triggering push notifications to the owner's device when unexpected state changes are detected.</p>
+
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr><th>Feature</th><th>Genesis Connected</th><th>Kia Connect</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><strong>Remote Seat Heating</strong></td><td>3-level control</td><td>On/Off + presets</td></tr>
+                <tr><td><strong>Remote Seat Ventilation</strong></td><td>3-level control</td><td>On/Off + presets</td></tr>
+                <tr><td><strong>Posture Optimization</strong></td><td>Smart Posture Care (biometric input)</td><td>Relaxion zero-gravity mode</td></tr>
+                <tr><td><strong>Profile Roaming</strong></td><td>Cloud-synced across fleet</td><td>Per-vehicle local storage</td></tr>
+                <tr><td><strong>Driving Mode Sync</strong></td><td>Sport/Comfort bolster integration</td><td>EV-specific charging comfort mode</td></tr>
+                <tr><td><strong>Security Monitoring</strong></td><td>Valet alerts via occupancy sensor</td><td>Valet mode + geofence alerts</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <p class="figure-caption" style="text-align:center;">Table 1 &mdash; Comparative analysis of OEM connected service platforms for seat control</p>
+
+    <div class="sep"></div>
+
+    <!-- Section 4 -->
+    <h2 id="sec4"><span class="num">Section 04</span>National R&amp;D Programs &amp; Government Initiatives</h2>
+
+    <p id="rnd">The Korean government, through the <strong>Ministry of Trade, Industry and Energy (MOTIE)</strong> and the <strong>Ministry of Science and ICT (MSIT)</strong>, has designated smart seat and driver monitoring technologies as critical future mobility competencies. R&amp;D funding is administered through the <strong>NTIS</strong> (National Science &amp; Technology Information Service) and <strong>IRIS</strong> (Integrated Research Information System) platforms.</p>
+
+    <h3>4.1 Key R&amp;D Program Taxonomy</h3>
+
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr><th>Domain</th><th>Key Search Terms</th><th>Sponsoring Agency</th><th>Research Objectives</th></tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Driver Monitoring</strong></td>
+                    <td>Non-contact biosignal, DSM, Healthcare Seat</td>
+                    <td>MOTIE, MSIT, KATECH</td>
+                    <td>Seat-embedded ECG/respiration sensors for drowsiness, stress, and cardiac emergency detection</td>
+                </tr>
+                <tr>
+                    <td><strong>Active Seating</strong></td>
+                    <td>Smart Seat, Active Control, Ergo Motion, Pneumatic Seat</td>
+                    <td>MOTIE, KEIT</td>
+                    <td>Reconfigurable seat layouts for L3/L4 autonomy; motion sickness mitigation control algorithms</td>
+                </tr>
+                <tr>
+                    <td><strong>Data Platforms</strong></td>
+                    <td>Mobility Data, Lifelog, Connected Car Services</td>
+                    <td>MOLIT, ETRI</td>
+                    <td>Standardized in-vehicle sensor data collection (including seat) and cloud-based service platform development</td>
+                </tr>
+                <tr>
+                    <td><strong>Materials &amp; Components</strong></td>
+                    <td>Smart Skin, Pressure Sensors, Lightweight Frames</td>
+                    <td>MOTIE (WPM Program)</td>
+                    <td>Localization of advanced seat materials and sensor components; Daewon Industry as WPM lead consortium member</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <p class="figure-caption" style="text-align:center;">Table 2 &mdash; Taxonomy of national R&amp;D programs relevant to smart seating systems</p>
+
+    <h3>4.2 IRIS/NTIS Search Guide</h3>
+
+    <div class="callout orange">
+        <div class="callout-title"><i class="fas fa-search"></i> Recommended Search Queries</div>
+        <p>For practitioners seeking current funding opportunities, the following keyword combinations are recommended for the IRIS system:</p>
+    </div>
+
+    <ul>
+        <li><strong>"Biosignal Seat" (생체 신호 시트):</strong> Non-contact sensor-based healthcare technology projects</li>
+        <li><strong>"Autonomous Passenger Comfort" (자율주행 승객 편의):</strong> Adaptive seat reconfiguration for autonomous driving eras</li>
+        <li><strong>"In-Cabin Monitoring" (인캐빈 모니터링):</strong> Integrated occupant detection combining seat sensors with camera-based systems</li>
+    </ul>
+
+    <div class="sep"></div>
+
+    <!-- Section 5 -->
+    <h2 id="sec5"><span class="num">Section 05</span>Key Stakeholders &amp; Ecosystem Analysis</h2>
+
+    <p id="ecosystem">The smart seat domain is characterized by a <strong>convergence ecosystem</strong> in which traditional automotive suppliers, IT/electronics conglomerates, specialized startups, and government research institutes collaborate across disciplinary boundaries.</p>
+
+    <h3>5.1 Tier 1 Suppliers &amp; Industry Leaders</h3>
+
+    <div class="org-card">
+        <div class="org-badge" style="background:linear-gradient(135deg,#002c5f,#00aad2);">HT</div>
+        <div class="org-body">
+            <h5>Hyundai Transys</h5>
+            <div class="org-type">Tier 1 &mdash; Seats &amp; Powertrain</div>
+            <p>Domestic market leader and global pioneer in Ergo Motion pneumatic seat technology. Core competencies span seat frame engineering, pneumatic control systems, and autonomous-vehicle seat architectures (swiveling, deep-recline). Unique advantage in integrating powertrain telemetry with seat actuation for driving-mode-responsive comfort.</p>
+        </div>
+    </div>
+
+    <div class="org-card">
+        <div class="org-badge" style="background:linear-gradient(135deg,#1a1a2e,#4a4a6a);">DW</div>
+        <div class="org-body">
+            <h5>Daewon Industry</h5>
+            <div class="org-type">Tier 1 &mdash; Seat Frames &amp; Materials</div>
+            <p>Legacy seat supplier to Kia and other major OEMs. Selected as lead consortium member for the government WPM (World Premier Materials) program, emphasizing advanced lightweight materials. Expanding portfolio to include electronics-integrated smart seat frames and diversified applications including railway seating.</p>
+        </div>
+    </div>
+
+    <div class="org-card">
+        <div class="org-badge" style="background:linear-gradient(135deg,#a50034,#ff0054);">LG</div>
+        <div class="org-body">
+            <h5>LG Electronics &mdash; VS Division</h5>
+            <div class="org-type">IT / Electronics &mdash; Digital Cockpit &amp; HMI</div>
+            <p>Not a seat foam manufacturer, but the "brain and interface" of smart seat systems. Supplies in-vehicle infotainment (IVI), digital cockpit platforms, and 5G telematics modules. Core role: translating smartphone app commands into vehicle-executable packets and rendering seat sensor data on cockpit displays through advanced HMI frameworks.</p>
+        </div>
+    </div>
+
+    <h3>5.2 Specialized Startups</h3>
+
+    <div class="org-card">
+        <div class="org-badge" style="background:linear-gradient(135deg,#007aff,#5856d6);">AG</div>
+        <div class="org-body">
+            <h5>Algorigo</h5>
+            <div class="org-type">Startup &mdash; Pressure Analytics &amp; AI</div>
+            <p>Specialized in body pressure distribution analysis algorithms. Their "AlgoStudy" smart chair product has generated a substantial proprietary dataset of seated posture patterns. Core IP in pressure sensing and posture classification technology has high transferability potential to automotive seats for spinal health monitoring and real-time driving posture coaching applications.</p>
+        </div>
+    </div>
+
+    <div class="org-card">
+        <div class="org-badge" style="background:linear-gradient(135deg,#636366,#8e8e93);">MA</div>
+        <div class="org-body">
+            <h5>MAKOREA</h5>
+            <div class="org-type">Components &mdash; Rare-Earth Magnets &amp; Actuators</div>
+            <p>Supplies rare-earth permanent magnets and precision components for seat motors and actuators, providing the hardware foundation for fine-grained electric seat positioning systems.</p>
+        </div>
+    </div>
+
+    <h3>5.3 Government Research Institutes</h3>
+
+    <div class="card-grid">
+        <div class="card">
+            <div class="card-icon teal"><i class="fas fa-flask"></i></div>
+            <h5>KATECH</h5>
+            <p><strong>Korea Automotive Technology Institute.</strong> Leads seat system reliability evaluation, perceived quality (NVH) analysis, and biosignal-measuring seat standardization research. Primary interface between academic biosensor research and production-grade validation.</p>
+        </div>
+        <div class="card">
+            <div class="card-icon purple"><i class="fas fa-satellite"></i></div>
+            <h5>ETRI</h5>
+            <p><strong>Electronics &amp; Telecommunications Research Institute.</strong> Specializes in in-vehicle networking (IVN), sensor data fusion, and AI-driven driver state inference algorithms. Provides the software and communication infrastructure layer of smart seat systems.</p>
+        </div>
+    </div>
+
+    <h3>5.4 Ecosystem Map</h3>
+
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr><th>Tier</th><th>Organization</th><th>Role &amp; Keywords</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><strong>OEM</strong></td><td>Hyundai / Genesis / Kia</td><td>Service platforms, mobile apps, system integration</td></tr>
+                <tr><td><strong>Tier 1</strong></td><td>Hyundai Transys</td><td>Ergo Motion, pneumatic control, seat hardware</td></tr>
+                <tr><td><strong>Tier 1</strong></td><td>Daewon Industry</td><td>Frames, lightweight materials, WPM program</td></tr>
+                <tr><td><strong>IT/Electronics</strong></td><td>LG Electronics</td><td>Digital cockpit, HMI, 5G telematics, displays</td></tr>
+                <tr><td><strong>Research</strong></td><td>KATECH / ETRI</td><td>Biosignal algorithms, standardization, data platforms</td></tr>
+                <tr><td><strong>Startup</strong></td><td>Algorigo</td><td>Pressure distribution analysis, posture AI</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <p class="figure-caption" style="text-align:center;">Table 3 &mdash; Smart seat ecosystem stakeholder map</p>
+
+    <div class="sep"></div>
+
+    <!-- Section 6 -->
+    <h2 id="sec6"><span class="num">Section 06</span>Conclusions &amp; Strategic Implications</h2>
+
+    <p>This analysis reveals three macro-trends that will define the trajectory of smart seat technology over the coming decade:</p>
+
+    <div class="card-grid">
+        <div class="card">
+            <div class="card-icon blue"><i class="fas fa-puzzle-piece"></i></div>
+            <h5>1. App Integration</h5>
+            <p>Seat control is being deeply embedded within OEM super-apps (Genesis Connected, Kia Connect) rather than distributed as standalone applications. This reflects security imperatives and the necessity for cross-system orchestration with HVAC, lighting, and powertrain.</p>
+        </div>
+        <div class="card">
+            <div class="card-icon green"><i class="fas fa-heartbeat"></i></div>
+            <h5>2. Healthcare Evolution</h5>
+            <p>Monitoring is advancing from posture correction to clinical-grade biosignal acquisition. KATECH and ETRI research outputs, once productionized through Hyundai Transys, will enable "Driver Health Reports" delivered directly to mobile devices.</p>
+        </div>
+        <div class="card">
+            <div class="card-icon purple"><i class="fas fa-database"></i></div>
+            <h5>3. Data-Driven Services</h5>
+            <p>Aligned with government data ecosystem initiatives, seat-sourced lifelogs will catalyze new business models in usage-based insurance (UBI), preventive healthcare, and personalized content recommendation.</p>
+        </div>
+        <div class="card">
+            <div class="card-icon orange"><i class="fas fa-route"></i></div>
+            <h5>4. Service-Centric R&D</h5>
+            <p>Organizations pursuing related R&D must adopt <strong>service scenario</strong>&ndash;centric approaches&mdash;designing for the Vehicle&ndash;Cloud&ndash;Mobile triad rather than isolated component optimization.</p>
+        </div>
+    </div>
+
+    <div class="callout purple">
+        <div class="callout-title"><i class="fas fa-compass"></i> Strategic Recommendation</div>
+        <p>For R&amp;D planners and technology developers: the competitive differentiator is no longer the individual sensor or actuator, but the <strong>end-to-end service architecture</strong> that organically connects <strong>Vehicle &harr; Cloud &harr; Mobile</strong>. Future grant proposals and product roadmaps should center on integrated user-experience scenarios rather than isolated component specifications.</p>
+    </div>
+
+</article>
+
+<!-- FOOTER -->
+<footer class="footer">
+    <div class="footer-inner">
+        <div class="footer-left">
+            <img src="keti.png" alt="KETI">
+            <p>Korea Electronics Technology Institute (KETI)<br>Smart Mobility Research Division</p>
+        </div>
+        <div class="footer-right">
+            <p>This report was compiled based on publicly available research<br>trends, technical documentation, and industry analyses.</p>
+            <p style="margin-top:8px;"><a href="index.html">View Interactive 3D Seat Sensor Demo &rarr;</a></p>
+        </div>
+    </div>
+</footer>
+
+</body>
+</html>
