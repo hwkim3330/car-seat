@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KETI — Seat Diagnostics Cockpit</title>
+    <script src="libs/three.min.js"></script>
+    <script src="libs/OrbitControls.js"></script>
+    <script src="libs/GLTFLoader.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&display=swap');
+        :root {
+            --bg:#0a0a14; --panel:rgba(8,12,24,0.92); --card:rgba(14,18,32,0.85);
+            --border:rgba(0,220,255,0.08); --border-hi:rgba(0,220,255,0.2);
+            --cyan:#00dcff; --cyan-dim:rgba(0,220,255,0.15); --cyan-glow:rgba(0,220,255,0.3);
+            --mag:#ff2d6a; --mag-dim:rgba(255,45,106,0.12);
+            --green:#00e676; --orange:#ffab00; --text:#c8d6e5; --text2:#5c6a7a; --text3:#2e3a4a;
+            --mono:'JetBrains Mono',monospace; --sans:'Inter',system-ui,sans-serif;
+        }
+        *{margin:0;padding:0;box-sizing:border-box;}
+        body{font-family:var(--sans);background:var(--bg);color:var(--text);overflow:hidden;-webkit-font-smoothing:antialiased;}
+        .app{display:flex;flex-direction:column;height:100vh;}
+
+        /* Scanline overlay */
+        .app::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:999;
+            background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.03) 2px,rgba(0,0,0,0.03) 4px);
+        }
+
+        .header{
+            height:40px;background:var(--panel);backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px);
+            border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;
+            padding:0 16px;flex-shrink:0;z-index:20;
+        }
+        .h-left{display:flex;align-items:center;gap:10px;}
+        .h-left img{height:16px;opacity:0.6;filter:brightness(1.3);}
+        .h-sep{color:var(--text3);font-size:14px;}
+        .h-title{font-family:var(--mono);font-size:11px;font-weight:500;color:var(--cyan);letter-spacing:1.5px;text-transform:uppercase;}
+        .h-center{display:flex;align-items:center;gap:14px;}
+        .h-live{display:flex;align-items:center;gap:5px;font-family:var(--mono);font-size:9px;font-weight:600;color:var(--mag);letter-spacing:1px;}
+        .h-dot{width:4px;height:4px;border-radius:50%;background:var(--mag);box-shadow:0 0 6px var(--mag);animation:blink 1s steps(2) infinite;}
+        @keyframes blink{0%,100%{opacity:1;}50%{opacity:0;}}
+        .h-time{font-family:var(--mono);font-size:10px;color:var(--text2);letter-spacing:0.5px;}
+        .h-right{display:flex;align-items:center;gap:5px;}
+
+        .btn{
+            padding:4px 10px;border-radius:2px;border:1px solid var(--border);
+            background:transparent;color:var(--text2);font-family:var(--mono);font-size:9px;font-weight:500;
+            cursor:pointer;display:inline-flex;align-items:center;gap:4px;transition:all 0.12s;letter-spacing:0.5px;
+        }
+        .btn:hover{background:var(--cyan-dim);border-color:var(--border-hi);color:var(--cyan);}
+        .btn:active{transform:scale(0.97);}
+        .btn i{font-size:9px;}
+
+        .content{flex:1;display:flex;overflow:hidden;}
+
+        /* Panels */
+        .lp{
+            width:240px;flex-shrink:0;background:var(--panel);backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px);
+            border-right:1px solid var(--border);overflow-y:auto;display:flex;flex-direction:column;
+        }
+        .sec{padding:12px;}
+        .sec+.sec{border-top:1px solid var(--border);}
+        .sec-t{
+            font-family:var(--mono);font-size:8px;font-weight:600;color:var(--text3);
+            letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;
+            display:flex;align-items:center;gap:5px;
+        }
+        .sec-t::before{content:'//';color:var(--cyan);opacity:0.3;}
+
+        /* Sensor toggles */
+        .st{display:flex;align-items:center;justify-content:space-between;padding:7px 8px;border-radius:3px;cursor:pointer;transition:all 0.12s;margin-bottom:1px;border:1px solid transparent;}
+        .st:hover{background:rgba(255,255,255,0.02);}
+        .st.on{background:var(--card);border-color:var(--border);}
+        .st-i{display:flex;align-items:center;gap:7px;}
+        .st-bar{width:2px;height:16px;border-radius:1px;}
+        .st-n{font-size:11px;font-weight:500;}
+        .st-d{font-family:var(--mono);font-size:8px;color:var(--text3);margin-top:1px;letter-spacing:0.3px;}
+        .st-eye{font-size:9px;color:var(--text3);}
+        .st.on .st-eye{color:var(--cyan);}
+
+        /* Controls */
+        .cg{margin-bottom:12px;}
+        .cg:last-child{margin-bottom:0;}
+        .cl{display:flex;justify-content:space-between;font-size:10px;color:var(--text2);margin-bottom:5px;}
+        .cv{font-family:var(--mono);color:var(--cyan);font-weight:500;font-size:10px;}
+        input[type="range"]{width:100%;height:2px;appearance:none;-webkit-appearance:none;background:var(--text3);border-radius:1px;outline:none;cursor:pointer;}
+        input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;width:10px;height:10px;border-radius:1px;background:var(--cyan);cursor:pointer;box-shadow:0 0 8px var(--cyan-glow);}
+
+        .pg{display:grid;grid-template-columns:1fr 1fr;gap:3px;}
+        .pb{
+            padding:6px;border-radius:2px;border:1px solid var(--border);background:transparent;
+            color:var(--text2);font-family:var(--mono);font-size:9px;font-weight:500;cursor:pointer;text-align:center;transition:all 0.12s;letter-spacing:0.3px;
+        }
+        .pb:hover{background:rgba(255,255,255,0.02);border-color:var(--border-hi);}
+        .pb:active{transform:scale(0.97);}
+        .pb.on{background:var(--cyan);border-color:var(--cyan);color:var(--bg);}
+
+        /* Canvas */
+        .canvas-area{flex:1;position:relative;background:var(--bg);}
+        #canvas3d{width:100%;height:100%;display:block;}
+
+        /* HUD corners on canvas */
+        .hud-corner{position:absolute;width:24px;height:24px;z-index:5;pointer-events:none;}
+        .hud-corner.tl{top:8px;left:8px;border-top:1px solid var(--cyan);border-left:1px solid var(--cyan);opacity:0.25;}
+        .hud-corner.tr{top:8px;right:8px;border-top:1px solid var(--cyan);border-right:1px solid var(--cyan);opacity:0.25;}
+        .hud-corner.bl{bottom:8px;left:8px;border-bottom:1px solid var(--cyan);border-left:1px solid var(--cyan);opacity:0.25;}
+        .hud-corner.br{bottom:8px;right:8px;border-bottom:1px solid var(--cyan);border-right:1px solid var(--cyan);opacity:0.25;}
+
+        .legend{
+            position:absolute;bottom:12px;left:50%;transform:translateX(-50%);
+            background:var(--card);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+            border:1px solid var(--border);border-radius:2px;padding:5px 10px;display:none;
+            align-items:center;gap:8px;z-index:10;
+        }
+        .legend.show{display:flex;}
+        .leg-t{font-family:var(--mono);font-size:8px;color:var(--text2);font-weight:500;white-space:nowrap;letter-spacing:0.5px;}
+        .leg-l{display:flex;justify-content:space-between;width:140px;font-family:var(--mono);font-size:7px;color:var(--text3);}
+
+        /* Right panel */
+        .rp{
+            width:260px;flex-shrink:0;background:var(--panel);backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px);
+            border-left:1px solid var(--border);overflow-y:auto;display:flex;flex-direction:column;
+        }
+
+        /* Stat cards */
+        .sg{display:grid;grid-template-columns:1fr 1fr;gap:4px;}
+        .sc{background:var(--card);border-radius:3px;padding:10px;border:1px solid var(--border);}
+        .sc .v{font-family:var(--mono);font-size:22px;font-weight:300;letter-spacing:-0.5px;}
+        .sc .l{font-family:var(--mono);font-size:7px;color:var(--text3);margin-top:3px;letter-spacing:1px;text-transform:uppercase;}
+        .sc.hi .v{color:var(--cyan);}
+        .sc.ok .v{color:var(--green);}
+        .sc.wa .v{color:var(--orange);}
+        .sc.er .v{color:var(--mag);}
+
+        /* Gauge */
+        .gauge-wrap{display:flex;justify-content:center;margin:8px 0;}
+        .gauge{position:relative;width:100px;height:100px;}
+        .gauge canvas{width:100%;height:100%;}
+        .gauge-val{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+        .gauge-num{font-family:var(--mono);font-size:20px;font-weight:300;color:var(--cyan);}
+        .gauge-unit{font-family:var(--mono);font-size:7px;color:var(--text3);letter-spacing:1px;margin-top:2px;}
+
+        /* Temp zones */
+        .tz{display:flex;align-items:center;justify-content:space-between;padding:6px 8px;margin-bottom:2px;border-radius:2px;background:var(--card);border:1px solid var(--border);}
+        .tz-i{display:flex;align-items:center;gap:6px;}
+        .tz-d{width:2px;height:12px;border-radius:1px;}
+        .tz-n{font-size:10px;color:var(--text2);}
+        .tz-v{font-family:var(--mono);font-size:11px;font-weight:500;}
+        .tz-b{width:24px;height:24px;border-radius:3px;border:1px solid var(--border);background:transparent;color:var(--text3);font-size:9px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+        .tz-b:hover{background:rgba(255,255,255,0.03);}
+        .tz-b.hot{background:var(--mag);border-color:var(--mag);color:#fff;}
+        .tz-b.cool{background:var(--cyan);border-color:var(--cyan);color:var(--bg);}
+
+        /* Motion bars */
+        .ma{margin-bottom:8px;}
+        .ma-l{display:flex;justify-content:space-between;font-family:var(--mono);font-size:8px;color:var(--text3);margin-bottom:3px;letter-spacing:0.3px;}
+        .ma-l span:last-child{color:var(--text2);}
+        .mb-bg{height:2px;background:var(--text3);border-radius:1px;overflow:hidden;position:relative;}
+        .mb{position:absolute;top:0;height:100%;border-radius:1px;transition:width 0.12s,left 0.12s;}
+
+        /* Alerts */
+        .al{display:flex;align-items:flex-start;gap:6px;padding:6px 8px;border-radius:2px;margin-bottom:2px;background:var(--card);font-family:var(--mono);font-size:8px;border:1px solid var(--border);border-left:2px solid transparent;}
+        .al.warn{border-left-color:var(--orange);}
+        .al.error{border-left-color:var(--mag);}
+        .al-t{color:var(--text3);font-size:8px;white-space:nowrap;}
+        .al-m{color:var(--text2);line-height:1.3;}
+
+        .sim-c{display:flex;align-items:center;gap:6px;padding:7px 8px;background:var(--card);border-radius:2px;border:1px solid var(--border);margin-bottom:10px;}
+        .sim-d{width:4px;height:4px;border-radius:50%;}
+        .sim-d.go{background:var(--green);box-shadow:0 0 6px var(--green);animation:blink 1.5s steps(2) infinite;}
+        .sim-d.no{background:var(--orange);}
+        .sim-l{font-size:10px;flex:1;color:var(--text2);}
+
+        #miniHeatmap{width:100%;border-radius:3px;background:rgba(0,0,0,0.3);border:1px solid var(--border);}
+
+        .toast{
+            position:fixed;bottom:16px;right:16px;background:var(--card);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+            border:1px solid var(--border-hi);border-radius:2px;padding:6px 14px;
+            font-family:var(--mono);font-size:10px;color:var(--cyan);
+            z-index:100;opacity:0;transform:translateY(6px);transition:all 0.2s;pointer-events:none;
+        }
+        .toast.show{opacity:1;transform:translateY(0);}
+
+        ::-webkit-scrollbar{width:3px;}
+        ::-webkit-scrollbar-track{background:transparent;}
+        ::-webkit-scrollbar-thumb{background:rgba(0,220,255,0.08);border-radius:1.5px;}
+
+        .foot{padding:10px;text-align:center;font-family:var(--mono);font-size:7px;color:var(--text3);border-top:1px solid var(--border);letter-spacing:1px;}
+    </style>
+</head>
+<body>
+<div class="app">
+    <div class="header">
+        <div class="h-left">
+            <img src="keti.png" alt="KETI">
+            <span class="h-sep">/</span>
+            <span class="h-title">Seat Diagnostics</span>
+        </div>
+        <div class="h-center">
+            <div class="h-live"><div class="h-dot"></div>REC</div>
+            <span class="h-time" id="clock">00:00:00</span>
+        </div>
+        <div class="h-right">
+            <button class="btn" onclick="exportJSON()"><i class="fas fa-download"></i> .json</button>
+            <button class="btn" onclick="exportCSV()"><i class="fas fa-file-csv"></i> .csv</button>
+        </div>
+    </div>
+    <div class="content">
+        <div class="lp">
+            <div class="sec">
+                <div class="sec-t">Layers</div>
+                <div class="st on" data-s="pressure" onclick="tog('pressure')">
+                    <div class="st-i"><div class="st-bar" style="background:var(--mag);"></div><div><div class="st-n">Pressure</div><div class="st-d">16x16 grid / load</div></div></div>
+                    <i class="fas fa-eye st-eye"></i>
+                </div>
+                <div class="st" data-s="temperature" onclick="tog('temperature')">
+                    <div class="st-i"><div class="st-bar" style="background:var(--orange);"></div><div><div class="st-n">Temperature</div><div class="st-d">6-zone thermal</div></div></div>
+                    <i class="fas fa-eye-slash st-eye"></i>
+                </div>
+                <div class="st" data-s="position" onclick="tog('position')">
+                    <div class="st-i"><div class="st-bar" style="background:var(--cyan);"></div><div><div class="st-n">Position</div><div class="st-d">4-axis adjust</div></div></div>
+                    <i class="fas fa-eye-slash st-eye"></i>
+                </div>
+                <div class="st" data-s="motion" onclick="tog('motion')">
+                    <div class="st-i"><div class="st-bar" style="background:var(--green);"></div><div><div class="st-n">Motion</div><div class="st-d">3-axis accel</div></div></div>
+                    <i class="fas fa-eye-slash st-eye"></i>
+                </div>
+            </div>
+            <div class="sec">
+                <div class="sec-t">Simulation</div>
+                <div class="sim-c"><div class="sim-d go" id="simDot"></div><span class="sim-l" id="simLbl">Active</span><button class="btn" id="simBtn" onclick="togSim()" style="padding:2px 6px;"><i class="fas fa-pause"></i></button></div>
+                <div class="cg"><div class="cl"><span>Weight</span><span class="cv" id="wV">70 kg</span></div><input type="range" min="30" max="130" value="70" id="wS" oninput="S.w=+this.value;$('wV').textContent=this.value+' kg'"></div>
+                <div class="cg"><div class="cl"><span>Speed</span><span class="cv" id="sV">0 km/h</span></div><input type="range" min="0" max="200" value="0" id="sS" oninput="S.spd=+this.value;$('sV').textContent=this.value+' km/h'"></div>
+                <div class="cg"><div class="cl"><span>Occupancy</span></div>
+                    <div class="pg">
+                        <button class="pb on" onclick="occ('seated',this)">Seated</button>
+                        <button class="pb" onclick="occ('empty',this)">Empty</button>
+                        <button class="pb" onclick="occ('child',this)">Child</button>
+                        <button class="pb" onclick="occ('heavy',this)">Heavy</button>
+                    </div>
+                </div>
+            </div>
+            <div class="sec" id="posP" style="display:none;">
+                <div class="sec-t">Position</div>
+                <div class="pg" style="margin-bottom:10px;">
+                    <button class="pb on" onclick="pre('normal',this)">Drive</button>
+                    <button class="pb" onclick="pre('sport',this)">Sport</button>
+                    <button class="pb" onclick="pre('relax',this)">Relax</button>
+                    <button class="pb" onclick="pre('entry',this)">Entry</button>
+                </div>
+                <div class="cg"><div class="cl"><span>Fore/aft</span><span class="cv" id="fbV">0</span></div><input type="range" min="-100" max="100" value="0" id="fbI" oninput="S.fb=+this.value;$('fbV').textContent=this.value"></div>
+                <div class="cg"><div class="cl"><span>Height</span><span class="cv" id="udV">0</span></div><input type="range" min="-50" max="50" value="0" id="udI" oninput="S.ud=+this.value;$('udV').textContent=this.value"></div>
+                <div class="cg"><div class="cl"><span>Recline</span><span class="cv" id="recV">18°</span></div><input type="range" min="8" max="52" value="18" id="recI" oninput="S.rec=+this.value;$('recV').textContent=this.value+'°'"></div>
+                <div class="cg"><div class="cl"><span>Headrest</span><span class="cv" id="hrV">0</span></div><input type="range" min="0" max="100" value="0" id="hrI" oninput="S.hr=+this.value;$('hrV').textContent=this.value"></div>
+            </div>
+            <div class="sec">
+                <div class="sec-t">View</div>
+                <div class="cg"><div class="cl"><span>Opacity</span><span class="cv" id="opV">100%</span></div><input type="range" min="10" max="100" value="100" oninput="setOp(this.value)"></div>
+                <div class="pg"><button class="pb" onclick="rstCam()">Reset</button><button class="pb" onclick="autoR()">Rotate</button></div>
+            </div>
+            <div class="foot">KETI SEAT DIAGNOSTICS v2.0</div>
+        </div>
+        <div class="canvas-area">
+            <div class="hud-corner tl"></div><div class="hud-corner tr"></div>
+            <div class="hud-corner bl"></div><div class="hud-corner br"></div>
+            <div id="canvas3d"></div>
+            <div class="legend" id="pLeg">
+                <span class="leg-t">kPa</span>
+                <div><canvas id="legBar" width="140" height="6" style="border-radius:1px;"></canvas>
+                <div class="leg-l"><span>0</span><span>25</span><span>50</span><span>75</span><span>100</span></div></div>
+            </div>
+        </div>
+        <div class="rp">
+            <div class="sec" id="rPr">
+                <div class="sec-t">Pressure</div>
+                <div class="sg">
+                    <div class="sc hi"><div class="v" id="rW">0</div><div class="l">Load kg</div></div>
+                    <div class="sc ok"><div class="v" id="rOc">--</div><div class="l">Status</div></div>
+                    <div class="sc"><div class="v" id="rAv">0</div><div class="l">Avg kPa</div></div>
+                    <div class="sc wa"><div class="v" id="rPk">0</div><div class="l">Peak kPa</div></div>
+                </div>
+                <div style="margin-top:8px;"><div class="cl"><span>Distribution</span></div><canvas id="miniHeatmap" width="140" height="140"></canvas></div>
+            </div>
+            <div class="sec" id="rTe" style="display:none;">
+                <div class="sec-t">Thermal</div>
+                <div id="tzL"></div>
+            </div>
+            <div class="sec" id="rPo" style="display:none;">
+                <div class="sec-t">Position</div>
+                <div class="sg">
+                    <div class="sc"><div class="v" id="rFB">0</div><div class="l">Fore/aft mm</div></div>
+                    <div class="sc"><div class="v" id="rUD">0</div><div class="l">Height mm</div></div>
+                    <div class="sc"><div class="v" id="rRec">18°</div><div class="l">Recline</div></div>
+                    <div class="sc"><div class="v" id="rHR">0</div><div class="l">Headrest mm</div></div>
+                </div>
+            </div>
+            <div class="sec" id="rMo" style="display:none;">
+                <div class="sec-t">Motion</div>
+                <div class="gauge-wrap"><div class="gauge"><canvas id="gaugeC" width="200" height="200"></canvas><div class="gauge-val"><div class="gauge-num" id="gVal">0.00</div><div class="gauge-unit">VIB (G)</div></div></div></div>
+                <div class="sg" style="margin-bottom:8px;">
+                    <div class="sc"><div class="v" id="rVib">0.0</div><div class="l">Amplitude</div></div>
+                    <div class="sc"><div class="v" id="rFrq">0</div><div class="l">Freq Hz</div></div>
+                </div>
+                <div class="ma"><div class="ma-l"><span>X lateral</span><span id="rAX">0.00</span></div><div class="mb-bg"><div class="mb" id="bAX" style="background:var(--mag);width:50%;left:25%;"></div></div></div>
+                <div class="ma"><div class="ma-l"><span>Y vertical</span><span id="rAY">0.00</span></div><div class="mb-bg"><div class="mb" id="bAY" style="background:var(--green);width:50%;left:25%;"></div></div></div>
+                <div class="ma"><div class="ma-l"><span>Z longitudinal</span><span id="rAZ">0.00</span></div><div class="mb-bg"><div class="mb" id="bAZ" style="background:var(--cyan);width:50%;left:25%;"></div></div></div>
+            </div>
+            <div class="sec">
+                <div class="sec-t">Log <span style="color:var(--text3);font-weight:400;" id="aCnt">(0)</span></div>
+                <div id="aL"><div style="font-family:var(--mono);font-size:9px;color:var(--text3);text-align:center;padding:16px;">No events</div></div>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+const $=id=>document.getElementById(id);
+const AS=new Set(['pressure']);
+let simOn=true;
+const TH={pressure:80,temperature:40,vibration:0.7};
+const S={occ:true,w:70,spd:0,fb:0,ud:0,rec:18,hr:0};
+const TZ=[
+    {n:'L-Cush',t:22,tgt:28,h:false,c:false},{n:'R-Cush',t:22,tgt:28,h:false,c:false},
+    {n:'L-Back',t:22,tgt:30,h:false,c:false},{n:'R-Back',t:22,tgt:30,h:false,c:false},
+    {n:'L-Bolt',t:22,tgt:26,h:false,c:false},{n:'R-Bolt',t:22,tgt:26,h:false,c:false}
+];
+const MO={ax:0,ay:0,az:0,vib:0,freq:30};
+const PG=new Float32Array(256);
+const alerts=[];
+
+let scene,cam,rend,ctrl,seatRoot,baseGroup,cushionMesh,lBolster,rBolster;
+let backrestPivot,backMesh,headMesh,lbBack,rbBack;
+let pressOvC,pressOvB,pCC,pXC,pTC,pCB,pXB,pTB;
+let arX,arY,arZ,arG;
+const clk=new THREE.Clock();
+const PIV_Y=0.125,PIV_Z=-0.18;
+
+function init(){
+    const c=$('canvas3d');
+    scene=new THREE.Scene();
+    scene.background=new THREE.Color(0x080810);
+    scene.fog=new THREE.Fog(0x080810,4,10);
+
+    cam=new THREE.PerspectiveCamera(42,c.clientWidth/c.clientHeight,0.01,100);
+    cam.position.set(1.1,0.8,1.4);
+
+    rend=new THREE.WebGLRenderer({antialias:true});
+    rend.setPixelRatio(Math.min(devicePixelRatio,2));
+    rend.setSize(c.clientWidth,c.clientHeight);
+    rend.shadowMap.enabled=true;rend.shadowMap.type=THREE.PCFSoftShadowMap;
+    rend.toneMapping=THREE.ACESFilmicToneMapping;rend.toneMappingExposure=0.9;
+    c.appendChild(rend.domElement);
+
+    ctrl=new THREE.OrbitControls(cam,rend.domElement);
+    ctrl.enableDamping=true;ctrl.dampingFactor=0.06;
+    ctrl.target.set(0,0.3,0);ctrl.minDistance=0.4;ctrl.maxDistance=4;ctrl.maxPolarAngle=Math.PI*0.85;
+
+    // Lighting — cinematic
+    scene.add(new THREE.AmbientLight(0x141428,0.6));
+    const d1=new THREE.DirectionalLight(0xddeeff,0.7);
+    d1.position.set(2,4,3);d1.castShadow=true;d1.shadow.mapSize.set(1024,1024);d1.shadow.bias=-0.001;scene.add(d1);
+    scene.add(Object.assign(new THREE.DirectionalLight(0x2244aa,0.25),{position:new THREE.Vector3(-3,2,-1)}));
+    // Cyan rim
+    const rim=new THREE.PointLight(0x00dcff,0.12,4);rim.position.set(-0.5,0.3,1.5);scene.add(rim);
+    // Magenta accent
+    const mag=new THREE.PointLight(0xff2d6a,0.06,3);mag.position.set(0.5,-0.2,-0.5);scene.add(mag);
+
+    // Grid
+    const gr=new THREE.GridHelper(3,24,0x0c1428,0x0a0f1e);
+    gr.material.opacity=0.6;gr.material.transparent=true;scene.add(gr);
+    const fl=new THREE.Mesh(new THREE.PlaneGeometry(6,6),new THREE.MeshStandardMaterial({color:0x06080e,roughness:0.9,metalness:0.1}));
+    fl.rotation.x=-Math.PI/2;fl.position.y=-0.005;fl.receiveShadow=true;scene.add(fl);
+
+    seatRoot=new THREE.Group();scene.add(seatRoot);
+    baseGroup=new THREE.Group();seatRoot.add(baseGroup);
+
+    const loader=new THREE.GLTFLoader();
+    loader.load('./models/car-seat.glb',
+        g=>{const m=g.scene;const b=new THREE.Box3().setFromObject(m);const sz=b.getSize(new THREE.Vector3());const ct=b.getCenter(new THREE.Vector3());const s=0.9/Math.max(sz.x,sz.y,sz.z);m.scale.set(s,s,s);m.position.set(-ct.x*s,-b.min.y*s,-ct.z*s);m.traverse(c=>{if(c.isMesh){c.castShadow=true;c.receiveShadow=true;}});baseGroup.add(m);buildSeat();},
+        undefined,()=>buildSeat()
+    );
+    setupPress();setupArr();
+    window.addEventListener('resize',()=>{cam.aspect=c.clientWidth/c.clientHeight;cam.updateProjectionMatrix();rend.setSize(c.clientWidth,c.clientHeight);});
+}
+
+function buildSeat(){
+    const sm=()=>new THREE.MeshStandardMaterial({color:0x181822,roughness:0.45,metalness:0.1});
+    const fm=new THREE.MeshStandardMaterial({color:0x2a2a3a,roughness:0.2,metalness:0.7});
+    const bm=()=>new THREE.MeshStandardMaterial({color:0x1c1c28,roughness:0.42,metalness:0.08});
+
+    [-0.15,0.15].forEach(x=>{const r=new THREE.Mesh(new THREE.BoxGeometry(0.035,0.018,0.48),fm);r.position.set(x,0.009,0);r.castShadow=true;baseGroup.add(r);});
+
+    cushionMesh=new THREE.Mesh(new THREE.BoxGeometry(0.44,0.065,0.44),sm());
+    cushionMesh.position.set(0,0.085,0);cushionMesh.castShadow=true;cushionMesh.receiveShadow=true;baseGroup.add(cushionMesh);
+
+    lBolster=new THREE.Mesh(new THREE.BoxGeometry(0.055,0.10,0.42),bm());lBolster.position.set(-0.24,0.12,0);lBolster.castShadow=true;baseGroup.add(lBolster);
+    rBolster=new THREE.Mesh(new THREE.BoxGeometry(0.055,0.10,0.42),bm());rBolster.position.set(0.24,0.12,0);rBolster.castShadow=true;baseGroup.add(rBolster);
+
+    backrestPivot=new THREE.Group();backrestPivot.position.set(0,PIV_Y,PIV_Z);baseGroup.add(backrestPivot);
+
+    backMesh=new THREE.Mesh(new THREE.BoxGeometry(0.42,0.54,0.065),sm());backMesh.position.set(0,0.27,-0.015);backMesh.castShadow=true;backMesh.receiveShadow=true;backrestPivot.add(backMesh);
+
+    lbBack=new THREE.Mesh(new THREE.BoxGeometry(0.055,0.48,0.055),bm());lbBack.position.set(-0.225,0.27,0.01);backrestPivot.add(lbBack);
+    rbBack=new THREE.Mesh(new THREE.BoxGeometry(0.055,0.48,0.055),bm());rbBack.position.set(0.225,0.27,0.01);backrestPivot.add(rbBack);
+
+    headMesh=new THREE.Mesh(new THREE.BoxGeometry(0.21,0.14,0.055),sm());headMesh.position.set(0,0.61,-0.01);headMesh.castShadow=true;backrestPivot.add(headMesh);
+
+    backrestPivot.rotation.x=-THREE.MathUtils.degToRad(S.rec);
+}
+
+function setupPress(){
+    pCC=document.createElement('canvas');pCC.width=128;pCC.height=128;pXC=pCC.getContext('2d');
+    pTC=new THREE.CanvasTexture(pCC);pTC.minFilter=THREE.LinearFilter;
+    pressOvC=new THREE.Mesh(new THREE.PlaneGeometry(0.42,0.42),new THREE.MeshBasicMaterial({map:pTC,transparent:true,opacity:0.8,depthWrite:false,side:THREE.DoubleSide}));
+    pressOvC.rotation.x=-Math.PI/2;pressOvC.position.set(0,0.125,0);baseGroup.add(pressOvC);
+
+    pCB=document.createElement('canvas');pCB.width=128;pCB.height=128;pXB=pCB.getContext('2d');
+    pTB=new THREE.CanvasTexture(pCB);pTB.minFilter=THREE.LinearFilter;
+    pressOvB=new THREE.Mesh(new THREE.PlaneGeometry(0.38,0.48),new THREE.MeshBasicMaterial({map:pTB,transparent:true,opacity:0.7,depthWrite:false,side:THREE.DoubleSide}));
+    pressOvB.position.set(0,0.27,0.02);
+    setTimeout(()=>{if(backrestPivot)backrestPivot.add(pressOvB);},100);
+}
+
+function setupArr(){
+    arG=new THREE.Group();arG.visible=false;
+    arX=new THREE.ArrowHelper(new THREE.Vector3(1,0,0),new THREE.Vector3(0,0.4,0.25),0.2,0xff2d6a,0.03,0.018);
+    arY=new THREE.ArrowHelper(new THREE.Vector3(0,1,0),new THREE.Vector3(0,0.4,0.25),0.2,0x00e676,0.03,0.018);
+    arZ=new THREE.ArrowHelper(new THREE.Vector3(0,0,1),new THREE.Vector3(0,0.4,0.25),0.2,0x00dcff,0.03,0.018);
+    arG.add(arX,arY,arZ);baseGroup.add(arG);
+}
+
+// Colors — cyberpunk palette
+function pCol(t){
+    t=Math.max(0,Math.min(1,t));let r,g,b;
+    if(t<0.3){const f=t/0.3;r=Math.round(10+f*0);g=Math.round(40+f*180);b=Math.round(140+f*115);}
+    else if(t<0.6){const f=(t-0.3)/0.3;r=Math.round(10+f*200);g=Math.round(220-f*80);b=Math.round(255-f*200);}
+    else{const f=(t-0.6)/0.4;r=Math.round(210+f*45);g=Math.round(140-f*95);b=Math.round(55+f*50);}
+    return`rgba(${r},${g},${b},${0.35+t*0.65})`;
+}
+function tCol(temp){const t=Math.max(0,Math.min(1,(temp-15)/25));const c=new THREE.Color();if(t<0.3)c.lerpColors(new THREE.Color(0x00dcff),new THREE.Color(0x181822),t/0.3);else if(t<0.6)c.set(0x181822);else c.lerpColors(new THREE.Color(0xffab00),new THREE.Color(0xff2d6a),(t-0.6)/0.4);return c;}
+function g2d(x,y,sx,sy){return Math.exp(-(x*x)/(2*sx*sx)-(y*y)/(2*sy*sy));}
+
+// Simulation
+function simP(t){if(!S.occ){PG.fill(0);return;}const wf=S.w/80;const br=Math.sin(t*0.4)*0.01;const sh=Math.sin(t*0.065)*0.018;for(let y=0;y<16;y++)for(let x=0;x<16;x++){const nx=(x/15)*2-1,ny=(y/15)*2-1;PG[y*16+x]=Math.max(0,Math.min(1,(g2d(nx+0.35,ny-0.1,0.28,0.32)+g2d(nx-0.35,ny-0.1,0.28,0.32)+g2d(nx+0.3,ny+0.25,0.22,0.4)*0.35+g2d(nx-0.3,ny+0.25,0.22,0.4)*0.35)*wf+br+sh*nx+(Math.random()-0.5)*0.004));}}
+function simT(dt){TZ.forEach(z=>{if(z.h)z.t+=(z.tgt-z.t)*dt*0.04;else if(z.c)z.t+=(18-z.t)*dt*0.03;else z.t+=(22-z.t)*dt*0.005;z.t=Math.max(5,Math.min(50,z.t+(Math.random()-0.5)*0.025));});}
+function simM(t){const s=S.spd;const ef=28+s*0.25,ea=0.02+s*0.003;const rf=Math.min(1,s/100);const rd=(Math.sin(t*1.8)*0.15+Math.sin(t*4.3)*0.06)*rf;MO.ax=Math.sin(t*0.6)*s*0.006+(Math.random()-0.5)*0.07*rf;MO.ay=rd*0.6+Math.sin(t*ef*0.08)*ea*0.5;MO.az=Math.cos(t*0.25)*s*0.003+(Math.random()-0.5)*0.04*rf;MO.vib=ea+Math.abs(rd)*0.3;MO.freq=ef;}
+
+// Render
+function upPC(){const ctx=pXC;ctx.clearRect(0,0,128,128);for(let y=0;y<16;y++)for(let x=0;x<16;x++){const v=PG[y*16+x];if(v>0.01){ctx.fillStyle=pCol(v);ctx.beginPath();ctx.arc(x*8+4,y*8+4,3.5,0,Math.PI*2);ctx.fill();}}pTC.needsUpdate=true;}
+function upPB(){const ctx=pXB;ctx.clearRect(0,0,128,128);if(!S.occ){pTB.needsUpdate=true;return;}const wf=S.w/80*0.4,cw=128/12;for(let y=0;y<16;y++)for(let x=0;x<12;x++){const nx=(x/11)*2-1,ny=(y/15)*2-1;const v=(g2d(nx+0.3,ny+0.1,0.4,0.35)+g2d(nx-0.3,ny+0.1,0.4,0.35))*wf;if(v>0.01){ctx.fillStyle=pCol(v);ctx.beginPath();ctx.arc(x*cw+cw/2,y*8+4,3.5,0,Math.PI*2);ctx.fill();}}pTB.needsUpdate=true;}
+function upTV(){const ms=[cushionMesh,cushionMesh,backMesh,backMesh,lBolster,rBolster];TZ.forEach((z,i)=>{const m=ms[i];if(!m)return;m.material.emissive=tCol(z.t);m.material.emissiveIntensity=(z.h||z.c)?0.5:0.12;});}
+function upPV(){seatRoot.position.z=S.fb/100*0.12;baseGroup.position.y=S.ud/50*0.03;if(backrestPivot)backrestPivot.rotation.x=-THREE.MathUtils.degToRad(S.rec);if(headMesh)headMesh.position.y=0.61+S.hr/100*0.08;}
+function upMV(t){if(!arG.visible)return;const s=0.25;arX.setLength(Math.max(0.04,Math.abs(MO.ax)*s),0.03,0.018);arX.setDirection(new THREE.Vector3(Math.sign(MO.ax)||1,0,0).normalize());arY.setLength(Math.max(0.04,Math.abs(MO.ay)*s),0.03,0.018);arY.setDirection(new THREE.Vector3(0,Math.sign(MO.ay)||1,0).normalize());arZ.setLength(Math.max(0.04,Math.abs(MO.az)*s),0.03,0.018);arZ.setDirection(new THREE.Vector3(0,0,Math.sign(MO.az)||1).normalize());if(MO.vib>0.005){const v=MO.vib*0.0015;baseGroup.rotation.z=Math.sin(t*MO.freq*0.25)*v;baseGroup.position.y=(S.ud/50*0.03)+Math.sin(t*MO.freq*0.4)*v*1.5;}}
+
+// Gauge drawing
+function drawGauge(val,max){
+    const c=$('gaugeC'),ctx=c.getContext('2d');ctx.clearRect(0,0,200,200);
+    const cx=100,cy=100,r=80,start=0.75*Math.PI,end=2.25*Math.PI;
+    // Background arc
+    ctx.beginPath();ctx.arc(cx,cy,r,start,end);ctx.strokeStyle='rgba(0,220,255,0.08)';ctx.lineWidth=4;ctx.stroke();
+    // Value arc
+    const pct=Math.min(1,val/max);const vEnd=start+(end-start)*pct;
+    ctx.beginPath();ctx.arc(cx,cy,r,start,vEnd);
+    const grad=ctx.createLinearGradient(20,100,180,100);
+    grad.addColorStop(0,'#00dcff');grad.addColorStop(0.7,'#ff2d6a');grad.addColorStop(1,'#ff2d6a');
+    ctx.strokeStyle=grad;ctx.lineWidth=4;ctx.lineCap='round';ctx.stroke();
+    // Ticks
+    for(let i=0;i<=10;i++){const a=start+(end-start)*(i/10);const x1=cx+Math.cos(a)*(r-8),y1=cy+Math.sin(a)*(r-8);const x2=cx+Math.cos(a)*(r-2),y2=cy+Math.sin(a)*(r-2);ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.strokeStyle='rgba(0,220,255,0.15)';ctx.lineWidth=1;ctx.stroke();}
+}
+
+// Dashboard
+let lastUI=0;
+function upD(){
+    if(AS.has('pressure')){
+        let sum=0,mx=0,cnt=0;for(let i=0;i<256;i++)if(PG[i]>0.01){sum+=PG[i];cnt++;mx=Math.max(mx,PG[i]);}
+        const av=cnt>0?(sum/cnt*100).toFixed(1):'0',pk=(mx*100).toFixed(1);
+        $('rW').textContent=S.occ?S.w:'0';$('rOc').textContent=S.occ?'ON':'--';
+        $('rAv').textContent=av;$('rPk').textContent=pk;
+        const mc=$('miniHeatmap'),mx2=mc.getContext('2d');mx2.clearRect(0,0,140,140);const cw=140/16;
+        for(let y=0;y<16;y++)for(let x=0;x<16;x++){const v=PG[y*16+x];if(v>0.01){mx2.fillStyle=pCol(v);mx2.fillRect(x*cw,y*cw,cw,cw);}}
+        if(mx*100>TH.pressure)addA('warn','Peak '+pk+' kPa');
+    }
+    if(AS.has('temperature'))TZ.forEach(z=>{if(z.t>TH.temperature)addA('error',z.n+' '+z.t.toFixed(1)+'°C');});
+    if(AS.has('motion')){
+        $('rVib').textContent=MO.vib.toFixed(2);$('rFrq').textContent=Math.round(MO.freq);
+        $('rAX').textContent=MO.ax.toFixed(2);$('rAY').textContent=MO.ay.toFixed(2);$('rAZ').textContent=MO.az.toFixed(2);
+        mB('bAX',MO.ax,2);mB('bAY',MO.ay,2);mB('bAZ',MO.az,2);
+        $('gVal').textContent=MO.vib.toFixed(2);drawGauge(MO.vib,1.5);
+        if(MO.vib>TH.vibration)addA('warn','Vib '+MO.vib.toFixed(2)+' G');
+    }
+    if(AS.has('position')){$('rFB').textContent=Math.round(S.fb*1.5);$('rUD').textContent=Math.round(S.ud*0.6);$('rRec').textContent=S.rec+'°';$('rHR').textContent=Math.round(S.hr*0.8);}
+}
+function mB(id,v,mx){const b=$(id),p=(v/mx)*50;if(p>=0){b.style.left='50%';b.style.width=Math.min(50,p)+'%';}else{const w=Math.min(50,Math.abs(p));b.style.left=(50-w)+'%';b.style.width=w+'%';}}
+
+let lastAT=0;
+function addA(tp,msg){const n=Date.now();if(n-lastAT<3500)return;if(alerts.length&&alerts[0].msg===msg)return;lastAT=n;alerts.unshift({tp,msg,time:new Date()});if(alerts.length>12)alerts.pop();rA();}
+function rA(){$('aCnt').textContent='('+alerts.length+')';if(!alerts.length){$('aL').innerHTML='<div style="font-family:var(--mono);font-size:9px;color:var(--text3);text-align:center;padding:16px;">No events</div>';return;}$('aL').innerHTML=alerts.slice(0,5).map(a=>'<div class="al '+a.tp+'"><span class="al-t">'+a.time.toLocaleTimeString()+'</span><span class="al-m">'+a.msg+'</span></div>').join('');}
+
+function tog(n){
+    const el=document.querySelector('.st[data-s="'+n+'"]');const on=el.classList.toggle('on');
+    el.querySelector('.st-eye').className='fas '+(on?'fa-eye':'fa-eye-slash')+' st-eye';
+    if(on)AS.add(n);else AS.delete(n);
+    if(pressOvC)pressOvC.visible=AS.has('pressure');if(pressOvB)pressOvB.visible=AS.has('pressure');
+    $('pLeg').classList.toggle('show',AS.has('pressure'));
+    $('rPr').style.display=AS.has('pressure')?'':'none';
+    $('rTe').style.display=AS.has('temperature')?'':'none';
+    $('posP').style.display=AS.has('position')?'':'none';
+    $('rPo').style.display=AS.has('position')?'':'none';
+    $('rMo').style.display=AS.has('motion')?'':'none';
+    if(arG)arG.visible=AS.has('motion');
+    if(!AS.has('temperature'))[cushionMesh,backMesh,lBolster,rBolster].forEach(m=>{if(m){m.material.emissive=new THREE.Color(0);m.material.emissiveIntensity=0;}});
+}
+
+function togSim(){simOn=!simOn;$('simDot').className='sim-d '+(simOn?'go':'no');$('simLbl').textContent=simOn?'Active':'Paused';$('simBtn').innerHTML=simOn?'<i class="fas fa-pause"></i>':'<i class="fas fa-play"></i>';}
+function occ(t,b){b.parentElement.querySelectorAll('.pb').forEach(x=>x.classList.remove('on'));b.classList.add('on');switch(t){case'seated':S.occ=true;S.w=70;$('wS').value=70;$('wV').textContent='70 kg';break;case'empty':S.occ=false;break;case'child':S.occ=true;S.w=25;$('wS').value=25;$('wV').textContent='25 kg';break;case'heavy':S.occ=true;S.w=110;$('wS').value=110;$('wV').textContent='110 kg';break;}}
+const PRE={normal:{fb:0,ud:0,rec:18,hr:0},sport:{fb:20,ud:-15,rec:12,hr:20},relax:{fb:-40,ud:10,rec:42,hr:65},entry:{fb:-80,ud:-10,rec:18,hr:0}};
+let aTgt=null;
+function pre(n,b){b.parentElement.querySelectorAll('.pb').forEach(x=>x.classList.remove('on'));b.classList.add('on');aTgt={...PRE[n]};}
+function setOp(v){$('opV').textContent=v+'%';const op=v/100;[cushionMesh,backMesh,headMesh,lBolster,rBolster,lbBack,rbBack].forEach(m=>{if(!m)return;m.material.transparent=op<1;m.material.opacity=op;});}
+function rstCam(){cam.position.set(1.1,0.8,1.4);ctrl.target.set(0,0.3,0);}
+function autoR(){ctrl.autoRotate=!ctrl.autoRotate;ctrl.autoRotateSpeed=1.2;}
+
+function rTZ(){$('tzL').innerHTML=TZ.map((z,i)=>{const hex='#'+tCol(z.t).getHexString();return'<div class="tz"><div class="tz-i"><div class="tz-d" style="background:'+hex+';"></div><span class="tz-n">'+z.n+'</span></div><div style="display:flex;align-items:center;gap:4px;"><span class="tz-v" style="color:'+hex+';">'+z.t.toFixed(1)+'°</span><button class="tz-b '+(z.h?'hot':'')+'" onclick="togH('+i+')"><i class="fas fa-fire"></i></button><button class="tz-b '+(z.c?'cool':'')+'" onclick="togC('+i+')"><i class="fas fa-snowflake"></i></button></div></div>';}).join('');}
+function togH(i){TZ[i].h=!TZ[i].h;if(TZ[i].h)TZ[i].c=false;}
+function togC(i){TZ[i].c=!TZ[i].c;if(TZ[i].c)TZ[i].h=false;}
+
+function exportJSON(){
+    const d={timestamp:new Date().toISOString(),system:'KETI Seat Diagnostics',seat:{...S},pressure:{grid:Array.from(PG),peak:Math.max(...PG)*100},temperature:TZ.map(z=>({name:z.n,current:z.t,heating:z.h,cooling:z.c})),motion:{...MO}};
+    const bl=new Blob([JSON.stringify(d,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(bl);a.download='diag-'+Date.now()+'.json';a.click();URL.revokeObjectURL(a.href);showT('exported .json');
+}
+function exportCSV(){
+    let csv='ts,type,zone,val,unit\n';const now=new Date().toISOString();
+    for(let y=0;y<16;y++)for(let x=0;x<16;x++)csv+=now+',P,c_'+x+'_'+y+','+(PG[y*16+x]*100).toFixed(2)+',kPa\n';
+    TZ.forEach(z=>csv+=now+',T,'+z.n+','+z.t.toFixed(2)+',C\n');
+    csv+=now+',M,ax,'+MO.ax.toFixed(4)+',G\n'+now+',M,ay,'+MO.ay.toFixed(4)+',G\n'+now+',M,az,'+MO.az.toFixed(4)+',G\n';
+    const bl=new Blob([csv],{type:'text/csv'});const a=document.createElement('a');a.href=URL.createObjectURL(bl);a.download='diag-'+Date.now()+'.csv';a.click();URL.revokeObjectURL(a.href);showT('exported .csv');
+}
+
+let tTm;function showT(m){const t=$('toast');t.textContent=m;t.classList.add('show');clearTimeout(tTm);tTm=setTimeout(()=>t.classList.remove('show'),2000);}
+function drawLeg(){const ctx=$('legBar').getContext('2d');for(let x=0;x<140;x++){ctx.fillStyle=pCol(x/140);ctx.fillRect(x,0,1,6);}}
+function upClk(){$('clock').textContent=new Date().toLocaleTimeString();}
+
+function animate(){
+    requestAnimationFrame(animate);
+    const dt=Math.min(clk.getDelta(),0.1),el=clk.getElapsedTime();
+    if(simOn){simP(el);simT(dt);simM(el);}
+    if(aTgt){let done=true;const sp={fb:2.5,ud:3,rec:2.2,hr:3.5};['fb','ud','rec','hr'].forEach(k=>{const d=aTgt[k]-S[k];if(Math.abs(d)>0.3){S[k]+=d*dt*sp[k];done=false;}else S[k]=aTgt[k];});$('fbI').value=S.fb;$('udI').value=S.ud;$('recI').value=S.rec;$('hrI').value=S.hr;$('fbV').textContent=Math.round(S.fb);$('udV').textContent=Math.round(S.ud);$('recV').textContent=Math.round(S.rec)+'°';$('hrV').textContent=Math.round(S.hr);if(done)aTgt=null;}
+    if(AS.has('pressure')){upPC();upPB();}
+    if(AS.has('temperature'))upTV();
+    if(AS.has('position'))upPV();
+    if(AS.has('motion'))upMV(el);
+    if(el-lastUI>0.16){upD();if(AS.has('temperature'))rTZ();lastUI=el;}
+    ctrl.update();rend.render(scene,cam);
+}
+
+init();drawLeg();$('pLeg').classList.add('show');setInterval(upClk,1000);upClk();animate();
+</script>
+</body>
+</html>
