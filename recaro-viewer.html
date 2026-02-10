@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KETI — 3D Car Seat Viewer</title>
+    <script src="libs/three.min.js"></script>
+    <script src="libs/OrbitControls.js"></script>
+    <script src="libs/GLTFLoader.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #0a0a0a; color: #f5f5f7;
+            overflow: hidden; -webkit-font-smoothing: antialiased;
+        }
+
+        /* Header */
+        .header {
+            position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+            height: 52px;
+            background: rgba(28,28,30,0.82);
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 24px;
+        }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .header-left img { height: 24px; opacity: 0.9; }
+        .header-divider { width: 1px; height: 20px; background: rgba(255,255,255,0.12); }
+        .header-left h1 { font-size: 14px; font-weight: 600; letter-spacing: -0.3px; }
+        .header-center { display: flex; align-items: center; gap: 8px; }
+        .header-right { display: flex; align-items: center; gap: 8px; }
+
+        /* Model Selector Dropdown */
+        .model-select {
+            padding: 6px 32px 6px 12px; border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.15);
+            background: rgba(255,255,255,0.08); color: #f5f5f7;
+            font-size: 12px; font-weight: 500; font-family: inherit;
+            cursor: pointer; appearance: none; -webkit-appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23888'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+            min-width: 200px;
+        }
+        .model-select:hover { border-color: rgba(0,122,255,0.5); }
+        .model-select:focus { outline: none; border-color: #0a84ff; }
+        .model-select option { background: #1c1c1e; color: #f5f5f7; }
+        .model-select optgroup { color: #0a84ff; font-weight: 600; }
+
+        .upload-btn {
+            padding: 6px 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);
+            background: rgba(255,255,255,0.06); color: #aaa;
+            font-size: 12px; font-weight: 500; font-family: inherit;
+            cursor: pointer; transition: all 0.2s ease;
+            display: inline-flex; align-items: center; gap: 5px;
+        }
+        .upload-btn:hover { background: rgba(0,122,255,0.15); color: #0a84ff; border-color: rgba(0,122,255,0.4); }
+
+        /* Action buttons */
+        .btn {
+            padding: 6px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);
+            background: rgba(255,255,255,0.06); color: #aaa;
+            font-size: 11px; font-weight: 500; font-family: inherit;
+            cursor: pointer; display: inline-flex; align-items: center; gap: 5px;
+            transition: all 0.2s ease;
+        }
+        .btn:hover { background: rgba(255,255,255,0.1); color: #fff; }
+        .btn i { font-size: 10px; }
+
+        /* Canvas */
+        #canvas3d {
+            position: fixed; top: 52px; left: 0; right: 0; bottom: 0;
+        }
+
+        /* Info Panel */
+        .info-panel {
+            position: fixed; bottom: 24px; left: 24px; z-index: 100;
+            background: rgba(28,28,30,0.85);
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 14px; padding: 16px 20px;
+            min-width: 240px;
+        }
+        .info-panel h3 {
+            font-size: 13px; font-weight: 600; margin-bottom: 10px;
+            color: #f5f5f7;
+        }
+        .info-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 4px 0; font-size: 12px;
+        }
+        .info-label { color: #86868b; }
+        .info-value { color: #f5f5f7; font-weight: 500; font-variant-numeric: tabular-nums; }
+
+        /* Controls Panel */
+        .controls-panel {
+            position: fixed; bottom: 24px; right: 24px; z-index: 100;
+            background: rgba(28,28,30,0.85);
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 14px; padding: 16px 20px;
+            min-width: 200px;
+        }
+        .controls-panel h3 {
+            font-size: 13px; font-weight: 600; margin-bottom: 10px;
+            color: #f5f5f7;
+        }
+        .control-group { margin-bottom: 10px; }
+        .control-group:last-child { margin-bottom: 0; }
+        .control-group label {
+            display: block; font-size: 11px; color: #86868b;
+            margin-bottom: 4px; font-weight: 500;
+        }
+        .control-group input[type="range"] {
+            width: 100%; accent-color: #0a84ff;
+        }
+        .control-group input[type="color"] {
+            width: 32px; height: 24px; border: none; border-radius: 4px;
+            cursor: pointer; background: none;
+        }
+        .color-row { display: flex; align-items: center; gap: 8px; }
+        .color-row span { font-size: 11px; color: #aaa; }
+
+        /* Loading overlay */
+        .loading-overlay {
+            position: fixed; top: 52px; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(10px);
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            z-index: 200; transition: opacity 0.5s ease;
+        }
+        .loading-overlay.hidden { opacity: 0; pointer-events: none; }
+        .loading-spinner {
+            width: 40px; height: 40px;
+            border: 3px solid rgba(255,255,255,0.1);
+            border-top-color: #0a84ff;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loading-text {
+            margin-top: 16px; font-size: 13px; color: #86868b; font-weight: 500;
+        }
+        .loading-progress {
+            margin-top: 8px; font-size: 11px; color: #555; font-variant-numeric: tabular-nums;
+        }
+
+        /* Drop zone */
+        .drop-zone {
+            position: fixed; top: 52px; left: 0; right: 0; bottom: 0;
+            background: rgba(10,132,255,0.1);
+            border: 3px dashed rgba(10,132,255,0.5);
+            display: none; align-items: center; justify-content: center;
+            z-index: 300; font-size: 18px; color: #0a84ff; font-weight: 600;
+        }
+        .drop-zone.active { display: flex; }
+
+        /* Wireframe toggle */
+        .toggle-wrap { display: flex; align-items: center; gap: 8px; }
+        .toggle {
+            position: relative; width: 36px; height: 20px;
+            background: rgba(255,255,255,0.15); border-radius: 10px;
+            cursor: pointer; transition: background 0.2s;
+        }
+        .toggle.on { background: #0a84ff; }
+        .toggle::after {
+            content: ''; position: absolute;
+            top: 2px; left: 2px;
+            width: 16px; height: 16px;
+            background: #fff; border-radius: 50%;
+            transition: transform 0.2s;
+        }
+        .toggle.on::after { transform: translateX(16px); }
+        .toggle-label { font-size: 11px; color: #aaa; }
+
+        /* Credit */
+        .credit {
+            position: fixed; bottom: 8px; left: 50%; transform: translateX(-50%);
+            font-size: 10px; color: #444; z-index: 50;
+        }
+        .credit a { color: #555; text-decoration: none; }
+        .credit a:hover { color: #0a84ff; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div class="header-left">
+        <img src="keti.png" alt="KETI">
+        <div class="header-divider"></div>
+        <h1>3D Car Seat Viewer</h1>
+    </div>
+    <div class="header-center">
+        <select class="model-select" id="modelSelect" onchange="switchModel(this.value)">
+            <optgroup label="Car Seats">
+                <option value="car-seat">Car Seat (Free3D)</option>
+                <option value="racing-gen">Racing Seat (Generated)</option>
+                <option value="sedan">Sedan Interior (FetchCFD)</option>
+            </optgroup>
+            <optgroup label="Vehicles">
+                <option value="carconcept">Car Concept (KhronosGroup)</option>
+                <option value="polypizza-car">Car (Poly Pizza)</option>
+                <option value="challenger">Dodge Challenger</option>
+            </optgroup>
+            <optgroup label="Chairs">
+                <option value="gaming" selected>Gaming Racing Chair</option>
+                <option value="sheen">Sheen Chair (KhronosGroup)</option>
+            </optgroup>
+        </select>
+        <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+            <i class="fas fa-upload"></i> Upload GLB
+        </button>
+        <input type="file" id="fileInput" accept=".glb,.gltf" style="display:none" onchange="loadCustomFile(event)">
+    </div>
+    <div class="header-right">
+        <button class="btn" onclick="resetCamera()"><i class="fas fa-crosshairs"></i> Reset View</button>
+        <button class="btn" onclick="toggleAutoRotate()"><i class="fas fa-sync-alt"></i> Auto Rotate</button>
+        <button class="btn" onclick="captureScreenshot()"><i class="fas fa-camera"></i> Capture</button>
+    </div>
+</div>
+
+<div id="canvas3d"></div>
+
+<div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-spinner"></div>
+    <div class="loading-text">Loading 3D Model...</div>
+    <div class="loading-progress" id="loadingProgress">0%</div>
+</div>
+
+<div class="drop-zone" id="dropZone">
+    <i class="fas fa-cube" style="font-size:48px; margin-right:16px;"></i>
+    Drop GLB/GLTF file here
+</div>
+
+<div class="info-panel" id="infoPanel">
+    <h3><i class="fas fa-cube" style="color:#0a84ff; margin-right:6px;"></i> Model Info</h3>
+    <div class="info-row"><span class="info-label">Model</span><span class="info-value" id="infoName">—</span></div>
+    <div class="info-row"><span class="info-label">Triangles</span><span class="info-value" id="infoTris">—</span></div>
+    <div class="info-row"><span class="info-label">Vertices</span><span class="info-value" id="infoVerts">—</span></div>
+    <div class="info-row"><span class="info-label">Meshes</span><span class="info-value" id="infoMeshes">—</span></div>
+    <div class="info-row"><span class="info-label">Materials</span><span class="info-value" id="infoMats">—</span></div>
+    <div class="info-row"><span class="info-label">Size (m)</span><span class="info-value" id="infoSize">—</span></div>
+</div>
+
+<div class="controls-panel" id="controlsPanel">
+    <h3><i class="fas fa-sliders-h" style="color:#0a84ff; margin-right:6px;"></i> Controls</h3>
+    <div class="control-group">
+        <label>Exposure</label>
+        <input type="range" min="0.2" max="3" step="0.1" value="1.2" oninput="setExposure(this.value)">
+    </div>
+    <div class="control-group">
+        <label>Environment Intensity</label>
+        <input type="range" min="0" max="3" step="0.1" value="1" oninput="setEnvIntensity(this.value)">
+    </div>
+    <div class="control-group">
+        <label>Background</label>
+        <div class="color-row">
+            <input type="color" value="#1a1a1a" oninput="setBgColor(this.value)">
+            <span id="bgColorLabel">#1a1a1a</span>
+        </div>
+    </div>
+    <div class="control-group">
+        <div class="toggle-wrap">
+            <div class="toggle" id="wireframeToggle" onclick="toggleWireframe()"></div>
+            <span class="toggle-label">Wireframe</span>
+        </div>
+    </div>
+    <div class="control-group">
+        <div class="toggle-wrap">
+            <div class="toggle" id="gridToggle" onclick="toggleGrid()"></div>
+            <span class="toggle-label">Grid</span>
+        </div>
+    </div>
+</div>
+
+<div class="credit">
+    3D Models: CC BY — <a href="https://poly.pizza" target="_blank">Poly Pizza</a> / <a href="https://github.com/KhronosGroup/glTF-Sample-Assets" target="_blank">KhronosGroup</a> / <a href="https://www.get3dmodels.com" target="_blank">Get3DModels</a> / <a href="https://fetchcfd.com" target="_blank">FetchCFD</a>
+    &nbsp;|&nbsp; KETI Smart Seat Research
+</div>
+
+<script>
+    // ─── Global State ───
+    let scene, camera, renderer, controls;
+    let currentModel = null;
+    let seatGroup = new THREE.Group();
+    let gridHelper = null;
+    let floorMesh = null;
+    let isWireframe = false;
+    let isGridVisible = false;
+    let ambientLight, mainLight, fillLight, rimLight;
+    let currentModelName = 'recaro';
+
+    const MODELS = {
+        'car-seat':        { file: 'models/car-seat.glb',              name: 'Car Seat (Free3D)' },
+        'racing-gen':      { file: 'models/racing-seat-generated.glb', name: 'Racing Seat (Generated)' },
+        'sedan':           { file: 'models/fetchcfd-sedan.glb',        name: 'Sedan Interior (FetchCFD, 61MB)' },
+        'carconcept':      { file: 'models/car-concept.glb',           name: 'Car Concept (KhronosGroup)' },
+        'polypizza-car':   { file: 'models/polypizza-car.glb',         name: 'Car (Poly Pizza)' },
+        'challenger':      { file: 'models/polypizza-challenger.glb',  name: 'Dodge Challenger' },
+        'gaming':          { file: 'models/gaming-chair.glb',          name: 'Gaming Racing Chair' },
+        'sheen':           { file: 'models/sheen-chair.glb',           name: 'Sheen Chair (KhronosGroup)' }
+    };
+
+    // ─── Init ───
+    function init() {
+        const container = document.getElementById('canvas3d');
+
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x1a1a1a);
+
+        camera = new THREE.PerspectiveCamera(45, window.innerWidth / (window.innerHeight - 52), 0.01, 100);
+        camera.position.set(1.2, 1.0, 1.8);
+
+        renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.setSize(window.innerWidth, window.innerHeight - 52);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.2;
+        renderer.outputEncoding = THREE.sRGBEncoding;
+        container.appendChild(renderer.domElement);
+
+        // Controls
+        controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.08;
+        controls.target.set(0, 0.35, 0);
+        controls.minDistance = 0.3;
+        controls.maxDistance = 5;
+        controls.maxPolarAngle = Math.PI * 0.9;
+
+        // Lighting
+        ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+        scene.add(ambientLight);
+
+        mainLight = new THREE.DirectionalLight(0xffeedd, 1.0);
+        mainLight.position.set(3, 4, 3);
+        mainLight.castShadow = true;
+        mainLight.shadow.mapSize.set(1024, 1024);
+        mainLight.shadow.camera.near = 0.1;
+        mainLight.shadow.camera.far = 20;
+        mainLight.shadow.camera.left = -2;
+        mainLight.shadow.camera.right = 2;
+        mainLight.shadow.camera.top = 2;
+        mainLight.shadow.camera.bottom = -2;
+        mainLight.shadow.bias = -0.001;
+        scene.add(mainLight);
+
+        fillLight = new THREE.DirectionalLight(0x88aacc, 0.4);
+        fillLight.position.set(-3, 2, -2);
+        scene.add(fillLight);
+
+        rimLight = new THREE.DirectionalLight(0xffffff, 0.3);
+        rimLight.position.set(0, 1, -3);
+        scene.add(rimLight);
+
+        // Hemisphere for soft ambient
+        const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.3);
+        scene.add(hemiLight);
+
+        // Grid
+        gridHelper = new THREE.GridHelper(4, 20, 0x333333, 0x222222);
+        gridHelper.material.opacity = 0.4;
+        gridHelper.material.transparent = true;
+        gridHelper.visible = false;
+        scene.add(gridHelper);
+
+        // Floor (receives shadows)
+        const floorGeo = new THREE.PlaneGeometry(10, 10);
+        const floorMat = new THREE.ShadowMaterial({ opacity: 0.3 });
+        floorMesh = new THREE.Mesh(floorGeo, floorMat);
+        floorMesh.rotation.x = -Math.PI / 2;
+        floorMesh.receiveShadow = true;
+        scene.add(floorMesh);
+
+        scene.add(seatGroup);
+
+        // Load default model
+        loadModel('gaming');
+
+        // Events
+        window.addEventListener('resize', onResize);
+        setupDragDrop();
+
+        animate();
+    }
+
+    // ─── Model Loading ───
+    function loadModel(key) {
+        const config = MODELS[key];
+        if (!config) return;
+
+        showLoading();
+        clearModel();
+        currentModelName = key;
+
+        document.getElementById('modelSelect').value = key;
+
+        const loader = new THREE.GLTFLoader();
+        loader.load(
+            config.file,
+            (gltf) => {
+                const model = gltf.scene;
+                fitModel(model);
+                seatGroup.add(model);
+                currentModel = model;
+                updateModelInfo(config.name, model);
+                hideLoading();
+            },
+            (progress) => {
+                if (progress.total > 0) {
+                    const pct = Math.round((progress.loaded / progress.total) * 100);
+                    document.getElementById('loadingProgress').textContent = pct + '%';
+                }
+            },
+            (err) => {
+                console.error('Load error:', err);
+                document.querySelector('.loading-text').textContent = 'Failed to load model';
+                document.getElementById('loadingProgress').innerHTML =
+                    'GLB file not found in <code>models/</code> folder.<br>' +
+                    'Download from Sketchfab and place in models/ directory.';
+                setTimeout(hideLoading, 3000);
+            }
+        );
+    }
+
+    function loadCustomFile(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        loadFromBlob(file, file.name);
+    }
+
+    function loadFromBlob(blob, name) {
+        showLoading();
+        clearModel();
+
+        document.getElementById('modelSelect').value = '';
+
+        const url = URL.createObjectURL(blob);
+        const loader = new THREE.GLTFLoader();
+        loader.load(url, (gltf) => {
+            const model = gltf.scene;
+            fitModel(model);
+            seatGroup.add(model);
+            currentModel = model;
+            updateModelInfo(name, model);
+            hideLoading();
+            URL.revokeObjectURL(url);
+        }, undefined, (err) => {
+            console.error('Load error:', err);
+            hideLoading();
+            URL.revokeObjectURL(url);
+        });
+    }
+
+    // ─── Model Utilities ───
+    function fitModel(model) {
+        const box = new THREE.Box3().setFromObject(model);
+        const size = box.getSize(new THREE.Vector3());
+        const center = box.getCenter(new THREE.Vector3());
+        const maxDim = Math.max(size.x, size.y, size.z);
+        const scale = 1.0 / maxDim;
+
+        model.scale.setScalar(scale);
+        model.position.set(
+            -center.x * scale,
+            -box.min.y * scale,
+            -center.z * scale
+        );
+
+        model.traverse(c => {
+            if (c.isMesh) {
+                c.castShadow = true;
+                c.receiveShadow = true;
+            }
+        });
+    }
+
+    function clearModel() {
+        if (currentModel) {
+            seatGroup.remove(currentModel);
+            currentModel.traverse(c => {
+                if (c.geometry) c.geometry.dispose();
+                if (c.material) {
+                    if (Array.isArray(c.material)) c.material.forEach(m => m.dispose());
+                    else c.material.dispose();
+                }
+            });
+            currentModel = null;
+        }
+    }
+
+    function switchModel(key) {
+        if (!key || key === currentModelName && currentModel) return;
+        loadModel(key);
+    }
+
+    // ─── Info Panel ───
+    function updateModelInfo(name, model) {
+        let tris = 0, verts = 0, meshCount = 0;
+        const materials = new Set();
+
+        model.traverse(c => {
+            if (c.isMesh) {
+                meshCount++;
+                const geo = c.geometry;
+                if (geo.index) tris += geo.index.count / 3;
+                else if (geo.attributes.position) tris += geo.attributes.position.count / 3;
+                if (geo.attributes.position) verts += geo.attributes.position.count;
+                if (Array.isArray(c.material)) c.material.forEach(m => materials.add(m));
+                else materials.add(c.material);
+            }
+        });
+
+        const box = new THREE.Box3().setFromObject(model);
+        const size = box.getSize(new THREE.Vector3());
+
+        document.getElementById('infoName').textContent = name;
+        document.getElementById('infoTris').textContent = Math.round(tris).toLocaleString();
+        document.getElementById('infoVerts').textContent = Math.round(verts).toLocaleString();
+        document.getElementById('infoMeshes').textContent = meshCount;
+        document.getElementById('infoMats').textContent = materials.size;
+        document.getElementById('infoSize').textContent =
+            `${size.x.toFixed(2)} x ${size.y.toFixed(2)} x ${size.z.toFixed(2)}`;
+    }
+
+    // ─── Controls ───
+    function setExposure(val) {
+        renderer.toneMappingExposure = parseFloat(val);
+    }
+
+    function setEnvIntensity(val) {
+        const v = parseFloat(val);
+        ambientLight.intensity = 0.4 * v;
+    }
+
+    function setBgColor(hex) {
+        scene.background = new THREE.Color(hex);
+        document.getElementById('bgColorLabel').textContent = hex;
+    }
+
+    function toggleWireframe() {
+        isWireframe = !isWireframe;
+        document.getElementById('wireframeToggle').classList.toggle('on', isWireframe);
+        if (currentModel) {
+            currentModel.traverse(c => {
+                if (c.isMesh) {
+                    if (Array.isArray(c.material)) c.material.forEach(m => m.wireframe = isWireframe);
+                    else c.material.wireframe = isWireframe;
+                }
+            });
+        }
+    }
+
+    function toggleGrid() {
+        isGridVisible = !isGridVisible;
+        document.getElementById('gridToggle').classList.toggle('on', isGridVisible);
+        gridHelper.visible = isGridVisible;
+    }
+
+    function resetCamera() {
+        controls.target.set(0, 0.35, 0);
+        camera.position.set(1.2, 1.0, 1.8);
+        controls.update();
+    }
+
+    function toggleAutoRotate() {
+        controls.autoRotate = !controls.autoRotate;
+        controls.autoRotateSpeed = 2;
+    }
+
+    function captureScreenshot() {
+        renderer.render(scene, camera);
+        const link = document.createElement('a');
+        link.download = `seat-capture-${Date.now()}.png`;
+        link.href = renderer.domElement.toDataURL('image/png');
+        link.click();
+    }
+
+    // ─── Drag & Drop ───
+    function setupDragDrop() {
+        const dz = document.getElementById('dropZone');
+        document.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('active'); });
+        document.addEventListener('dragleave', e => {
+            if (!e.relatedTarget || e.relatedTarget === document.documentElement) dz.classList.remove('active');
+        });
+        document.addEventListener('drop', e => {
+            e.preventDefault();
+            dz.classList.remove('active');
+            const file = e.dataTransfer.files[0];
+            if (file && (file.name.endsWith('.glb') || file.name.endsWith('.gltf'))) {
+                loadFromBlob(file, file.name);
+            }
+        });
+    }
+
+    // ─── Loading ───
+    function showLoading() {
+        const overlay = document.getElementById('loadingOverlay');
+        overlay.classList.remove('hidden');
+        document.querySelector('.loading-text').textContent = 'Loading 3D Model...';
+        document.getElementById('loadingProgress').textContent = '0%';
+    }
+    function hideLoading() {
+        document.getElementById('loadingOverlay').classList.add('hidden');
+    }
+
+    // ─── Resize ───
+    function onResize() {
+        camera.aspect = window.innerWidth / (window.innerHeight - 52);
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight - 52);
+    }
+
+    // ─── Animate ───
+    function animate() {
+        requestAnimationFrame(animate);
+        controls.update();
+        renderer.render(scene, camera);
+    }
+
+    // ─── Start ───
+    init();
+</script>
+</body>
+</html>

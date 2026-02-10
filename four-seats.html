@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KETI — 4-Seat Smart Monitoring System</title>
+    <script src="libs/three.min.js"></script>
+    <script src="libs/OrbitControls.js"></script>
+    <script src="libs/GLTFLoader.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #f5f5f7; color: #1d1d1f;
+            overflow: hidden; -webkit-font-smoothing: antialiased;
+        }
+        .app { display: flex; flex-direction: column; height: 100vh; }
+
+        /* Header */
+        .header {
+            height: 52px;
+            background: rgba(255,255,255,0.72);
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(0,0,0,0.06);
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 24px; flex-shrink: 0; z-index: 20;
+        }
+        .header-left { display: flex; align-items: center; gap: 14px; }
+        .header-left img { height: 28px; opacity: 0.9; }
+        .header-divider { width: 1px; height: 20px; background: rgba(0,0,0,0.1); }
+        .header-left h1 { font-size: 15px; font-weight: 600; letter-spacing: -0.3px; }
+        .header-left .version { font-size: 10px; color: #86868b; font-weight: 500; margin-left: 6px; }
+        .header-center { display: flex; align-items: center; gap: 12px; }
+        .status-pill {
+            display: flex; align-items: center; gap: 6px;
+            padding: 4px 12px; border-radius: 100px;
+            font-size: 11px; font-weight: 500;
+            background: rgba(52,199,89,0.1); color: #248a3d;
+        }
+        .status-dot {
+            width: 6px; height: 6px; border-radius: 50%;
+            background: #34c759; animation: pulse 2s ease-in-out infinite;
+        }
+        @keyframes pulse { 0%,100%{opacity:1;transform:scale(1);} 50%{opacity:0.5;transform:scale(0.85);} }
+        .header-right { display: flex; align-items: center; gap: 8px; }
+        .clock { font-size: 12px; color: #86868b; font-weight: 500; font-variant-numeric: tabular-nums; margin-right: 4px; }
+
+        .btn {
+            padding: 6px 14px; border-radius: 8px; border: none;
+            background: rgba(0,0,0,0.04); color: #1d1d1f;
+            font-size: 12px; font-weight: 500; font-family: inherit;
+            cursor: pointer; display: inline-flex; align-items: center; gap: 5px;
+            transition: all 0.2s ease;
+        }
+        .btn:hover { background: rgba(0,0,0,0.08); }
+        .btn:active { transform: scale(0.97); }
+        .btn-primary { background: #007aff; color: white; }
+        .btn-primary:hover { background: #0071e3; }
+        .btn i { font-size: 11px; }
+
+        /* Content */
+        .content { flex: 1; display: flex; overflow: hidden; }
+
+        /* Left Panel */
+        .left-panel {
+            width: 280px; flex-shrink: 0;
+            background: rgba(255,255,255,0.6);
+            backdrop-filter: blur(20px);
+            border-right: 1px solid rgba(0,0,0,0.06);
+            overflow-y: auto; display: flex; flex-direction: column;
+        }
+        .panel-section { padding: 16px 16px 12px; }
+        .panel-section + .panel-section { border-top: 1px solid rgba(0,0,0,0.04); }
+        .section-title {
+            font-size: 11px; font-weight: 600; color: #86868b;
+            text-transform: uppercase; letter-spacing: 0.5px;
+            margin-bottom: 10px; display: flex; align-items: center; gap: 5px;
+        }
+        .section-title i { font-size: 10px; color: #aeaeb2; }
+
+        /* Seat selector card */
+        .seat-card {
+            padding: 10px 12px; border-radius: 12px; cursor: pointer;
+            transition: all 0.2s ease; margin-bottom: 6px;
+            background: white; border: 2px solid transparent;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+            display: flex; align-items: center; gap: 10px;
+        }
+        .seat-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .seat-card.selected { border-color: #007aff; box-shadow: 0 2px 12px rgba(0,122,255,0.15); }
+        .seat-card .seat-icon {
+            width: 36px; height: 36px; border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 16px;
+        }
+        .seat-card .seat-details { flex: 1; }
+        .seat-card .seat-name { font-size: 13px; font-weight: 600; }
+        .seat-card .seat-status { font-size: 10px; color: #86868b; margin-top: 1px; }
+        .seat-card .seat-temp { font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+        /* Car layout diagram */
+        .car-layout {
+            position: relative; width: 200px; height: 160px; margin: 0 auto 12px;
+            background: rgba(0,0,0,0.02); border-radius: 16px;
+            border: 1px solid rgba(0,0,0,0.06);
+        }
+        .car-outline {
+            position: absolute; inset: 8px;
+            border: 2px solid rgba(0,0,0,0.08); border-radius: 40px 40px 20px 20px;
+        }
+        .car-seat-dot {
+            position: absolute; width: 44px; height: 44px;
+            border-radius: 10px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 10px; font-weight: 600; color: white;
+            transition: all 0.2s ease; border: 2px solid transparent;
+        }
+        .car-seat-dot:hover { transform: scale(1.1); }
+        .car-seat-dot.selected { border-color: #007aff; box-shadow: 0 0 0 3px rgba(0,122,255,0.3); }
+        .car-seat-dot.occupied { background: rgba(52,199,89,0.8); }
+        .car-seat-dot.empty { background: rgba(174,174,178,0.4); color: #86868b; }
+        .car-steering {
+            position: absolute; top: 22px; left: 30px;
+            width: 20px; height: 20px; border: 2px solid rgba(0,0,0,0.12);
+            border-radius: 50%;
+        }
+
+        /* Simulation controls */
+        .sim-control {
+            display: flex; align-items: center; gap: 8px;
+            padding: 10px 12px; background: white; border-radius: 10px;
+            border: 1px solid rgba(0,0,0,0.04);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+            margin-bottom: 12px;
+        }
+        .sim-dot { width: 8px; height: 8px; border-radius: 50%; }
+        .sim-dot.running { background: #34c759; animation: pulse 1.5s ease-in-out infinite; }
+        .sim-dot.paused { background: #ff9f0a; }
+        .sim-label { font-size: 12px; flex: 1; font-weight: 500; color: #3a3a3c; }
+
+        .ctrl-group { margin-bottom: 12px; }
+        .ctrl-label { display: flex; justify-content: space-between; font-size: 12px; color: #3a3a3c; margin-bottom: 4px; }
+        .ctrl-value { color: #1d1d1f; font-weight: 600; font-variant-numeric: tabular-nums; }
+        input[type="range"] {
+            width: 100%; height: 4px; appearance: none; -webkit-appearance: none;
+            background: #e5e5ea; border-radius: 2px; outline: none; cursor: pointer;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%;
+            background: white; cursor: pointer;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.04);
+        }
+        .preset-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+        .preset-btn {
+            padding: 8px; border-radius: 8px; border: none;
+            background: rgba(0,0,0,0.03); color: #3a3a3c; font-size: 11px; font-weight: 500;
+            cursor: pointer; text-align: center; transition: all 0.2s ease; font-family: inherit;
+        }
+        .preset-btn:hover { background: rgba(0,0,0,0.06); }
+        .preset-btn.active { background: #007aff; color: white; }
+
+        /* Canvas */
+        .canvas-area { flex: 1; position: relative; background: #f5f5f7; }
+        #canvas3d { width: 100%; height: 100%; display: block; }
+
+        .legend {
+            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+            background: rgba(255,255,255,0.85);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(0,0,0,0.06);
+            border-radius: 12px; padding: 10px 16px;
+            display: flex; align-items: center; gap: 10px; z-index: 10;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+        }
+        .legend-labels { display: flex; justify-content: space-between; width: 200px; font-size: 9px; color: #86868b; font-weight: 500; }
+        .legend-title { font-size: 11px; color: #3a3a3c; font-weight: 600; white-space: nowrap; }
+
+        /* Right Panel */
+        .right-panel {
+            width: 300px; flex-shrink: 0;
+            background: rgba(255,255,255,0.6);
+            backdrop-filter: blur(20px);
+            border-left: 1px solid rgba(0,0,0,0.06);
+            overflow-y: auto; display: flex; flex-direction: column;
+        }
+
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .stat-card {
+            background: white; border-radius: 12px; padding: 14px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+            border: 1px solid rgba(0,0,0,0.04);
+        }
+        .stat-card .value {
+            font-size: 22px; font-weight: 700; color: #1d1d1f;
+            font-variant-numeric: tabular-nums; letter-spacing: -0.5px;
+        }
+        .stat-card .label {
+            font-size: 10px; color: #86868b; margin-top: 2px;
+            text-transform: uppercase; letter-spacing: 0.3px; font-weight: 500;
+        }
+        .stat-card.highlight .value { color: #007aff; }
+        .stat-card.warning .value { color: #ff9f0a; }
+        .stat-card.danger .value { color: #ff3b30; }
+        .stat-card.success .value { color: #34c759; }
+
+        .temp-zone {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 10px 12px; border-radius: 10px; margin-bottom: 4px;
+            background: white; border: 1px solid rgba(0,0,0,0.04);
+        }
+        .temp-zone-info { display: flex; align-items: center; gap: 8px; }
+        .temp-zone-dot { width: 10px; height: 10px; border-radius: 4px; }
+        .temp-zone-name { font-size: 12px; font-weight: 500; }
+        .temp-zone-value { font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; }
+        .temp-zone-btn {
+            width: 28px; height: 28px; border-radius: 8px;
+            border: 1px solid rgba(0,0,0,0.06); background: rgba(0,0,0,0.02);
+            color: #c7c7cc; font-size: 11px; cursor: pointer;
+            transition: all 0.2s; display: flex; align-items: center; justify-content: center;
+        }
+        .temp-zone-btn.on { background: #ff3b30; border-color: #ff3b30; color: white; }
+        .temp-zone-btn.cool { background: #007aff; border-color: #007aff; color: white; }
+
+        /* Alert */
+        .alert-item {
+            display: flex; align-items: flex-start; gap: 8px;
+            padding: 10px 12px; border-radius: 10px; margin-bottom: 4px;
+            background: white; font-size: 11px;
+            border: 1px solid rgba(0,0,0,0.04);
+        }
+        .alert-item.info { border-left: 3px solid #007aff; }
+        .alert-item.warn { border-left: 3px solid #ff9f0a; }
+        .alert-item.error { border-left: 3px solid #ff3b30; }
+        .alert-time { color: #aeaeb2; font-size: 10px; white-space: nowrap; font-weight: 500; }
+        .alert-msg { color: #1d1d1f; font-weight: 400; line-height: 1.4; }
+
+        #miniHeatmap { width: 100%; border-radius: 10px; background: #f5f5f7; border: 1px solid rgba(0,0,0,0.04); }
+
+        .toast {
+            position: fixed; bottom: 24px; right: 24px;
+            background: rgba(255,255,255,0.9);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(0,0,0,0.06);
+            border-radius: 12px; padding: 12px 20px; font-size: 13px;
+            color: #1d1d1f; font-weight: 500;
+            z-index: 100; opacity: 0; transform: translateY(10px);
+            transition: all 0.3s ease; pointer-events: none;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+        .toast.show { opacity: 1; transform: translateY(0); }
+
+        .loading-overlay {
+            position: fixed; inset: 0;
+            background: rgba(255,255,255,0.9); backdrop-filter: blur(20px);
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            z-index: 300; transition: opacity 0.5s ease;
+        }
+        .loading-overlay.hidden { opacity: 0; pointer-events: none; }
+        .loading-spinner {
+            width: 40px; height: 40px;
+            border: 3px solid rgba(0,0,0,0.08);
+            border-top-color: #007aff; border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loading-text { margin-top: 16px; font-size: 14px; color: #3a3a3c; font-weight: 500; }
+
+        .footer-credit {
+            padding: 12px 16px; text-align: center;
+            font-size: 10px; color: #aeaeb2;
+            border-top: 1px solid rgba(0,0,0,0.04);
+        }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); border-radius: 3px; }
+    </style>
+</head>
+<body>
+<div class="app">
+    <div class="header">
+        <div class="header-left">
+            <img src="keti.png" alt="KETI">
+            <div class="header-divider"></div>
+            <h1>4-Seat Smart Monitor<span class="version">v1.0</span></h1>
+        </div>
+        <div class="header-center">
+            <div class="status-pill"><div class="status-dot"></div>All Systems OK</div>
+            <div class="status-pill"><div class="status-dot"></div>4 Seats Active</div>
+        </div>
+        <div class="header-right">
+            <span class="clock" id="clock">00:00:00</span>
+            <button class="btn" onclick="exportJSON()"><i class="fas fa-arrow-down-to-line"></i> JSON</button>
+            <button class="btn" onclick="captureScreenshot()"><i class="fas fa-camera"></i> Capture</button>
+        </div>
+    </div>
+
+    <div class="content">
+        <!-- Left Panel -->
+        <div class="left-panel">
+            <!-- Car Layout Diagram -->
+            <div class="panel-section">
+                <div class="section-title"><i class="fas fa-car"></i> Vehicle Layout</div>
+                <div class="car-layout">
+                    <div class="car-outline"></div>
+                    <div class="car-steering"></div>
+                    <div class="car-seat-dot occupied selected" id="dot-0" style="top:16px; left:60px;" onclick="selectSeat(0)">FL</div>
+                    <div class="car-seat-dot occupied" id="dot-1" style="top:16px; right:30px;" onclick="selectSeat(1)">FR</div>
+                    <div class="car-seat-dot occupied" id="dot-2" style="bottom:24px; left:60px;" onclick="selectSeat(2)">RL</div>
+                    <div class="car-seat-dot occupied" id="dot-3" style="bottom:24px; right:30px;" onclick="selectSeat(3)">RR</div>
+                </div>
+            </div>
+
+            <!-- Seat Cards -->
+            <div class="panel-section">
+                <div class="section-title"><i class="fas fa-chair"></i> Seat Selection</div>
+                <div id="seatCardList"></div>
+            </div>
+
+            <!-- Simulation -->
+            <div class="panel-section">
+                <div class="section-title"><i class="fas fa-play-circle"></i> Simulation</div>
+                <div class="sim-control">
+                    <div class="sim-dot running" id="simDot"></div>
+                    <span class="sim-label" id="simLabel">Running</span>
+                    <button class="btn" id="simBtn" onclick="toggleSimulation()" style="padding:4px 10px;font-size:11px;">
+                        <i class="fas fa-pause"></i>
+                    </button>
+                </div>
+                <div class="ctrl-group">
+                    <div class="ctrl-label"><span>Vehicle Speed</span><span class="ctrl-value" id="speedVal">60 km/h</span></div>
+                    <input type="range" min="0" max="200" value="60" id="speedSlider" oninput="vehicleSpeed=+this.value;document.getElementById('speedVal').textContent=this.value+' km/h'">
+                </div>
+                <div class="ctrl-group">
+                    <div class="ctrl-label"><span style="font-size:11px;font-weight:600;color:#86868b;text-transform:uppercase;letter-spacing:0.5px;">Road Surface</span></div>
+                    <div class="preset-grid">
+                        <button class="preset-btn" onclick="setRoad('smooth',this)">Smooth</button>
+                        <button class="preset-btn active" onclick="setRoad('normal',this)">Normal</button>
+                        <button class="preset-btn" onclick="setRoad('rough',this)">Rough</button>
+                        <button class="preset-btn" onclick="setRoad('cobble',this)">Cobble</button>
+                    </div>
+                </div>
+                <div class="ctrl-group">
+                    <div class="ctrl-label"><span style="font-size:11px;font-weight:600;color:#86868b;text-transform:uppercase;letter-spacing:0.5px;">Seat Occupancy</span></div>
+                    <div class="preset-grid">
+                        <button class="preset-btn active" onclick="setAllOccupancy('all',this)">All Occupied</button>
+                        <button class="preset-btn" onclick="setAllOccupancy('front',this)">Front Only</button>
+                        <button class="preset-btn" onclick="setAllOccupancy('driver',this)">Driver Only</button>
+                        <button class="preset-btn" onclick="setAllOccupancy('empty',this)">All Empty</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- View -->
+            <div class="panel-section">
+                <div class="section-title"><i class="fas fa-eye"></i> View</div>
+                <div class="preset-grid">
+                    <button class="preset-btn" onclick="setCameraView('top')">Top View</button>
+                    <button class="preset-btn" onclick="setCameraView('front')">Front View</button>
+                    <button class="preset-btn" onclick="setCameraView('side')">Side View</button>
+                    <button class="preset-btn" onclick="setCameraView('default')">Default</button>
+                </div>
+            </div>
+
+            <div class="footer-credit">KETI — Korea Electronics Technology Institute</div>
+        </div>
+
+        <!-- 3D Canvas -->
+        <div class="canvas-area">
+            <div id="canvas3d"></div>
+            <div class="legend" id="pressureLegend">
+                <span class="legend-title">Pressure (kPa)</span>
+                <div>
+                    <canvas id="legendBar" width="200" height="12" style="border-radius:6px;"></canvas>
+                    <div class="legend-labels"><span>0</span><span>25</span><span>50</span><span>75</span><span>100</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Panel -->
+        <div class="right-panel">
+            <!-- Overview -->
+            <div class="panel-section">
+                <div class="section-title"><i class="fas fa-th-large"></i> Overview — <span id="overviewSeatName">Driver (FL)</span></div>
+                <div class="stats-grid">
+                    <div class="stat-card highlight"><div class="value" id="rWeight">75</div><div class="label">Load (kg)</div></div>
+                    <div class="stat-card success"><div class="value" id="rStatus">Occupied</div><div class="label">Status</div></div>
+                    <div class="stat-card"><div class="value" id="rAvgPress">0</div><div class="label">Avg Pressure</div></div>
+                    <div class="stat-card warning"><div class="value" id="rPeakPress">0</div><div class="label">Peak (kPa)</div></div>
+                </div>
+            </div>
+
+            <!-- Pressure heatmap -->
+            <div class="panel-section">
+                <div class="section-title"><i class="fas fa-weight-hanging"></i> Pressure Distribution</div>
+                <canvas id="miniHeatmap" width="160" height="160"></canvas>
+            </div>
+
+            <!-- Temperature -->
+            <div class="panel-section">
+                <div class="section-title"><i class="fas fa-thermometer-half"></i> Temperature Zones</div>
+                <div id="tempZoneList"></div>
+            </div>
+
+            <!-- All Seats Summary -->
+            <div class="panel-section">
+                <div class="section-title"><i class="fas fa-list"></i> All Seats Summary</div>
+                <div id="allSeatsSummary"></div>
+            </div>
+
+            <!-- Alerts -->
+            <div class="panel-section">
+                <div class="section-title"><i class="fas fa-bell"></i> Alerts <span style="color:#aeaeb2;font-weight:400;" id="alertCount">(0)</span></div>
+                <div id="alertList">
+                    <div style="font-size:12px;color:#aeaeb2;text-align:center;padding:24px;">No alerts</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-spinner"></div>
+    <div class="loading-text" id="loadingText">Loading 3D Models...</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ==================== Seat Configuration ====================
+const SEAT_CONFIG = [
+    { id: 0, name: 'Driver',    label: 'FL', pos: [-0.6, 0, 0.35],  weight: 75, occupied: true },
+    { id: 1, name: 'Passenger', label: 'FR', pos: [0.6, 0, 0.35],   weight: 65, occupied: true },
+    { id: 2, name: 'Rear Left', label: 'RL', pos: [-0.6, 0, -0.55], weight: 55, occupied: true },
+    { id: 3, name: 'Rear Right',label: 'RR', pos: [0.6, 0, -0.55],  weight: 80, occupied: true }
+];
+
+const SEAT_COLORS = ['#007aff', '#34c759', '#ff9f0a', '#af52de'];
+
+// Per-seat state
+const seats = SEAT_CONFIG.map((cfg, i) => ({
+    ...cfg,
+    temperature: [
+        { name: 'Cushion L', temp: 22, target: 28, heating: false, cooling: false },
+        { name: 'Cushion R', temp: 22, target: 28, heating: false, cooling: false },
+        { name: 'Back L',    temp: 22, target: 30, heating: false, cooling: false },
+        { name: 'Back R',    temp: 22, target: 30, heating: false, cooling: false }
+    ],
+    pressureGrid: new Float32Array(16 * 16),
+    avgPressure: 0, peakPressure: 0,
+    model: null, highlight: null
+}));
+
+let selectedSeat = 0;
+let simulationRunning = true;
+let vehicleSpeed = 60;
+let roadType = 'normal';
+const ROADS = { smooth:{r:0.15}, normal:{r:1.0}, rough:{r:2.8}, cobble:{r:5.0} };
+const alerts = [];
+
+// ==================== Three.js ====================
+let scene, camera, renderer, controls;
+const clock = new THREE.Clock();
+
+function initScene() {
+    const container = document.getElementById('canvas3d');
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xf5f5f7);
+
+    camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.01, 100);
+    camera.position.set(0, 2.5, 3.5);
+
+    renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.3;
+    container.appendChild(renderer.domElement);
+
+    controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
+    controls.target.set(0, 0.3, 0);
+    controls.minDistance = 0.5;
+    controls.maxDistance = 8;
+    controls.maxPolarAngle = Math.PI * 0.85;
+
+    // Lighting
+    scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+    const main = new THREE.DirectionalLight(0xffffff, 1.2);
+    main.position.set(3, 5, 3);
+    main.castShadow = true;
+    main.shadow.mapSize.set(2048, 2048);
+    main.shadow.camera.near = 0.1; main.shadow.camera.far = 20;
+    main.shadow.camera.left = -3; main.shadow.camera.right = 3;
+    main.shadow.camera.top = 3; main.shadow.camera.bottom = -3;
+    main.shadow.bias = -0.001;
+    scene.add(main);
+    const fill = new THREE.DirectionalLight(0xffffff, 0.5);
+    fill.position.set(-3, 2, -1); scene.add(fill);
+    const rim = new THREE.DirectionalLight(0xf0f0ff, 0.3);
+    rim.position.set(0, 1, -4); scene.add(rim);
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 0.3));
+
+    // Grid & Floor
+    const grid = new THREE.GridHelper(4, 20, 0xd2d2d7, 0xe8e8ed);
+    grid.material.opacity = 0.5; grid.material.transparent = true;
+    scene.add(grid);
+    const floor = new THREE.Mesh(
+        new THREE.PlaneGeometry(8, 8),
+        new THREE.MeshStandardMaterial({ color: 0xeeeef0, roughness: 0.95 })
+    );
+    floor.rotation.x = -Math.PI / 2; floor.position.y = -0.01;
+    floor.receiveShadow = true; scene.add(floor);
+
+    // Car body outline (transparent)
+    const bodyGeo = new THREE.BoxGeometry(1.8, 0.02, 2.2);
+    const bodyMat = new THREE.MeshStandardMaterial({ color: 0xd2d2d7, transparent: true, opacity: 0.15, roughness: 0.8 });
+    const body = new THREE.Mesh(bodyGeo, bodyMat);
+    body.position.set(0, 0.005, -0.05);
+    scene.add(body);
+
+    loadSeats();
+
+    window.addEventListener('resize', () => {
+        camera.aspect = container.clientWidth / container.clientHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(container.clientWidth, container.clientHeight);
+    });
+
+    // Raycaster for seat click
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    renderer.domElement.addEventListener('click', (e) => {
+        const rect = renderer.domElement.getBoundingClientRect();
+        mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+        mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+        raycaster.setFromCamera(mouse, camera);
+        for (let i = 0; i < seats.length; i++) {
+            if (seats[i].model) {
+                const hits = raycaster.intersectObject(seats[i].model, true);
+                if (hits.length > 0) { selectSeat(i); break; }
+            }
+        }
+    });
+}
+
+function loadSeats() {
+    const loader = new THREE.GLTFLoader();
+    loader.load('models/car-seat.glb', (gltf) => {
+        const original = gltf.scene;
+        const box = new THREE.Box3().setFromObject(original);
+        const size = box.getSize(new THREE.Vector3());
+        const center = box.getCenter(new THREE.Vector3());
+        const maxDim = Math.max(size.x, size.y, size.z);
+        const scale = 0.8 / maxDim;
+
+        seats.forEach((seat, i) => {
+            const model = i === 0 ? original : original.clone();
+            model.scale.setScalar(scale);
+            model.position.set(
+                seat.pos[0] - center.x * scale,
+                seat.pos[1] - box.min.y * scale,
+                seat.pos[2] - center.z * scale
+            );
+            model.traverse(c => {
+                if (c.isMesh) { c.castShadow = true; c.receiveShadow = true; }
+            });
+            scene.add(model);
+            seat.model = model;
+
+            // Highlight ring
+            const ringGeo = new THREE.RingGeometry(0.38, 0.42, 32);
+            const ringMat = new THREE.MeshBasicMaterial({
+                color: new THREE.Color(SEAT_COLORS[i]),
+                transparent: true, opacity: 0, side: THREE.DoubleSide
+            });
+            const ring = new THREE.Mesh(ringGeo, ringMat);
+            ring.rotation.x = -Math.PI / 2;
+            ring.position.set(seat.pos[0], 0.01, seat.pos[2]);
+            scene.add(ring);
+            seat.highlight = ring;
+        });
+
+        updateSeatHighlights();
+        document.getElementById('loadingOverlay').classList.add('hidden');
+    }, undefined, (err) => {
+        console.error('Model load error:', err);
+        document.getElementById('loadingText').textContent = 'Failed to load model';
+    });
+}
+
+function updateSeatHighlights() {
+    seats.forEach((s, i) => {
+        if (s.highlight) {
+            s.highlight.material.opacity = (i === selectedSeat) ? 0.6 : 0.15;
+        }
+    });
+}
+
+// ==================== Pressure Simulation ====================
+function gaussian2D(x, y, sx, sy) {
+    return Math.exp(-(x*x)/(2*sx*sx) - (y*y)/(2*sy*sy));
+}
+
+function simulatePressure(seat, time) {
+    if (!seat.occupied) { seat.pressureGrid.fill(0); seat.avgPressure = 0; seat.peakPressure = 0; return; }
+    const wF = seat.weight / 80;
+    const offset = seat.id * 1.7; // phase offset per seat
+    let sum = 0, max = 0, count = 0;
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+        const nx = (x/15)*2-1, ny = (y/15)*2-1;
+        const lp = gaussian2D(nx+0.35, ny-0.1, 0.28, 0.32);
+        const rp = gaussian2D(nx-0.35, ny-0.1, 0.28, 0.32);
+        const lt = gaussian2D(nx+0.3, ny+0.25, 0.22, 0.4) * 0.35;
+        const rt = gaussian2D(nx-0.3, ny+0.25, 0.22, 0.4) * 0.35;
+        const v = Math.max(0, Math.min(1,
+            (lp+rp+lt+rt)*wF + Math.sin((time+offset)*0.35)*0.015 + (Math.random()-0.5)*0.008));
+        seat.pressureGrid[y*16+x] = v;
+        if (v > 0.01) { sum += v; count++; max = Math.max(max, v); }
+    }
+    seat.avgPressure = count > 0 ? (sum/count*100) : 0;
+    seat.peakPressure = max * 100;
+}
+
+function simulateTemperature(seat, dt) {
+    seat.temperature.forEach(z => {
+        if (z.heating) z.temp += (z.target - z.temp) * dt * 0.04;
+        else if (z.cooling) z.temp += (18 - z.temp) * dt * 0.03;
+        else z.temp += (22 - z.temp) * dt * 0.005;
+        z.temp = Math.max(5, Math.min(50, z.temp + (Math.random()-0.5)*0.05));
+    });
+}
+
+// ==================== Colors ====================
+function pressureColor(t) {
+    t = Math.max(0, Math.min(1, t));
+    let r, g, b;
+    if (t < 0.25) { const f=t/0.25; r=0; g=Math.round(f*255); b=255; }
+    else if (t < 0.5) { const f=(t-0.25)/0.25; r=0; g=255; b=Math.round(255*(1-f)); }
+    else if (t < 0.75) { const f=(t-0.5)/0.25; r=Math.round(255*f); g=255; b=0; }
+    else { const f=(t-0.75)/0.25; r=255; g=Math.round(255*(1-f)); b=0; }
+    return `rgba(${r},${g},${b},${0.3+t*0.7})`;
+}
+
+function temperatureColor(temp) {
+    const t = Math.max(0, Math.min(1, (temp-15)/25));
+    if (t < 0.3) return '#007aff';
+    if (t < 0.6) return '#86868b';
+    if (t < 0.8) return '#ff9f0a';
+    return '#ff3b30';
+}
+
+// ==================== UI Updates ====================
+function selectSeat(idx) {
+    selectedSeat = idx;
+    updateSeatHighlights();
+    // Update car layout dots
+    document.querySelectorAll('.car-seat-dot').forEach((d, i) => d.classList.toggle('selected', i === idx));
+    // Update seat cards
+    document.querySelectorAll('.seat-card').forEach((c, i) => c.classList.toggle('selected', i === idx));
+    document.getElementById('overviewSeatName').textContent = seats[idx].name + ' (' + seats[idx].label + ')';
+    updateRightPanel();
+}
+
+function renderSeatCards() {
+    const el = document.getElementById('seatCardList');
+    el.innerHTML = seats.map((s, i) => `
+        <div class="seat-card ${i===selectedSeat?'selected':''}" onclick="selectSeat(${i})">
+            <div class="seat-icon" style="background:${SEAT_COLORS[i]}20; color:${SEAT_COLORS[i]};">
+                <i class="fas fa-${s.occupied?'user':'user-slash'}"></i>
+            </div>
+            <div class="seat-details">
+                <div class="seat-name">${s.name} (${s.label})</div>
+                <div class="seat-status">${s.occupied ? s.weight + ' kg' : 'Empty'}</div>
+            </div>
+            <div class="seat-temp" style="color:${temperatureColor(s.temperature[0].temp)}">
+                ${s.temperature[0].temp.toFixed(1)}°
+            </div>
+        </div>
+    `).join('');
+}
+
+function updateRightPanel() {
+    const s = seats[selectedSeat];
+    document.getElementById('rWeight').textContent = s.occupied ? s.weight : '0';
+    document.getElementById('rStatus').textContent = s.occupied ? 'Occupied' : 'Empty';
+    document.getElementById('rAvgPress').textContent = s.avgPressure.toFixed(1);
+    document.getElementById('rPeakPress').textContent = s.peakPressure.toFixed(1);
+
+    // Heatmap
+    const mc = document.getElementById('miniHeatmap');
+    const mctx = mc.getContext('2d');
+    mctx.clearRect(0, 0, 160, 160);
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+        const v = s.pressureGrid[y*16+x];
+        if (v > 0.01) { mctx.fillStyle = pressureColor(v); mctx.fillRect(x*10, y*10, 10, 10); }
+    }
+
+    // Temperature zones
+    const tEl = document.getElementById('tempZoneList');
+    tEl.innerHTML = s.temperature.map((z, zi) => {
+        const hex = temperatureColor(z.temp);
+        return `<div class="temp-zone">
+            <div class="temp-zone-info">
+                <div class="temp-zone-dot" style="background:${hex};"></div>
+                <div class="temp-zone-name">${z.name}</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;">
+                <span class="temp-zone-value" style="color:${hex};">${z.temp.toFixed(1)}°</span>
+                <button class="temp-zone-btn ${z.heating?'on':''}" onclick="toggleHeat(${selectedSeat},${zi})"><i class="fas fa-fire"></i></button>
+                <button class="temp-zone-btn ${z.cooling?'cool':''}" onclick="toggleCool(${selectedSeat},${zi})"><i class="fas fa-snowflake"></i></button>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function updateAllSeatsSummary() {
+    const el = document.getElementById('allSeatsSummary');
+    el.innerHTML = seats.map((s, i) => `
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-radius:8px;margin-bottom:4px;background:${i===selectedSeat?'rgba(0,122,255,0.06)':'white'};border:1px solid ${i===selectedSeat?'rgba(0,122,255,0.15)':'rgba(0,0,0,0.04)'};cursor:pointer;" onclick="selectSeat(${i})">
+            <div style="display:flex;align-items:center;gap:8px;">
+                <div style="width:8px;height:8px;border-radius:50%;background:${s.occupied?'#34c759':'#aeaeb2'};"></div>
+                <span style="font-size:12px;font-weight:500;">${s.label}</span>
+            </div>
+            <div style="display:flex;gap:12px;font-size:11px;font-variant-numeric:tabular-nums;">
+                <span style="color:#86868b;">${s.occupied ? s.weight+'kg' : '—'}</span>
+                <span style="color:${temperatureColor(s.temperature[0].temp)};">${s.temperature[0].temp.toFixed(1)}°</span>
+                <span style="color:#ff9f0a;">${s.peakPressure.toFixed(0)} kPa</span>
+            </div>
+        </div>
+    `).join('');
+}
+
+function updateCarDots() {
+    seats.forEach((s, i) => {
+        const dot = document.getElementById('dot-' + i);
+        dot.className = 'car-seat-dot ' + (s.occupied ? 'occupied' : 'empty') + (i === selectedSeat ? ' selected' : '');
+    });
+}
+
+// ==================== Controls ====================
+function toggleSimulation() {
+    simulationRunning = !simulationRunning;
+    document.getElementById('simDot').className = 'sim-dot ' + (simulationRunning ? 'running' : 'paused');
+    document.getElementById('simLabel').textContent = simulationRunning ? 'Running' : 'Paused';
+    document.getElementById('simBtn').innerHTML = simulationRunning ? '<i class="fas fa-pause"></i>' : '<i class="fas fa-play"></i>';
+}
+
+function setRoad(type, btn) {
+    roadType = type;
+    btn.parentElement.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+}
+
+function setAllOccupancy(mode, btn) {
+    btn.parentElement.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    seats[0].occupied = mode !== 'empty';
+    seats[1].occupied = mode === 'all' || mode === 'front';
+    seats[2].occupied = mode === 'all';
+    seats[3].occupied = mode === 'all';
+    updateCarDots();
+    renderSeatCards();
+}
+
+function toggleHeat(si, zi) {
+    seats[si].temperature[zi].heating = !seats[si].temperature[zi].heating;
+    if (seats[si].temperature[zi].heating) seats[si].temperature[zi].cooling = false;
+}
+
+function toggleCool(si, zi) {
+    seats[si].temperature[zi].cooling = !seats[si].temperature[zi].cooling;
+    if (seats[si].temperature[zi].cooling) seats[si].temperature[zi].heating = false;
+}
+
+function setCameraView(view) {
+    switch(view) {
+        case 'top':     camera.position.set(0, 4, 0.01); controls.target.set(0, 0, -0.05); break;
+        case 'front':   camera.position.set(0, 1, 3); controls.target.set(0, 0.3, 0); break;
+        case 'side':    camera.position.set(3, 1.2, 0); controls.target.set(0, 0.3, 0); break;
+        case 'default': camera.position.set(0, 2.5, 3.5); controls.target.set(0, 0.3, 0); break;
+    }
+    controls.update();
+}
+
+// ==================== Alerts ====================
+let lastAlertTime = 0;
+function addAlert(type, msg) {
+    const now = Date.now();
+    if (now - lastAlertTime < 5000) return;
+    if (alerts.length > 0 && alerts[0].msg === msg) return;
+    lastAlertTime = now;
+    alerts.unshift({ type, msg, time: new Date() });
+    if (alerts.length > 15) alerts.pop();
+    const el = document.getElementById('alertList');
+    document.getElementById('alertCount').textContent = '(' + alerts.length + ')';
+    el.innerHTML = alerts.slice(0, 6).map(a => `
+        <div class="alert-item ${a.type}">
+            <span class="alert-time">${a.time.toLocaleTimeString()}</span>
+            <span class="alert-msg">${a.msg}</span>
+        </div>
+    `).join('');
+}
+
+// ==================== Export ====================
+function exportJSON() {
+    const data = {
+        timestamp: new Date().toISOString(), system: 'KETI 4-Seat Smart Monitor',
+        vehicleSpeed, roadType,
+        seats: seats.map(s => ({
+            id: s.id, name: s.name, occupied: s.occupied, weight: s.weight,
+            avgPressure: s.avgPressure, peakPressure: s.peakPressure,
+            temperature: s.temperature.map(z => ({ name: z.name, temp: z.temp, heating: z.heating, cooling: z.cooling }))
+        }))
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = 'four-seat-data-' + Date.now() + '.json'; a.click();
+    showToast('JSON exported');
+}
+
+function captureScreenshot() {
+    renderer.render(scene, camera);
+    const a = document.createElement('a');
+    a.download = 'four-seats-' + Date.now() + '.png';
+    a.href = renderer.domElement.toDataURL('image/png'); a.click();
+    showToast('Screenshot saved');
+}
+
+// ==================== Utils ====================
+let toastTimer;
+function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+function drawLegend() {
+    const ctx = document.getElementById('legendBar').getContext('2d');
+    for (let x = 0; x < 200; x++) { ctx.fillStyle = pressureColor(x/200); ctx.fillRect(x, 0, 1, 12); }
+}
+
+function updateClock() {
+    document.getElementById('clock').textContent = new Date().toLocaleTimeString();
+}
+
+// ==================== Vibration on Model ====================
+function applyVibration(seat, time) {
+    if (!seat.model || !seat.occupied) return;
+    const rf = ROADS[roadType].r;
+    const amp = vehicleSpeed * 0.00003 * rf;
+    const offset = seat.id * 2.1;
+    seat.model.position.y = (-new THREE.Box3().setFromObject(seat.model).min.y) +
+        Math.sin((time + offset) * 30) * amp;
+}
+
+// ==================== Animation ====================
+let lastUIUpdate = 0;
+
+function animate() {
+    requestAnimationFrame(animate);
+    const dt = Math.min(clock.getDelta(), 0.1);
+    const elapsed = clock.getElapsedTime();
+
+    if (simulationRunning) {
+        seats.forEach(s => {
+            simulatePressure(s, elapsed);
+            simulateTemperature(s, dt);
+        });
+    }
+
+    // Update UI every 150ms
+    if (elapsed - lastUIUpdate > 0.15) {
+        updateRightPanel();
+        renderSeatCards();
+        updateAllSeatsSummary();
+
+        // Check alerts
+        seats.forEach(s => {
+            if (s.peakPressure > 85) addAlert('warn', `${s.label} peak pressure ${s.peakPressure.toFixed(0)} kPa`);
+            s.temperature.forEach(z => {
+                if (z.temp > 40) addAlert('error', `${s.label} ${z.name} overheat: ${z.temp.toFixed(1)}°C`);
+            });
+        });
+
+        lastUIUpdate = elapsed;
+    }
+
+    controls.update();
+    renderer.render(scene, camera);
+}
+
+// ==================== Init ====================
+initScene();
+drawLegend();
+renderSeatCards();
+updateAllSeatsSummary();
+setInterval(updateClock, 1000);
+updateClock();
+animate();
+</script>
+</body>
+</html>
