@@ -6,7 +6,6 @@
     <title>KETI — Smart Seat Sensor Monitor</title>
     <script src="libs/three.min.js"></script>
     <script src="libs/OrbitControls.js"></script>
-    <script src="libs/GLTFLoader.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
@@ -470,23 +469,7 @@ function init() {
     // baseGroup: child of seatRoot, moves Y for height
     baseGroup = new THREE.Group(); seatRoot.add(baseGroup);
 
-    const loader = new THREE.GLTFLoader();
-    loader.load('./models/car-seat.glb',
-        gltf => {
-            const m = gltf.scene;
-            const box = new THREE.Box3().setFromObject(m);
-            const sz = box.getSize(new THREE.Vector3());
-            const ct = box.getCenter(new THREE.Vector3());
-            const sc = 0.9/Math.max(sz.x, sz.y, sz.z);
-            m.scale.set(sc,sc,sc);
-            m.position.set(-ct.x*sc, -box.min.y*sc, -ct.z*sc);
-            m.traverse(c => { if(c.isMesh){c.castShadow=true;c.receiveShadow=true;} });
-            baseGroup.add(m);
-            buildSeat();
-        },
-        undefined,
-        () => buildSeat()
-    );
+    buildSeat();
 
     setupPressure();
     setupArrows();
