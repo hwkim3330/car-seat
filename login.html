@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign In — KETI Smart Seat</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="icon" href="favicon.ico">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        *{margin:0;padding:0;box-sizing:border-box;}
+        body{font-family:'Inter',-apple-system,sans-serif;background:#f2f2f7;color:#1c1c1e;min-height:100vh;display:flex;align-items:center;justify-content:center;-webkit-font-smoothing:antialiased;}
+
+        .login-container{width:100%;max-width:360px;padding:20px;}
+
+        .login-card{background:white;border:1px solid rgba(0,0,0,0.06);border-radius:16px;padding:36px 32px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,0.04);}
+
+        .logo{margin-bottom:20px;}
+        .logo img{height:28px;opacity:0.85;margin-bottom:12px;display:block;margin-left:auto;margin-right:auto;}
+        .logo i{font-size:36px;color:#48484a;margin-bottom:8px;}
+        .logo h1{font-size:18px;font-weight:700;color:#1c1c1e;letter-spacing:-0.3px;}
+        .logo p{font-size:12px;color:#8e8e93;margin-top:4px;font-weight:400;}
+
+        .form-group{margin-bottom:12px;text-align:left;}
+        .form-label{font-size:11px;font-weight:500;color:#8e8e93;margin-bottom:4px;display:block;text-transform:uppercase;letter-spacing:.4px;}
+        .form-input{width:100%;padding:10px 12px;border-radius:8px;border:1px solid rgba(0,0,0,0.08);background:#f8f8fa;color:#1c1c1e;font-size:14px;font-family:inherit;outline:none;transition:border-color .15s;}
+        .form-input:focus{border-color:#48484a;background:white;}
+        .form-input::placeholder{color:#c7c7cc;}
+
+        .login-btn{width:100%;padding:11px;border-radius:8px;border:none;background:#1c1c1e;color:white;font-size:14px;font-weight:600;font-family:inherit;cursor:pointer;transition:all .15s;margin-top:16px;}
+        .login-btn:hover{background:#3a3a3c;}
+        .login-btn:active{transform:scale(0.98);}
+
+        .error-msg{color:#D44638;font-size:11px;margin-top:8px;min-height:16px;font-weight:500;}
+
+        .footer{text-align:center;margin-top:20px;font-size:10px;color:#aeaeb2;}
+        .footer a{color:#8e8e93;text-decoration:none;}
+
+        .divider{height:1px;background:rgba(0,0,0,0.04);margin:20px 0;}
+
+        .demo-hint{font-size:10px;color:#aeaeb2;background:rgba(0,0,0,0.02);border-radius:6px;padding:8px 10px;margin-top:12px;line-height:1.5;}
+        .demo-hint code{font-family:'SF Mono',Monaco,monospace;font-size:10px;color:#48484a;background:rgba(0,0,0,0.04);padding:1px 4px;border-radius:3px;}
+    </style>
+</head>
+<body>
+
+<div class="login-container">
+    <div class="login-card">
+        <div class="logo">
+            <img src="keti.png" alt="KETI">
+            <i class="fas fa-car-side"></i>
+            <h1>Smart Seat System</h1>
+            <p>Monitoring & Control v2.0</p>
+        </div>
+
+        <div class="divider"></div>
+
+        <form onsubmit="return doLogin(event)">
+            <div class="form-group">
+                <label class="form-label">Email</label>
+                <input class="form-input" type="email" id="loginEmail" placeholder="email@example.com" value="demo@keti.re.kr" autocomplete="email">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Password</label>
+                <input class="form-input" type="password" id="loginPass" placeholder="Password" value="demo1234" autocomplete="current-password">
+            </div>
+            <button class="login-btn" type="submit">Sign In</button>
+            <div class="error-msg" id="errorMsg"></div>
+        </form>
+
+        <div class="demo-hint">
+            Demo: <code>demo@keti.re.kr</code> / <code>demo1234</code>
+        </div>
+    </div>
+
+    <div class="footer">KETI — Korea Electronics Technology Institute</div>
+</div>
+
+<script>
+function doLogin(e) {
+    e.preventDefault();
+    const email = document.getElementById('loginEmail').value.trim();
+    const pass = document.getElementById('loginPass').value;
+
+    if (email === 'demo@keti.re.kr' && pass === 'demo1234') {
+        sessionStorage.setItem('keti_auth', JSON.stringify({ email, name: 'Demo User', ts: Date.now() }));
+        window.location.href = 'prototype.html';
+    } else {
+        document.getElementById('errorMsg').textContent = 'Invalid email or password';
+    }
+    return false;
+}
+</script>
+</body>
+</html>
