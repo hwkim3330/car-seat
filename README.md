@@ -16,6 +16,7 @@
 | **Technical Report** | [report.html](https://hwkim3330.github.io/car-seat/report.html) | 기술 보고서 — 스마트 시트 생태계 R&D 전략 문서 |
 | **App Prototype** | [prototype.html](https://hwkim3330.github.io/car-seat/prototype.html) | 앱 프로토타입 — 로그인, MON/ACT/APP 전체 기능, 3D+생체 |
 | **Mobile Prototype** | [prototype-mobile.html](https://hwkim3330.github.io/car-seat/prototype-mobile.html) | 모바일 앱 프로토타입 — 4탭, 원격제어, 프리셋 |
+| **GLB Seat Viewer** | [seat-viewer.html](https://hwkim3330.github.io/car-seat/seat-viewer.html) | GLB 3D 모델 기반 — 4좌석 배치, 풀 모니터링+제어 |
 
 ## 주요 기능
 
