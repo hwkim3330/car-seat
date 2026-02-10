@@ -3,1120 +3,868 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KETI - Smart Seat Sensor Monitor | Tesla Edition</title>
+    <title>KETI — Smart Seat Sensor Monitor</title>
     <script src="libs/three.min.js"></script>
     <script src="libs/OrbitControls.js"></script>
     <script src="libs/GLTFLoader.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700;800&display=swap');
-
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         :root {
-            --bg: #ffffff;
-            --bg-card: #f8f8f8;
-            --bg-elevated: #f2f2f2;
-            --bg-hover: #eaeaea;
+            --bg: #fafafa;
+            --panel: #f5f5f5;
+            --card: #ffffff;
             --border: rgba(0,0,0,0.06);
-            --text-primary: #171717;
-            --text-secondary: #6e6e6e;
-            --text-tertiary: #b0b0b0;
-            --red: #e31937;
-            --red-glow: rgba(227,25,55,0.1);
-            --red-subtle: rgba(227,25,55,0.06);
-            --blue: #3e6ae1;
-            --green: #17b169;
-            --orange: #f5a623;
-            --cyan: #00b8d9;
+            --border-strong: rgba(0,0,0,0.1);
+            --text: #1a1a1a;
+            --text2: #666;
+            --text3: #aaa;
+            --red: #d1293d;
+            --blue: #3566cc;
+            --green: #1a9956;
+            --orange: #d48806;
         }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family:'Inter',system-ui,sans-serif; background:var(--bg); color:var(--text); overflow:hidden; -webkit-font-smoothing:antialiased; }
+        .app { display:flex; flex-direction:column; height:100vh; }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: 'Inter', -apple-system, system-ui, sans-serif;
-            background: var(--bg);
-            color: var(--text-primary);
-            overflow: hidden;
-            -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
-            letter-spacing: -0.01em;
-        }
-        .app { display: flex; flex-direction: column; height: 100vh; }
-
-        /* Header - Tesla minimal */
         .header {
-            height: 48px;
-            background: rgba(255,255,255,0.85);
-            backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px);
-            border-bottom: 1px solid var(--border);
-            display: flex; align-items: center; justify-content: space-between;
-            padding: 0 20px; flex-shrink: 0; z-index: 20;
+            height:44px; background:rgba(255,255,255,0.8); backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px);
+            border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between;
+            padding:0 20px; flex-shrink:0; z-index:20;
         }
-        .header-left { display: flex; align-items: center; gap: 16px; }
-        .header-left img { height: 22px; opacity: 0.85; }
-        .header-pipe { color: var(--text-tertiary); font-weight: 200; font-size: 20px; }
-        .header-left h1 { font-size: 13px; font-weight: 500; color: var(--text-secondary); letter-spacing: 0.5px; text-transform: uppercase; }
-        .header-center { display: flex; align-items: center; gap: 16px; }
-        .live-badge {
-            display: flex; align-items: center; gap: 6px;
-            font-size: 10px; font-weight: 600; letter-spacing: 1.2px;
-            text-transform: uppercase; color: var(--red);
-        }
-        .live-dot {
-            width: 5px; height: 5px; border-radius: 50%;
-            background: var(--red);
-            box-shadow: 0 0 6px rgba(227,25,55,0.4);
-            animation: livePulse 1.5s ease-in-out infinite;
-        }
-        @keyframes livePulse { 0%,100%{opacity:1;} 50%{opacity:0.3;} }
-        .sensor-count { font-size: 10px; color: var(--text-tertiary); font-weight: 400; letter-spacing: 0.5px; }
-        .header-right { display: flex; align-items: center; gap: 6px; }
-        .clock { font-size: 11px; color: var(--text-tertiary); font-weight: 400; font-variant-numeric: tabular-nums; margin-right: 8px; }
+        .header-left { display:flex; align-items:center; gap:12px; }
+        .header-left img { height:20px; opacity:0.8; }
+        .h-sep { width:1px; height:16px; background:var(--border-strong); }
+        .header-left h1 { font-size:13px; font-weight:500; color:var(--text2); }
+        .header-center { display:flex; align-items:center; gap:14px; }
+        .live { display:flex; align-items:center; gap:5px; font-size:10px; font-weight:600; color:var(--red); letter-spacing:0.5px; }
+        .live-d { width:5px; height:5px; border-radius:50%; background:var(--red); animation:lp 2s ease-in-out infinite; }
+        @keyframes lp { 0%,100%{opacity:1;} 50%{opacity:0.25;} }
+        .s-count { font-size:10px; color:var(--text3); }
+        .header-right { display:flex; align-items:center; gap:6px; }
+        .clk { font-size:11px; color:var(--text3); font-variant-numeric:tabular-nums; margin-right:6px; }
 
-        /* Buttons - Tesla style */
         .btn {
-            padding: 6px 14px; border-radius: 4px; border: 1px solid var(--border);
-            background: transparent; color: var(--text-secondary);
-            font-size: 10px; font-weight: 500; font-family: inherit;
-            cursor: pointer; display: inline-flex; align-items: center; gap: 5px;
-            transition: all 0.2s ease; letter-spacing: 0.3px; text-transform: uppercase;
+            padding:5px 12px; border-radius:6px; border:1px solid var(--border);
+            background:transparent; color:var(--text2); font-size:11px; font-weight:500; font-family:inherit;
+            cursor:pointer; display:inline-flex; align-items:center; gap:4px; transition:all 0.15s;
         }
-        .btn:hover { background: var(--bg-hover); color: var(--text-primary); border-color: rgba(0,0,0,0.12); }
-        .btn:active { transform: scale(0.97); }
-        .btn-red { border-color: rgba(227,25,55,0.3); color: var(--red); }
-        .btn-red:hover { background: var(--red-subtle); border-color: rgba(227,25,55,0.5); }
-        .btn i { font-size: 10px; }
+        .btn:hover { background:rgba(0,0,0,0.03); border-color:var(--border-strong); }
+        .btn:active { transform:scale(0.97); }
+        .btn i { font-size:10px; }
 
-        /* Content */
-        .content { flex: 1; display: flex; overflow: hidden; }
+        .content { flex:1; display:flex; overflow:hidden; }
 
-        /* Left Panel - Tesla light glass */
         .left-panel {
-            width: 260px; flex-shrink: 0;
-            background: rgba(250,250,250,0.92);
-            backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px);
-            border-right: 1px solid var(--border);
-            overflow-y: auto; display: flex; flex-direction: column;
+            width:256px; flex-shrink:0; background:var(--panel);
+            border-right:1px solid var(--border); overflow-y:auto; display:flex; flex-direction:column;
         }
-        .panel-section { padding: 16px; }
-        .panel-section + .panel-section { border-top: 1px solid var(--border); }
-        .section-title {
-            font-size: 9px; font-weight: 600; color: var(--text-tertiary);
-            text-transform: uppercase; letter-spacing: 1.5px;
-            margin-bottom: 12px; display: flex; align-items: center; gap: 6px;
-        }
+        .p-sec { padding:14px 14px 10px; }
+        .p-sec + .p-sec { border-top:1px solid var(--border); }
+        .sec-t { font-size:10px; font-weight:600; color:var(--text3); letter-spacing:0.3px; margin-bottom:10px; }
 
-        /* Sensor toggle - Tesla list */
-        .sensor-toggle {
-            display: flex; align-items: center; justify-content: space-between;
-            padding: 10px 12px; border-radius: 6px; cursor: pointer;
-            transition: all 0.15s ease; margin-bottom: 2px;
-            border: 1px solid transparent;
+        .s-tog {
+            display:flex; align-items:center; justify-content:space-between;
+            padding:8px 10px; border-radius:8px; cursor:pointer; transition:all 0.15s; margin-bottom:2px;
         }
-        .sensor-toggle:hover { background: var(--bg-hover); }
-        .sensor-toggle.active {
-            background: var(--bg-elevated);
-            border-color: var(--border);
-        }
-        .sensor-info { display: flex; align-items: center; gap: 10px; }
-        .sensor-dot { width: 3px; height: 20px; border-radius: 2px; flex-shrink: 0; }
-        .sensor-name { font-size: 12px; font-weight: 500; color: var(--text-primary); }
-        .sensor-desc { font-size: 9px; color: var(--text-tertiary); margin-top: 2px; font-weight: 400; letter-spacing: 0.3px; }
-        .toggle-icon { font-size: 11px; color: var(--text-tertiary); transition: color 0.2s; }
-        .sensor-toggle.active .toggle-icon { color: var(--red); }
+        .s-tog:hover { background:rgba(0,0,0,0.025); }
+        .s-tog.on { background:var(--card); box-shadow:0 1px 3px rgba(0,0,0,0.05); }
+        .s-info { display:flex; align-items:center; gap:8px; }
+        .s-bar { width:3px; height:18px; border-radius:1.5px; }
+        .s-name { font-size:12px; font-weight:500; color:var(--text); }
+        .s-desc { font-size:9px; color:var(--text3); margin-top:1px; }
+        .s-eye { font-size:10px; color:var(--text3); }
+        .s-tog.on .s-eye { color:var(--red); }
 
-        /* Slider - Tesla */
-        .ctrl-group { margin-bottom: 16px; }
-        .ctrl-label {
-            display: flex; justify-content: space-between; align-items: center;
-            font-size: 11px; color: var(--text-secondary); margin-bottom: 8px;
-        }
-        .ctrl-value { color: var(--text-primary); font-weight: 600; font-variant-numeric: tabular-nums; }
+        .cg { margin-bottom:14px; }
+        .cg:last-child { margin-bottom:0; }
+        .cl { display:flex; justify-content:space-between; font-size:11px; color:var(--text2); margin-bottom:6px; }
+        .cv { color:var(--text); font-weight:600; font-variant-numeric:tabular-nums; }
         input[type="range"] {
-            width: 100%; height: 2px; appearance: none; -webkit-appearance: none;
-            background: var(--text-tertiary); border-radius: 1px; outline: none; cursor: pointer;
+            width:100%; height:3px; appearance:none; -webkit-appearance:none;
+            background:#ddd; border-radius:1.5px; outline:none; cursor:pointer;
         }
         input[type="range"]::-webkit-slider-thumb {
-            -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%;
-            background: var(--text-primary); cursor: pointer;
-            box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+            -webkit-appearance:none; width:16px; height:16px; border-radius:50%;
+            background:#fff; cursor:pointer; box-shadow:0 1px 4px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.04);
         }
-        input[type="range"]::-webkit-slider-thumb:hover { box-shadow: 0 0 10px rgba(227,25,55,0.25); }
 
-        /* Preset buttons - Tesla */
-        .preset-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
-        .preset-btn {
-            padding: 8px; border-radius: 4px;
-            border: 1px solid var(--border); background: transparent;
-            color: var(--text-secondary); font-size: 10px; font-weight: 500;
-            cursor: pointer; text-align: center; transition: all 0.15s ease;
-            font-family: inherit; letter-spacing: 0.3px;
+        .pg { display:grid; grid-template-columns:1fr 1fr; gap:4px; }
+        .pb {
+            padding:7px; border-radius:6px; border:1px solid var(--border); background:transparent;
+            color:var(--text2); font-size:11px; font-weight:500; cursor:pointer; text-align:center;
+            font-family:inherit; transition:all 0.15s;
         }
-        .preset-btn:hover { background: var(--bg-hover); border-color: rgba(0,0,0,0.1); }
-        .preset-btn:active { transform: scale(0.97); }
-        .preset-btn.active { background: var(--red); border-color: var(--red); color: white; }
+        .pb:hover { background:rgba(0,0,0,0.025); }
+        .pb:active { transform:scale(0.97); }
+        .pb.on { background:var(--red); border-color:var(--red); color:#fff; }
 
-        /* Canvas - clean white */
-        .canvas-area { flex: 1; position: relative; background: #f0f0f0; }
-        #canvas3d { width: 100%; height: 100%; display: block; }
+        .canvas-area { flex:1; position:relative; background:#eee; }
+        #canvas3d { width:100%; height:100%; display:block; }
 
-        /* Heatmap legend - Tesla */
         .legend {
-            position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
-            background: rgba(255,255,255,0.85);
-            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-            border: 1px solid var(--border);
-            border-radius: 6px; padding: 8px 14px; display: none;
-            align-items: center; gap: 10px; z-index: 10;
+            position:absolute; bottom:14px; left:50%; transform:translateX(-50%);
+            background:rgba(255,255,255,0.88); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+            border:1px solid var(--border); border-radius:8px; padding:6px 12px; display:none;
+            align-items:center; gap:8px; z-index:10;
         }
-        .legend.show { display: flex; }
-        .legend-labels { display: flex; justify-content: space-between; width: 180px; font-size: 8px; color: var(--text-tertiary); font-weight: 500; letter-spacing: 0.5px; }
-        .legend-title { font-size: 9px; color: var(--text-secondary); font-weight: 600; white-space: nowrap; text-transform: uppercase; letter-spacing: 0.8px; }
+        .legend.show { display:flex; }
+        .leg-t { font-size:9px; color:var(--text2); font-weight:600; white-space:nowrap; }
+        .leg-l { display:flex; justify-content:space-between; width:160px; font-size:8px; color:var(--text3); }
 
-        /* Right Panel */
         .right-panel {
-            width: 280px; flex-shrink: 0;
-            background: rgba(250,250,250,0.92);
-            backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px);
-            border-left: 1px solid var(--border);
-            overflow-y: auto; display: flex; flex-direction: column;
+            width:272px; flex-shrink:0; background:var(--panel);
+            border-left:1px solid var(--border); overflow-y:auto; display:flex; flex-direction:column;
         }
 
-        /* Stats cards - Tesla */
-        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-        .stat-card {
-            background: var(--bg-elevated); border-radius: 6px; padding: 14px;
-            border: 1px solid var(--border);
+        .sg { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+        .sc {
+            background:var(--card); border-radius:8px; padding:12px;
+            box-shadow:0 1px 2px rgba(0,0,0,0.03); border:1px solid var(--border);
         }
-        .stat-card .value {
-            font-size: 28px; font-weight: 200; color: var(--text-primary);
-            font-variant-numeric: tabular-nums; letter-spacing: -1px;
-        }
-        .stat-card .label {
-            font-size: 8px; color: var(--text-tertiary); margin-top: 4px;
-            text-transform: uppercase; letter-spacing: 1.2px; font-weight: 500;
-        }
-        .stat-card.highlight .value { color: var(--red); }
-        .stat-card.warning .value { color: var(--orange); }
-        .stat-card.danger .value { color: #ff2d2d; }
-        .stat-card.success .value { color: var(--green); }
+        .sc .v { font-size:24px; font-weight:300; font-variant-numeric:tabular-nums; letter-spacing:-0.5px; }
+        .sc .l { font-size:8px; color:var(--text3); margin-top:3px; letter-spacing:0.2px; font-weight:500; }
+        .sc.hi .v { color:var(--red); }
+        .sc.ok .v { color:var(--green); }
+        .sc.wa .v { color:var(--orange); }
 
-        /* Temp zones - Tesla */
-        .temp-zone {
-            display: flex; align-items: center; justify-content: space-between;
-            padding: 10px 12px; border-radius: 6px; margin-bottom: 3px;
-            background: var(--bg-elevated); border: 1px solid var(--border);
+        .tz {
+            display:flex; align-items:center; justify-content:space-between;
+            padding:8px 10px; border-radius:8px; margin-bottom:3px;
+            background:var(--card); border:1px solid var(--border);
         }
-        .temp-zone-info { display: flex; align-items: center; gap: 8px; }
-        .temp-zone-dot { width: 3px; height: 16px; border-radius: 2px; }
-        .temp-zone-name { font-size: 11px; color: var(--text-secondary); font-weight: 400; }
-        .temp-zone-value { font-size: 13px; font-weight: 300; font-variant-numeric: tabular-nums; letter-spacing: -0.3px; }
-        .temp-zone-btn {
-            width: 26px; height: 26px; border-radius: 4px;
-            border: 1px solid var(--border); background: transparent;
-            color: var(--text-tertiary); font-size: 10px; cursor: pointer;
-            transition: all 0.15s ease; display: flex; align-items: center; justify-content: center;
+        .tz-i { display:flex; align-items:center; gap:7px; }
+        .tz-d { width:3px; height:14px; border-radius:1.5px; }
+        .tz-n { font-size:11px; color:var(--text2); }
+        .tz-v { font-size:12px; font-weight:600; font-variant-numeric:tabular-nums; }
+        .tz-b {
+            width:26px; height:26px; border-radius:6px; border:1px solid var(--border); background:transparent;
+            color:var(--text3); font-size:10px; cursor:pointer; display:flex; align-items:center; justify-content:center;
         }
-        .temp-zone-btn:hover { background: var(--bg-hover); }
-        .temp-zone-btn.on { background: var(--red); border-color: var(--red); color: white; box-shadow: 0 2px 8px rgba(227,25,55,0.2); }
-        .temp-zone-btn.cool { background: var(--blue); border-color: var(--blue); color: white; box-shadow: 0 2px 8px rgba(62,106,225,0.2); }
+        .tz-b:hover { background:rgba(0,0,0,0.03); }
+        .tz-b.hot { background:var(--red); border-color:var(--red); color:#fff; }
+        .tz-b.cool { background:var(--blue); border-color:var(--blue); color:#fff; }
 
-        /* Motion bars - Tesla */
-        .motion-axis { margin-bottom: 10px; }
-        .motion-axis-label {
-            display: flex; justify-content: space-between;
-            font-size: 10px; color: var(--text-tertiary); margin-bottom: 5px; font-weight: 400;
-        }
-        .motion-axis-label span:last-child { font-variant-numeric: tabular-nums; color: var(--text-secondary); font-weight: 500; }
-        .motion-bar-bg {
-            height: 3px; background: var(--text-tertiary); border-radius: 2px;
-            overflow: hidden; position: relative;
-        }
-        .motion-bar {
-            position: absolute; top: 0; height: 100%; border-radius: 2px;
-            transition: width 0.15s ease, left 0.15s ease;
-        }
+        .ma { margin-bottom:10px; }
+        .ma-l { display:flex; justify-content:space-between; font-size:10px; color:var(--text3); margin-bottom:4px; }
+        .ma-l span:last-child { font-variant-numeric:tabular-nums; color:var(--text2); font-weight:500; }
+        .mb-bg { height:3px; background:#e0e0e0; border-radius:1.5px; overflow:hidden; position:relative; }
+        .mb { position:absolute; top:0; height:100%; border-radius:1.5px; transition:width 0.12s, left 0.12s; }
 
-        /* Alerts - Tesla */
-        .alert-item {
-            display: flex; align-items: flex-start; gap: 8px;
-            padding: 10px 12px; border-radius: 6px; margin-bottom: 3px;
-            background: var(--bg-elevated); font-size: 10px;
-            border: 1px solid var(--border);
-            border-left: 2px solid transparent;
+        .al {
+            display:flex; align-items:flex-start; gap:7px;
+            padding:8px 10px; border-radius:8px; margin-bottom:3px;
+            background:var(--card); font-size:10px; border:1px solid var(--border);
+            border-left:2px solid transparent;
         }
-        .alert-item.info { border-left-color: var(--blue); }
-        .alert-item.warn { border-left-color: var(--orange); }
-        .alert-item.error { border-left-color: var(--red); }
-        .alert-time { color: var(--text-tertiary); font-size: 9px; white-space: nowrap; font-weight: 400; font-variant-numeric: tabular-nums; }
-        .alert-msg { color: var(--text-secondary); font-weight: 400; line-height: 1.4; }
+        .al.info { border-left-color:var(--blue); }
+        .al.warn { border-left-color:var(--orange); }
+        .al.error { border-left-color:var(--red); }
+        .al-t { color:var(--text3); font-size:9px; white-space:nowrap; font-variant-numeric:tabular-nums; }
+        .al-m { color:var(--text2); line-height:1.4; }
 
-        /* Sim control */
-        .sim-control {
-            display: flex; align-items: center; gap: 8px;
-            padding: 10px 12px; background: var(--bg-elevated); border-radius: 6px;
-            border: 1px solid var(--border); margin-bottom: 14px;
+        .sim-c {
+            display:flex; align-items:center; gap:7px;
+            padding:8px 10px; background:var(--card); border-radius:8px;
+            border:1px solid var(--border); margin-bottom:12px;
         }
-        .sim-dot { width: 6px; height: 6px; border-radius: 50%; }
-        .sim-dot.running { background: var(--red); box-shadow: 0 0 6px rgba(227,25,55,0.3); animation: livePulse 1.5s ease-in-out infinite; }
-        .sim-dot.paused { background: var(--orange); }
-        .sim-label { font-size: 11px; flex: 1; font-weight: 400; color: var(--text-secondary); }
+        .sim-d { width:5px; height:5px; border-radius:50%; }
+        .sim-d.go { background:var(--green); animation:lp 2s ease-in-out infinite; }
+        .sim-d.no { background:var(--orange); }
+        .sim-l { font-size:11px; flex:1; color:var(--text2); }
 
-        /* Mini heatmap */
-        #miniHeatmap { width: 100%; border-radius: 6px; background: #f0f0f0; border: 1px solid var(--border); }
+        #miniHeatmap { width:100%; border-radius:8px; background:#f0f0f0; border:1px solid var(--border); }
 
-        /* Toast */
         .toast {
-            position: fixed; bottom: 20px; right: 20px;
-            background: rgba(255,255,255,0.92);
-            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-            border: 1px solid var(--border);
-            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-            border-radius: 6px; padding: 10px 18px; font-size: 12px;
-            color: var(--text-primary); font-weight: 400;
-            z-index: 100; opacity: 0; transform: translateY(10px);
-            transition: all 0.3s ease; pointer-events: none;
+            position:fixed; bottom:20px; right:20px;
+            background:rgba(255,255,255,0.92); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
+            border:1px solid var(--border); box-shadow:0 4px 16px rgba(0,0,0,0.06);
+            border-radius:8px; padding:8px 16px; font-size:12px; color:var(--text); font-weight:500;
+            z-index:100; opacity:0; transform:translateY(8px); transition:all 0.25s; pointer-events:none;
         }
-        .toast.show { opacity: 1; transform: translateY(0); }
+        .toast.show { opacity:1; transform:translateY(0); }
 
-        /* Scrollbar - subtle */
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.08); border-radius: 2px; }
-        ::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.15); }
+        ::-webkit-scrollbar { width:4px; }
+        ::-webkit-scrollbar-track { background:transparent; }
+        ::-webkit-scrollbar-thumb { background:rgba(0,0,0,0.06); border-radius:2px; }
 
-        /* Footer */
-        .footer-credit {
-            padding: 14px 16px; text-align: center;
-            font-size: 9px; color: var(--text-tertiary); font-weight: 400;
-            border-top: 1px solid var(--border); letter-spacing: 0.5px;
-        }
-
-        /* Tesla accent line */
-        .accent-line {
-            height: 1px; background: linear-gradient(90deg, transparent, var(--red), transparent);
-            opacity: 0.3;
-        }
+        .foot { padding:12px 14px; text-align:center; font-size:9px; color:var(--text3); border-top:1px solid var(--border); }
+        .red-line { height:1px; background:linear-gradient(90deg, transparent 10%, var(--red) 50%, transparent 90%); opacity:0.18; }
     </style>
 </head>
 <body>
 <div class="app">
-    <div class="accent-line"></div>
-    <!-- Header -->
+    <div class="red-line"></div>
     <div class="header">
         <div class="header-left">
             <img src="keti.png" alt="KETI">
-            <span class="header-pipe">|</span>
+            <div class="h-sep"></div>
             <h1>Smart Seat Monitor</h1>
         </div>
         <div class="header-center">
-            <div class="live-badge"><div class="live-dot"></div>LIVE</div>
-            <span class="sensor-count">4 Sensors Active</span>
+            <div class="live"><div class="live-d"></div>LIVE</div>
+            <span class="s-count" id="sCount">4 sensors</span>
         </div>
         <div class="header-right">
-            <span class="clock" id="clock">00:00:00</span>
+            <span class="clk" id="clock">00:00:00</span>
             <button class="btn" onclick="exportJSON()"><i class="fas fa-download"></i> JSON</button>
             <button class="btn" onclick="exportCSV()"><i class="fas fa-table"></i> CSV</button>
         </div>
     </div>
-
     <div class="content">
-        <!-- Left Panel -->
         <div class="left-panel">
-            <div class="panel-section">
-                <div class="section-title">Sensor Layers</div>
-                <div class="sensor-toggle active" data-sensor="pressure" onclick="toggleSensor('pressure')">
-                    <div class="sensor-info">
-                        <div class="sensor-dot" style="background:var(--red);"></div>
-                        <div>
-                            <div class="sensor-name">Pressure</div>
-                            <div class="sensor-desc">OCCUPANCY / LOAD DISTRIBUTION</div>
-                        </div>
-                    </div>
-                    <i class="fas fa-eye toggle-icon"></i>
+            <div class="p-sec">
+                <div class="sec-t">Sensor Layers</div>
+                <div class="s-tog on" data-s="pressure" onclick="toggleSensor('pressure')">
+                    <div class="s-info"><div class="s-bar" style="background:var(--red);"></div><div><div class="s-name">Pressure</div><div class="s-desc">Occupancy &amp; load</div></div></div>
+                    <i class="fas fa-eye s-eye"></i>
                 </div>
-                <div class="sensor-toggle" data-sensor="temperature" onclick="toggleSensor('temperature')">
-                    <div class="sensor-info">
-                        <div class="sensor-dot" style="background:var(--orange);"></div>
-                        <div>
-                            <div class="sensor-name">Temperature</div>
-                            <div class="sensor-desc">HEATING / COOLING ZONES</div>
-                        </div>
-                    </div>
-                    <i class="fas fa-eye-slash toggle-icon"></i>
+                <div class="s-tog" data-s="temperature" onclick="toggleSensor('temperature')">
+                    <div class="s-info"><div class="s-bar" style="background:var(--orange);"></div><div><div class="s-name">Temperature</div><div class="s-desc">Heating / cooling</div></div></div>
+                    <i class="fas fa-eye-slash s-eye"></i>
                 </div>
-                <div class="sensor-toggle" data-sensor="position" onclick="toggleSensor('position')">
-                    <div class="sensor-info">
-                        <div class="sensor-dot" style="background:var(--blue);"></div>
-                        <div>
-                            <div class="sensor-name">Position</div>
-                            <div class="sensor-desc">SEAT ADJUSTMENT TRACKING</div>
-                        </div>
-                    </div>
-                    <i class="fas fa-eye-slash toggle-icon"></i>
+                <div class="s-tog" data-s="position" onclick="toggleSensor('position')">
+                    <div class="s-info"><div class="s-bar" style="background:var(--blue);"></div><div><div class="s-name">Position</div><div class="s-desc">Seat adjustment</div></div></div>
+                    <i class="fas fa-eye-slash s-eye"></i>
                 </div>
-                <div class="sensor-toggle" data-sensor="motion" onclick="toggleSensor('motion')">
-                    <div class="sensor-info">
-                        <div class="sensor-dot" style="background:var(--green);"></div>
-                        <div>
-                            <div class="sensor-name">Motion</div>
-                            <div class="sensor-desc">ACCELERATION / VIBRATION</div>
-                        </div>
-                    </div>
-                    <i class="fas fa-eye-slash toggle-icon"></i>
+                <div class="s-tog" data-s="motion" onclick="toggleSensor('motion')">
+                    <div class="s-info"><div class="s-bar" style="background:var(--green);"></div><div><div class="s-name">Motion</div><div class="s-desc">Accel / vibration</div></div></div>
+                    <i class="fas fa-eye-slash s-eye"></i>
                 </div>
             </div>
-
-            <div class="panel-section">
-                <div class="section-title">Simulation</div>
-                <div class="sim-control">
-                    <div class="sim-dot running" id="simDot"></div>
-                    <span class="sim-label" id="simLabel">Running</span>
-                    <button class="btn" id="simBtn" onclick="toggleSimulation()" style="padding:4px 10px;font-size:9px;">
-                        <i class="fas fa-pause"></i>
-                    </button>
+            <div class="p-sec">
+                <div class="sec-t">Simulation</div>
+                <div class="sim-c">
+                    <div class="sim-d go" id="simDot"></div>
+                    <span class="sim-l" id="simLabel">Running</span>
+                    <button class="btn" id="simBtn" onclick="toggleSim()" style="padding:3px 8px;font-size:10px;"><i class="fas fa-pause"></i></button>
                 </div>
-                <div class="ctrl-group">
-                    <div class="ctrl-label"><span>Occupant Weight</span><span class="ctrl-value" id="weightVal">70 kg</span></div>
-                    <input type="range" min="30" max="130" value="70" id="weightSlider" oninput="updateWeight(this.value)">
+                <div class="cg">
+                    <div class="cl"><span>Occupant weight</span><span class="cv" id="wVal">70 kg</span></div>
+                    <input type="range" min="30" max="130" value="70" id="wSlider" oninput="setWeight(this.value)">
                 </div>
-                <div class="ctrl-group">
-                    <div class="ctrl-label"><span>Vehicle Speed</span><span class="ctrl-value" id="speedVal">0 km/h</span></div>
-                    <input type="range" min="0" max="200" value="0" id="speedSlider" oninput="updateSpeed(this.value)">
+                <div class="cg">
+                    <div class="cl"><span>Vehicle speed</span><span class="cv" id="spdVal">0 km/h</span></div>
+                    <input type="range" min="0" max="200" value="0" id="spdSlider" oninput="setSpeed(this.value)">
                 </div>
-                <div class="ctrl-group">
-                    <div class="ctrl-label"><span>Occupancy State</span></div>
-                    <div class="preset-grid">
-                        <button class="preset-btn active" onclick="setOccupancy('seated',this)">Seated</button>
-                        <button class="preset-btn" onclick="setOccupancy('empty',this)">Empty</button>
-                        <button class="preset-btn" onclick="setOccupancy('child',this)">Child</button>
-                        <button class="preset-btn" onclick="setOccupancy('heavy',this)">Heavy</button>
+                <div class="cg">
+                    <div class="cl"><span>Occupancy</span></div>
+                    <div class="pg">
+                        <button class="pb on" onclick="setOcc('seated',this)">Seated</button>
+                        <button class="pb" onclick="setOcc('empty',this)">Empty</button>
+                        <button class="pb" onclick="setOcc('child',this)">Child</button>
+                        <button class="pb" onclick="setOcc('heavy',this)">Heavy</button>
                     </div>
                 </div>
             </div>
-
-            <div class="panel-section" id="positionPanel" style="display:none;">
-                <div class="section-title">Seat Position</div>
-                <div class="preset-grid" style="margin-bottom:14px;">
-                    <button class="preset-btn active" onclick="applyPreset('normal',this)">Drive</button>
-                    <button class="preset-btn" onclick="applyPreset('sport',this)">Sport</button>
-                    <button class="preset-btn" onclick="applyPreset('relax',this)">Relax</button>
-                    <button class="preset-btn" onclick="applyPreset('entry',this)">Entry</button>
+            <div class="p-sec" id="posPanel" style="display:none;">
+                <div class="sec-t">Seat position</div>
+                <div class="pg" style="margin-bottom:12px;">
+                    <button class="pb on" onclick="preset('normal',this)">Drive</button>
+                    <button class="pb" onclick="preset('sport',this)">Sport</button>
+                    <button class="pb" onclick="preset('relax',this)">Relax</button>
+                    <button class="pb" onclick="preset('entry',this)">Entry</button>
                 </div>
-                <div class="ctrl-group">
-                    <div class="ctrl-label"><span>Fore / Aft</span><span class="ctrl-value" id="fbVal">0</span></div>
-                    <input type="range" min="-100" max="100" value="0" id="fbSlider" oninput="updatePosition('forwardBack',this.value)">
-                </div>
-                <div class="ctrl-group">
-                    <div class="ctrl-label"><span>Height</span><span class="ctrl-value" id="udVal">0</span></div>
-                    <input type="range" min="-100" max="100" value="0" id="udSlider" oninput="updatePosition('upDown',this.value)">
-                </div>
-                <div class="ctrl-group">
-                    <div class="ctrl-label"><span>Recline</span><span class="ctrl-value" id="recVal">18°</span></div>
-                    <input type="range" min="5" max="50" value="18" id="recSlider" oninput="updatePosition('recline',this.value)">
-                </div>
-                <div class="ctrl-group">
-                    <div class="ctrl-label"><span>Headrest</span><span class="ctrl-value" id="hrVal">0</span></div>
-                    <input type="range" min="0" max="100" value="0" id="hrSlider" oninput="updatePosition('headrest',this.value)">
+                <div class="cg"><div class="cl"><span>Fore / aft</span><span class="cv" id="fbVal">0</span></div><input type="range" min="-100" max="100" value="0" id="fbS" oninput="setPos('fb',this.value)"></div>
+                <div class="cg"><div class="cl"><span>Height</span><span class="cv" id="udVal">0</span></div><input type="range" min="-50" max="50" value="0" id="udS" oninput="setPos('ud',this.value)"></div>
+                <div class="cg"><div class="cl"><span>Recline</span><span class="cv" id="recVal">18°</span></div><input type="range" min="8" max="52" value="18" id="recS" oninput="setPos('rec',this.value)"></div>
+                <div class="cg"><div class="cl"><span>Headrest</span><span class="cv" id="hrVal">0</span></div><input type="range" min="0" max="100" value="0" id="hrS" oninput="setPos('hr',this.value)"></div>
+            </div>
+            <div class="p-sec">
+                <div class="sec-t">Thresholds</div>
+                <div class="cg"><div class="cl"><span>Pressure alert</span><span class="cv" id="pThV">80 kPa</span></div><input type="range" min="30" max="120" value="80" oninput="TH.pressure=+this.value;$('pThV').textContent=this.value+' kPa'"></div>
+                <div class="cg"><div class="cl"><span>Overheat alert</span><span class="cv" id="tThV">40°C</span></div><input type="range" min="30" max="50" value="40" oninput="TH.temperature=+this.value;$('tThV').textContent=this.value+'°C'"></div>
+                <div class="cg"><div class="cl"><span>Vibration alert</span><span class="cv" id="vThV">0.7 G</span></div><input type="range" min="1" max="20" value="7" oninput="TH.vibration=this.value/10;$('vThV').textContent=(this.value/10).toFixed(1)+' G'"></div>
+            </div>
+            <div class="p-sec">
+                <div class="sec-t">View</div>
+                <div class="cg"><div class="cl"><span>Opacity</span><span class="cv" id="opVal">100%</span></div><input type="range" min="10" max="100" value="100" oninput="setOpacity(this.value)"></div>
+                <div class="pg">
+                    <button class="pb" onclick="resetCam()">Reset view</button>
+                    <button class="pb" onclick="autoRot()">Auto rotate</button>
                 </div>
             </div>
-
-            <div class="panel-section">
-                <div class="section-title">Thresholds</div>
-                <div class="ctrl-group">
-                    <div class="ctrl-label"><span>Pressure Alert</span><span class="ctrl-value" id="pressThVal">80 kPa</span></div>
-                    <input type="range" min="30" max="120" value="80" id="pressThSlider" oninput="thresholds.pressure=+this.value;document.getElementById('pressThVal').textContent=this.value+' kPa'">
-                </div>
-                <div class="ctrl-group">
-                    <div class="ctrl-label"><span>Overheat Alert</span><span class="ctrl-value" id="tempThVal">40°C</span></div>
-                    <input type="range" min="30" max="50" value="40" id="tempThSlider" oninput="thresholds.temperature=+this.value;document.getElementById('tempThVal').textContent=this.value+'°C'">
-                </div>
-                <div class="ctrl-group">
-                    <div class="ctrl-label"><span>Vibration Alert</span><span class="ctrl-value" id="vibThVal">0.7 G</span></div>
-                    <input type="range" min="1" max="20" value="7" id="vibThSlider" oninput="thresholds.vibration=this.value/10;document.getElementById('vibThVal').textContent=(this.value/10).toFixed(1)+' G'">
-                </div>
-            </div>
-
-            <div class="panel-section">
-                <div class="section-title">View</div>
-                <div class="ctrl-group">
-                    <div class="ctrl-label"><span>Seat Opacity</span><span class="ctrl-value" id="opVal">100%</span></div>
-                    <input type="range" min="10" max="100" value="100" id="opSlider" oninput="setSeatOpacity(this.value)">
-                </div>
-                <div class="preset-grid">
-                    <button class="preset-btn" onclick="resetCamera()">Reset View</button>
-                    <button class="preset-btn" onclick="toggleAutoRotate()">Auto Rotate</button>
-                </div>
-            </div>
-
-            <div class="footer-credit">KETI | Korea Electronics Technology Institute</div>
+            <div class="foot">KETI — Korea Electronics Technology Institute</div>
         </div>
-
-        <!-- 3D Canvas -->
         <div class="canvas-area">
             <div id="canvas3d"></div>
-            <div class="legend" id="pressureLegend">
-                <span class="legend-title">Pressure (kPa)</span>
-                <div>
-                    <canvas id="legendBar" width="180" height="10" style="border-radius:3px;"></canvas>
-                    <div class="legend-labels"><span>0</span><span>25</span><span>50</span><span>75</span><span>100</span></div>
-                </div>
+            <div class="legend" id="pLeg">
+                <span class="leg-t">Pressure (kPa)</span>
+                <div><canvas id="legBar" width="160" height="8" style="border-radius:4px;"></canvas>
+                <div class="leg-l"><span>0</span><span>25</span><span>50</span><span>75</span><span>100</span></div></div>
             </div>
         </div>
-
-        <!-- Right Panel -->
         <div class="right-panel">
-            <div class="panel-section" id="pressurePanel">
-                <div class="section-title">Pressure Data</div>
-                <div class="stats-grid">
-                    <div class="stat-card highlight">
-                        <div class="value" id="rTotalWeight">0</div>
-                        <div class="label">Total Load (kg)</div>
-                    </div>
-                    <div class="stat-card success">
-                        <div class="value" id="rOccupancy">Empty</div>
-                        <div class="label">Seat Status</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="value" id="rAvgPress">0</div>
-                        <div class="label">Avg Pressure</div>
-                    </div>
-                    <div class="stat-card warning">
-                        <div class="value" id="rPeakPress">0</div>
-                        <div class="label">Peak Pressure</div>
-                    </div>
+            <div class="p-sec" id="rPress">
+                <div class="sec-t">Pressure data</div>
+                <div class="sg">
+                    <div class="sc hi"><div class="v" id="rW">0</div><div class="l">Total load (kg)</div></div>
+                    <div class="sc ok"><div class="v" id="rOcc">Empty</div><div class="l">Status</div></div>
+                    <div class="sc"><div class="v" id="rAvg">0</div><div class="l">Avg pressure</div></div>
+                    <div class="sc wa"><div class="v" id="rPk">0</div><div class="l">Peak pressure</div></div>
                 </div>
-                <div style="margin-top:12px;">
-                    <div class="ctrl-label"><span>Pressure Distribution</span></div>
-                    <canvas id="miniHeatmap" width="160" height="160"></canvas>
+                <div style="margin-top:10px;"><div class="cl"><span>Pressure map</span></div><canvas id="miniHeatmap" width="160" height="160"></canvas></div>
+            </div>
+            <div class="p-sec" id="rTemp" style="display:none;">
+                <div class="sec-t">Temperature</div>
+                <div id="tzList"></div>
+            </div>
+            <div class="p-sec" id="rPos" style="display:none;">
+                <div class="sec-t">Position</div>
+                <div class="sg">
+                    <div class="sc"><div class="v" id="rFB">0</div><div class="l">Fore/aft (mm)</div></div>
+                    <div class="sc"><div class="v" id="rUD">0</div><div class="l">Height (mm)</div></div>
+                    <div class="sc"><div class="v" id="rRec">18°</div><div class="l">Recline</div></div>
+                    <div class="sc"><div class="v" id="rHR">0</div><div class="l">Headrest (mm)</div></div>
                 </div>
             </div>
-
-            <div class="panel-section" id="tempPanel" style="display:none;">
-                <div class="section-title">Temperature Status</div>
-                <div id="tempZoneList"></div>
+            <div class="p-sec" id="rMot" style="display:none;">
+                <div class="sec-t">Motion</div>
+                <div class="sg" style="margin-bottom:10px;">
+                    <div class="sc"><div class="v" id="rVib">0.0</div><div class="l">Vibration (G)</div></div>
+                    <div class="sc"><div class="v" id="rFrq">0</div><div class="l">Freq (Hz)</div></div>
+                </div>
+                <div class="ma"><div class="ma-l"><span>X lateral</span><span id="rAX">0.00 G</span></div><div class="mb-bg"><div class="mb" id="bAX" style="background:var(--red);width:50%;left:25%;"></div></div></div>
+                <div class="ma"><div class="ma-l"><span>Y vertical</span><span id="rAY">0.00 G</span></div><div class="mb-bg"><div class="mb" id="bAY" style="background:var(--green);width:50%;left:25%;"></div></div></div>
+                <div class="ma"><div class="ma-l"><span>Z longitudinal</span><span id="rAZ">0.00 G</span></div><div class="mb-bg"><div class="mb" id="bAZ" style="background:var(--blue);width:50%;left:25%;"></div></div></div>
             </div>
-
-            <div class="panel-section" id="posPanel" style="display:none;">
-                <div class="section-title">Seat Position</div>
-                <div class="stats-grid">
-                    <div class="stat-card"><div class="value" id="rFB">0</div><div class="label">Fore/Aft (mm)</div></div>
-                    <div class="stat-card"><div class="value" id="rUD">0</div><div class="label">Height (mm)</div></div>
-                    <div class="stat-card"><div class="value" id="rRec">18°</div><div class="label">Recline</div></div>
-                    <div class="stat-card"><div class="value" id="rHR">0</div><div class="label">Headrest</div></div>
-                </div>
-            </div>
-
-            <div class="panel-section" id="motionPanel" style="display:none;">
-                <div class="section-title">Motion Data</div>
-                <div class="stats-grid" style="margin-bottom:12px;">
-                    <div class="stat-card"><div class="value" id="rVib">0.0</div><div class="label">Vibration (G)</div></div>
-                    <div class="stat-card"><div class="value" id="rFreq">0</div><div class="label">Frequency (Hz)</div></div>
-                </div>
-                <div class="motion-axis">
-                    <div class="motion-axis-label"><span>X-Axis (Lateral)</span><span id="rAX">0.00</span></div>
-                    <div class="motion-bar-bg"><div class="motion-bar" id="barAX" style="background:var(--red);width:50%;left:25%;"></div></div>
-                </div>
-                <div class="motion-axis">
-                    <div class="motion-axis-label"><span>Y-Axis (Vertical)</span><span id="rAY">0.00</span></div>
-                    <div class="motion-bar-bg"><div class="motion-bar" id="barAY" style="background:var(--green);width:50%;left:25%;"></div></div>
-                </div>
-                <div class="motion-axis">
-                    <div class="motion-axis-label"><span>Z-Axis (Longitudinal)</span><span id="rAZ">0.00</span></div>
-                    <div class="motion-bar-bg"><div class="motion-bar" id="barAZ" style="background:var(--blue);width:50%;left:25%;"></div></div>
-                </div>
-            </div>
-
-            <div class="panel-section">
-                <div class="section-title">Alerts <span style="color:var(--text-tertiary);font-weight:400;" id="alertCount">(0)</span></div>
-                <div id="alertList">
-                    <div style="font-size:11px;color:var(--text-tertiary);text-align:center;padding:24px;">No alerts</div>
-                </div>
+            <div class="p-sec">
+                <div class="sec-t">Alerts <span style="color:var(--text3);font-weight:400;" id="aCnt">(0)</span></div>
+                <div id="aList"><div style="font-size:11px;color:var(--text3);text-align:center;padding:20px;">No alerts</div></div>
             </div>
         </div>
     </div>
 </div>
-
 <div class="toast" id="toast"></div>
-
 <script>
-// ==================== State ====================
-const activeSensors = new Set(['pressure']);
-let simulationRunning = true;
-const thresholds = { pressure: 80, temperature: 40, vibration: 0.7 };
+const $ = id => document.getElementById(id);
 
-const seatState = {
-    occupied: true, occupantWeight: 70, vehicleSpeed: 0,
-    forwardBack: 0, upDown: 0, recline: 18, headrest: 0
-};
-
-const temperatureZones = [
-    { name: 'Left Cushion', temp: 22, target: 28, heating: false, cooling: false },
-    { name: 'Right Cushion', temp: 22, target: 28, heating: false, cooling: false },
-    { name: 'Left Backrest', temp: 22, target: 30, heating: false, cooling: false },
-    { name: 'Right Backrest', temp: 22, target: 30, heating: false, cooling: false },
-    { name: 'Left Bolster', temp: 22, target: 26, heating: false, cooling: false },
-    { name: 'Right Bolster', temp: 22, target: 26, heating: false, cooling: false }
+// === State ===
+const AS = new Set(['pressure']);
+let simOn = true;
+const TH = { pressure:80, temperature:40, vibration:0.7 };
+const S = { occ:true, w:70, spd:0, fb:0, ud:0, rec:18, hr:0 };
+const TZ = [
+    {n:'L-Cushion',t:22,tgt:28,h:false,c:false}, {n:'R-Cushion',t:22,tgt:28,h:false,c:false},
+    {n:'L-Back',t:22,tgt:30,h:false,c:false}, {n:'R-Back',t:22,tgt:30,h:false,c:false},
+    {n:'L-Bolster',t:22,tgt:26,h:false,c:false}, {n:'R-Bolster',t:22,tgt:26,h:false,c:false}
 ];
-
-const motionState = { accelX: 0, accelY: 0, accelZ: 0, vibAmp: 0, vibFreq: 30 };
-const pressureGrid = new Float32Array(16 * 16);
+const MO = { ax:0, ay:0, az:0, vib:0, freq:30 };
+const PG = new Float32Array(256);
 const alerts = [];
 
-// ==================== Three.js Setup ====================
-let scene, camera, renderer, controls;
-let seatGroup, seatBaseY = 0;
-let cushionMesh, backrestMesh, headrestMesh, leftBolsterMesh, rightBolsterMesh;
-let railMeshes = [];
-let pressureOverlayCushion, pressureOverlayBack;
-let pressureCanvasCushion, pressureCtxCushion, pressureTextureCushion;
-let pressureCanvasBack, pressureCtxBack, pressureTextureBack;
-let arrowX, arrowY, arrowZ, arrowGroup;
-const clock = new THREE.Clock();
+// === Three.js ===
+let scene, cam, rend, ctrl;
+let seatRoot; // root group for fore/aft
+let baseGroup; // child of seatRoot: height adjust
+let cushionMesh, lBolster, rBolster;
+let backrestPivot; // group at backrest pivot point for recline
+let backMesh, headMesh, lbBack, rbBack;
+let pressOvCush, pressOvBack;
+let pCanC, pCtxC, pTexC, pCanB, pCtxB, pTexB;
+let arX, arY, arZ, arGrp;
+const clk = new THREE.Clock();
 
-function initScene() {
-    const container = document.getElementById('canvas3d');
+// Backrest pivot Y = top of cushion, Z = back of cushion
+const PIVOT_Y = 0.125, PIVOT_Z = -0.18;
+
+function init() {
+    const c = $('canvas3d');
     scene = new THREE.Scene();
-    scene.background = new THREE.Color(0xf0f0f0);
-    scene.fog = new THREE.Fog(0xf0f0f0, 4, 10);
+    scene.background = new THREE.Color(0xeeeeee);
+    scene.fog = new THREE.Fog(0xeeeeee, 5, 12);
 
-    camera = new THREE.PerspectiveCamera(40, container.clientWidth / container.clientHeight, 0.01, 100);
-    camera.position.set(1.3, 0.9, 1.6);
+    cam = new THREE.PerspectiveCamera(40, c.clientWidth/c.clientHeight, 0.01, 100);
+    cam.position.set(1.2, 0.85, 1.5);
 
-    renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.setSize(container.clientWidth, container.clientHeight);
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.0;
-    container.appendChild(renderer.domElement);
+    rend = new THREE.WebGLRenderer({ antialias:true });
+    rend.setPixelRatio(Math.min(devicePixelRatio, 2));
+    rend.setSize(c.clientWidth, c.clientHeight);
+    rend.shadowMap.enabled = true;
+    rend.shadowMap.type = THREE.PCFSoftShadowMap;
+    rend.toneMapping = THREE.ACESFilmicToneMapping;
+    rend.toneMappingExposure = 1.15;
+    c.appendChild(rend.domElement);
 
-    controls = new THREE.OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.06;
-    controls.target.set(0, 0.35, 0);
-    controls.minDistance = 0.5;
-    controls.maxDistance = 4;
-    controls.maxPolarAngle = Math.PI * 0.85;
+    ctrl = new THREE.OrbitControls(cam, rend.domElement);
+    ctrl.enableDamping = true; ctrl.dampingFactor = 0.07;
+    ctrl.target.set(0, 0.32, 0);
+    ctrl.minDistance = 0.4; ctrl.maxDistance = 4;
+    ctrl.maxPolarAngle = Math.PI * 0.85;
 
-    // Tesla-style lighting - bright, clean studio
-    scene.add(new THREE.AmbientLight(0xffffff, 0.75));
-    const main = new THREE.DirectionalLight(0xffffff, 1.1);
-    main.position.set(2, 4, 3);
-    main.castShadow = true;
-    main.shadow.mapSize.set(1024, 1024);
-    main.shadow.bias = -0.001;
-    scene.add(main);
-    const fill = new THREE.DirectionalLight(0xf0f0ff, 0.5);
-    fill.position.set(-3, 2, -1);
-    scene.add(fill);
-    // Subtle red accent from below
-    const redLight = new THREE.PointLight(0xe31937, 0.08, 3);
-    redLight.position.set(0, -0.3, 0.5);
-    scene.add(redLight);
-    // Rim light
-    const rim = new THREE.DirectionalLight(0xeeeeff, 0.3);
-    rim.position.set(0, 1, -3);
-    scene.add(rim);
-    // Top fill
-    const top = new THREE.DirectionalLight(0xffffff, 0.3);
-    top.position.set(0, 6, 0);
-    scene.add(top);
+    // Lighting — clean studio
+    scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+    const d1 = new THREE.DirectionalLight(0xffffff, 1.0);
+    d1.position.set(2.5, 4, 3); d1.castShadow = true;
+    d1.shadow.mapSize.set(1024, 1024); d1.shadow.bias = -0.001;
+    scene.add(d1);
+    scene.add(Object.assign(new THREE.DirectionalLight(0xf4f4ff, 0.45), {position: new THREE.Vector3(-3, 2, -1)}));
+    scene.add(Object.assign(new THREE.DirectionalLight(0xffffff, 0.25), {position: new THREE.Vector3(0, 5, 0)}));
+    // Subtle warm fill from front-below
+    const warm = new THREE.PointLight(0xffe8d6, 0.12, 4);
+    warm.position.set(0, -0.2, 1); scene.add(warm);
 
-    // Subtle grid - light
-    const grid = new THREE.GridHelper(3, 20, 0xd8d8d8, 0xe5e5e5);
-    grid.material.opacity = 0.5;
-    grid.material.transparent = true;
-    scene.add(grid);
+    // Grid & floor
+    const gr = new THREE.GridHelper(3, 18, 0xd4d4d4, 0xe2e2e2);
+    gr.material.opacity = 0.45; gr.material.transparent = true; scene.add(gr);
+    const fl = new THREE.Mesh(new THREE.PlaneGeometry(6,6), new THREE.MeshStandardMaterial({color:0xe8e8e8, roughness:0.95}));
+    fl.rotation.x = -Math.PI/2; fl.position.y = -0.005; fl.receiveShadow = true; scene.add(fl);
 
-    // Floor - soft white
-    const floor = new THREE.Mesh(
-        new THREE.PlaneGeometry(6, 6),
-        new THREE.MeshStandardMaterial({ color: 0xebebeb, roughness: 0.95, metalness: 0.0 })
-    );
-    floor.rotation.x = -Math.PI / 2;
-    floor.position.y = -0.01;
-    floor.receiveShadow = true;
-    scene.add(floor);
-
-    seatGroup = new THREE.Group();
-    scene.add(seatGroup);
+    // === Seat hierarchy ===
+    // seatRoot: moves Z for fore/aft
+    seatRoot = new THREE.Group(); scene.add(seatRoot);
+    // baseGroup: child of seatRoot, moves Y for height
+    baseGroup = new THREE.Group(); seatRoot.add(baseGroup);
 
     const loader = new THREE.GLTFLoader();
     loader.load('./models/car-seat.glb',
-        (gltf) => {
-            const model = gltf.scene;
-            const box = new THREE.Box3().setFromObject(model);
-            const size = box.getSize(new THREE.Vector3());
-            const center = box.getCenter(new THREE.Vector3());
-            const scale = 0.9 / Math.max(size.x, size.y, size.z);
-            model.scale.set(scale, scale, scale);
-            model.position.set(-center.x * scale, -box.min.y * scale, -center.z * scale);
-            model.traverse(c => { if (c.isMesh) { c.castShadow = true; c.receiveShadow = true; } });
-            seatGroup.add(model);
-            buildProceduralSeat();
-            showToast('GLB model loaded');
+        gltf => {
+            const m = gltf.scene;
+            const box = new THREE.Box3().setFromObject(m);
+            const sz = box.getSize(new THREE.Vector3());
+            const ct = box.getCenter(new THREE.Vector3());
+            const sc = 0.9/Math.max(sz.x, sz.y, sz.z);
+            m.scale.set(sc,sc,sc);
+            m.position.set(-ct.x*sc, -box.min.y*sc, -ct.z*sc);
+            m.traverse(c => { if(c.isMesh){c.castShadow=true;c.receiveShadow=true;} });
+            baseGroup.add(m);
+            buildSeat();
         },
         undefined,
-        () => { buildProceduralSeat(); showToast('3D seat model ready'); }
+        () => buildSeat()
     );
 
-    setupPressureOverlays();
-    setupMotionArrows();
+    setupPressure();
+    setupArrows();
 
     window.addEventListener('resize', () => {
-        camera.aspect = container.clientWidth / container.clientHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(container.clientWidth, container.clientHeight);
+        cam.aspect = c.clientWidth/c.clientHeight;
+        cam.updateProjectionMatrix();
+        rend.setSize(c.clientWidth, c.clientHeight);
     });
 }
 
-// ==================== Procedural Seat ====================
-function buildProceduralSeat() {
-    // Tesla-style materials - dark seat for contrast on white
-    const seatMat = new THREE.MeshStandardMaterial({ color: 0x2c2c2c, roughness: 0.5, metalness: 0.05 });
-    const frameMat = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.25, metalness: 0.7 });
-    const bolsterMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.45, metalness: 0.05 });
+// === Build seat with proper hierarchy ===
+function buildSeat() {
+    const mat = k => new THREE.MeshStandardMaterial(k);
+    const seatM = () => mat({color:0x2c2c2e, roughness:0.52, metalness:0.04});
+    const frameM = mat({color:0x58585a, roughness:0.22, metalness:0.65});
+    const boltM = () => mat({color:0x333335, roughness:0.48, metalness:0.04});
 
-    const railGeo = new THREE.BoxGeometry(0.04, 0.02, 0.45);
-    const rail1 = new THREE.Mesh(railGeo, frameMat);
-    rail1.position.set(-0.15, 0.01, 0); rail1.castShadow = true;
-    seatGroup.add(rail1); railMeshes.push(rail1);
-    const rail2 = new THREE.Mesh(railGeo, frameMat);
-    rail2.position.set(0.15, 0.01, 0); rail2.castShadow = true;
-    seatGroup.add(rail2); railMeshes.push(rail2);
+    // Rails (on baseGroup, don't move with fore/aft of seat itself)
+    const rGeo = new THREE.BoxGeometry(0.035, 0.018, 0.48);
+    [-0.15, 0.15].forEach(x => {
+        const r = new THREE.Mesh(rGeo, frameM);
+        r.position.set(x, 0.009, 0); r.castShadow = true;
+        baseGroup.add(r);
+    });
 
-    const cushionGeo = new THREE.BoxGeometry(0.44, 0.07, 0.44);
-    cushionMesh = new THREE.Mesh(cushionGeo, seatMat.clone());
-    cushionMesh.position.set(0, 0.09, 0);
+    // Cushion
+    const cGeo = new THREE.BoxGeometry(0.44, 0.065, 0.44);
+    cushionMesh = new THREE.Mesh(cGeo, seatM());
+    cushionMesh.position.set(0, 0.085, 0);
     cushionMesh.castShadow = true; cushionMesh.receiveShadow = true;
-    seatGroup.add(cushionMesh);
+    baseGroup.add(cushionMesh);
 
-    const backGeo = new THREE.BoxGeometry(0.42, 0.55, 0.07);
-    backrestMesh = new THREE.Mesh(backGeo, seatMat.clone());
-    backrestMesh.position.set(0, 0.42, -0.2);
-    backrestMesh.rotation.x = -THREE.MathUtils.degToRad(seatState.recline);
-    backrestMesh.castShadow = true; backrestMesh.receiveShadow = true;
-    seatGroup.add(backrestMesh);
+    // Cushion bolsters
+    const cbGeo = new THREE.BoxGeometry(0.055, 0.10, 0.42);
+    lBolster = new THREE.Mesh(cbGeo, boltM());
+    lBolster.position.set(-0.24, 0.12, 0); lBolster.castShadow = true;
+    baseGroup.add(lBolster);
+    rBolster = new THREE.Mesh(cbGeo, boltM());
+    rBolster.position.set(0.24, 0.12, 0); rBolster.castShadow = true;
+    baseGroup.add(rBolster);
 
-    const hrGeo = new THREE.BoxGeometry(0.22, 0.16, 0.06);
-    headrestMesh = new THREE.Mesh(hrGeo, seatMat.clone());
-    headrestMesh.position.set(0, 0.78, -0.25);
-    headrestMesh.castShadow = true;
-    seatGroup.add(headrestMesh);
+    // === Backrest pivot group ===
+    // Pivot at top-rear of cushion so recline rotates naturally
+    backrestPivot = new THREE.Group();
+    backrestPivot.position.set(0, PIVOT_Y, PIVOT_Z);
+    baseGroup.add(backrestPivot);
 
-    const bolGeo = new THREE.BoxGeometry(0.06, 0.12, 0.42);
-    leftBolsterMesh = new THREE.Mesh(bolGeo, bolsterMat.clone());
-    leftBolsterMesh.position.set(-0.24, 0.14, 0); leftBolsterMesh.castShadow = true;
-    seatGroup.add(leftBolsterMesh);
-    rightBolsterMesh = new THREE.Mesh(bolGeo, bolsterMat.clone());
-    rightBolsterMesh.position.set(0.24, 0.14, 0); rightBolsterMesh.castShadow = true;
-    seatGroup.add(rightBolsterMesh);
+    // Backrest (positioned relative to pivot)
+    const bGeo = new THREE.BoxGeometry(0.42, 0.54, 0.065);
+    backMesh = new THREE.Mesh(bGeo, seatM());
+    backMesh.position.set(0, 0.27, -0.015);
+    backMesh.castShadow = true; backMesh.receiveShadow = true;
+    backrestPivot.add(backMesh);
 
-    const bbolGeo = new THREE.BoxGeometry(0.06, 0.5, 0.06);
-    const lbb = new THREE.Mesh(bbolGeo, bolsterMat.clone());
-    lbb.position.set(-0.23, 0.42, -0.16);
-    lbb.rotation.x = -THREE.MathUtils.degToRad(seatState.recline);
-    seatGroup.add(lbb);
-    const rbb = new THREE.Mesh(bbolGeo, bolsterMat.clone());
-    rbb.position.set(0.23, 0.42, -0.16);
-    rbb.rotation.x = -THREE.MathUtils.degToRad(seatState.recline);
-    seatGroup.add(rbb);
+    // Back bolsters (children of pivot — follow recline)
+    const bbGeo = new THREE.BoxGeometry(0.055, 0.48, 0.055);
+    lbBack = new THREE.Mesh(bbGeo, boltM());
+    lbBack.position.set(-0.225, 0.27, 0.01);
+    backrestPivot.add(lbBack);
+    rbBack = new THREE.Mesh(bbGeo, boltM());
+    rbBack.position.set(0.225, 0.27, 0.01);
+    backrestPivot.add(rbBack);
+
+    // Headrest (child of pivot — follows recline)
+    const hGeo = new THREE.BoxGeometry(0.21, 0.14, 0.055);
+    headMesh = new THREE.Mesh(hGeo, seatM());
+    headMesh.position.set(0, 0.61, -0.01); // base position relative to pivot
+    headMesh.castShadow = true;
+    backrestPivot.add(headMesh);
+
+    // Set initial recline
+    backrestPivot.rotation.x = -THREE.MathUtils.degToRad(S.rec);
 }
 
-// ==================== Pressure Overlay ====================
-function setupPressureOverlays() {
-    pressureCanvasCushion = document.createElement('canvas');
-    pressureCanvasCushion.width = 128; pressureCanvasCushion.height = 128;
-    pressureCtxCushion = pressureCanvasCushion.getContext('2d');
-    pressureTextureCushion = new THREE.CanvasTexture(pressureCanvasCushion);
-    pressureTextureCushion.minFilter = THREE.LinearFilter;
-
-    pressureOverlayCushion = new THREE.Mesh(
+// === Pressure overlays ===
+function setupPressure() {
+    // Cushion overlay
+    pCanC = document.createElement('canvas'); pCanC.width=128; pCanC.height=128;
+    pCtxC = pCanC.getContext('2d');
+    pTexC = new THREE.CanvasTexture(pCanC); pTexC.minFilter = THREE.LinearFilter;
+    pressOvCush = new THREE.Mesh(
         new THREE.PlaneGeometry(0.42, 0.42),
-        new THREE.MeshBasicMaterial({ map: pressureTextureCushion, transparent: true, opacity: 0.85, depthWrite: false, side: THREE.DoubleSide })
+        new THREE.MeshBasicMaterial({map:pTexC, transparent:true, opacity:0.82, depthWrite:false, side:THREE.DoubleSide})
     );
-    pressureOverlayCushion.rotation.x = -Math.PI / 2;
-    pressureOverlayCushion.position.set(0, 0.131, 0);
-    seatGroup.add(pressureOverlayCushion);
+    pressOvCush.rotation.x = -Math.PI/2;
+    pressOvCush.position.set(0, 0.125, 0);
+    baseGroup.add(pressOvCush);
 
-    pressureCanvasBack = document.createElement('canvas');
-    pressureCanvasBack.width = 128; pressureCanvasBack.height = 128;
-    pressureCtxBack = pressureCanvasBack.getContext('2d');
-    pressureTextureBack = new THREE.CanvasTexture(pressureCanvasBack);
-    pressureTextureBack.minFilter = THREE.LinearFilter;
-
-    pressureOverlayBack = new THREE.Mesh(
-        new THREE.PlaneGeometry(0.40, 0.50),
-        new THREE.MeshBasicMaterial({ map: pressureTextureBack, transparent: true, opacity: 0.75, depthWrite: false, side: THREE.DoubleSide })
+    // Back overlay — child of backrestPivot so it follows recline
+    pCanB = document.createElement('canvas'); pCanB.width=128; pCanB.height=128;
+    pCtxB = pCanB.getContext('2d');
+    pTexB = new THREE.CanvasTexture(pCanB); pTexB.minFilter = THREE.LinearFilter;
+    pressOvBack = new THREE.Mesh(
+        new THREE.PlaneGeometry(0.38, 0.48),
+        new THREE.MeshBasicMaterial({map:pTexB, transparent:true, opacity:0.7, depthWrite:false, side:THREE.DoubleSide})
     );
-    pressureOverlayBack.position.set(0, 0.42, -0.165);
-    pressureOverlayBack.rotation.x = -THREE.MathUtils.degToRad(seatState.recline);
-    seatGroup.add(pressureOverlayBack);
+    pressOvBack.position.set(0, 0.27, 0.02);
+    // Will be added to backrestPivot after it's created (deferred)
+    setTimeout(() => { if(backrestPivot) backrestPivot.add(pressOvBack); }, 100);
 }
 
-// ==================== Motion Arrows ====================
-function setupMotionArrows() {
-    arrowGroup = new THREE.Group();
-    arrowGroup.visible = false;
-    arrowX = new THREE.ArrowHelper(new THREE.Vector3(1,0,0), new THREE.Vector3(0,0.5,0.3), 0.2, 0xe31937, 0.04, 0.025);
-    arrowY = new THREE.ArrowHelper(new THREE.Vector3(0,1,0), new THREE.Vector3(0,0.5,0.3), 0.2, 0x17b169, 0.04, 0.025);
-    arrowZ = new THREE.ArrowHelper(new THREE.Vector3(0,0,1), new THREE.Vector3(0,0.5,0.3), 0.2, 0x3e6ae1, 0.04, 0.025);
-    arrowGroup.add(arrowX, arrowY, arrowZ);
-    seatGroup.add(arrowGroup);
+function setupArrows() {
+    arGrp = new THREE.Group(); arGrp.visible = false;
+    arX = new THREE.ArrowHelper(new THREE.Vector3(1,0,0), new THREE.Vector3(0,0.4,0.25), 0.2, 0xd1293d, 0.035, 0.02);
+    arY = new THREE.ArrowHelper(new THREE.Vector3(0,1,0), new THREE.Vector3(0,0.4,0.25), 0.2, 0x1a9956, 0.035, 0.02);
+    arZ = new THREE.ArrowHelper(new THREE.Vector3(0,0,1), new THREE.Vector3(0,0.4,0.25), 0.2, 0x3566cc, 0.035, 0.02);
+    arGrp.add(arX, arY, arZ);
+    baseGroup.add(arGrp);
 }
 
-// ==================== Colors - Tesla palette ====================
-function pressureColor(t) {
+// === Colors ===
+function pColor(t) {
     t = Math.max(0, Math.min(1, t));
-    let r, g, b;
-    // Dark blue → cyan → red (Tesla style)
-    if (t < 0.33) { const f=t/0.33; r=Math.round(15+f*0); g=Math.round(30+f*180); b=Math.round(80+f*175); }
-    else if (t < 0.66) { const f=(t-0.33)/0.33; r=Math.round(15+f*227); g=Math.round(210-f*100); b=Math.round(255-f*200); }
-    else { const f=(t-0.66)/0.34; r=Math.round(242-f*15); g=Math.round(110-f*85); b=Math.round(55-f*30); }
-    return `rgba(${r},${g},${b},${0.35+t*0.65})`;
+    let r,g,b;
+    if (t<0.25) { const f=t/0.25; r=30; g=Math.round(60+f*160); b=Math.round(100+f*140); }
+    else if (t<0.5) { const f=(t-0.25)/0.25; r=Math.round(30+f*190); g=Math.round(220-f*40); b=Math.round(240-f*170); }
+    else if (t<0.75) { const f=(t-0.5)/0.25; r=Math.round(220+f*20); g=Math.round(180-f*100); b=Math.round(70-f*35); }
+    else { const f=(t-0.75)/0.25; r=Math.round(240-f*30); g=Math.round(80-f*50); b=Math.round(35-f*10); }
+    return `rgba(${r},${g},${b},${0.3+t*0.7})`;
 }
 
-function temperatureColor(temp) {
+function tColor(temp) {
     const t = Math.max(0, Math.min(1, (temp-15)/25));
     const c = new THREE.Color();
-    if (t < 0.3) c.lerpColors(new THREE.Color(0x3e6ae1), new THREE.Color(0xeeeeee), t/0.3);
-    else if (t < 0.6) c.set(0xeeeeee);
-    else c.lerpColors(new THREE.Color(0xf5a623), new THREE.Color(0xe31937), (t-0.6)/0.4);
+    if (t<0.3) c.lerpColors(new THREE.Color(0x3566cc), new THREE.Color(0xe0e0e0), t/0.3);
+    else if (t<0.6) c.set(0xe0e0e0);
+    else c.lerpColors(new THREE.Color(0xd48806), new THREE.Color(0xd1293d), (t-0.6)/0.4);
     return c;
 }
 
-function gaussian2D(x, y, sx, sy) {
-    return Math.exp(-(x*x)/(2*sx*sx) - (y*y)/(2*sy*sy));
-}
+function g2d(x,y,sx,sy){ return Math.exp(-(x*x)/(2*sx*sx)-(y*y)/(2*sy*sy)); }
 
-// ==================== Simulation ====================
-function simulatePressure(time) {
-    if (!seatState.occupied) { pressureGrid.fill(0); return; }
-    const wFactor = seatState.occupantWeight / 80;
-    for (let y=0; y<16; y++) for (let x=0; x<16; x++) {
+// === Simulation ===
+function simPress(t) {
+    if (!S.occ) { PG.fill(0); return; }
+    const wf = S.w/80;
+    // Stable base + subtle breathing
+    const breath = Math.sin(t*0.4)*0.012;
+    const shift = Math.sin(t*0.065)*0.02;
+    for (let y=0;y<16;y++) for (let x=0;x<16;x++) {
         const nx=(x/15)*2-1, ny=(y/15)*2-1;
-        const lp=gaussian2D(nx+0.35,ny-0.1,0.28,0.32);
-        const rp=gaussian2D(nx-0.35,ny-0.1,0.28,0.32);
-        const lt=gaussian2D(nx+0.3,ny+0.25,0.22,0.4)*0.35;
-        const rt=gaussian2D(nx-0.3,ny+0.25,0.22,0.4)*0.35;
-        pressureGrid[y*16+x] = Math.max(0, Math.min(1,
-            (lp+rp+lt+rt)*wFactor + Math.sin(time*0.35)*0.015 + Math.sin(time*0.07)*0.025*nx + (Math.random()-0.5)*0.008));
+        const lp = g2d(nx+0.35, ny-0.1, 0.28, 0.32);
+        const rp = g2d(nx-0.35, ny-0.1, 0.28, 0.32);
+        const lt = g2d(nx+0.3, ny+0.25, 0.22, 0.4)*0.35;
+        const rt = g2d(nx-0.3, ny+0.25, 0.22, 0.4)*0.35;
+        PG[y*16+x] = Math.max(0, Math.min(1,
+            (lp+rp+lt+rt)*wf + breath + shift*nx + (Math.random()-0.5)*0.005));
     }
 }
 
-function simulateTemperature(dt) {
-    temperatureZones.forEach(z => {
-        if (z.heating) z.temp += (z.target-z.temp)*dt*0.04;
-        else if (z.cooling) z.temp += (18-z.temp)*dt*0.03;
-        else z.temp += (22-z.temp)*dt*0.005;
-        z.temp = Math.max(5, Math.min(50, z.temp + (Math.random()-0.5)*0.05));
+function simTemp(dt) {
+    TZ.forEach(z => {
+        if (z.h) z.t += (z.tgt - z.t)*dt*0.04;
+        else if (z.c) z.t += (18 - z.t)*dt*0.03;
+        else z.t += (22 - z.t)*dt*0.005;
+        z.t = Math.max(5, Math.min(50, z.t + (Math.random()-0.5)*0.03));
     });
 }
 
-function simulateMotion(time) {
-    const s = seatState.vehicleSpeed;
-    const eFreq = 25+s*0.3, eAmp = 0.05+s*0.004;
-    const road = Math.sin(time*2.3)*0.2 + Math.sin(time*5.7)*0.08;
-    motionState.accelX = Math.sin(time*0.8)*s*0.008 + (Math.random()-0.5)*0.3;
-    motionState.accelY = road*s*0.008 + Math.sin(time*eFreq*0.1)*eAmp;
-    motionState.accelZ = Math.cos(time*0.3)*s*0.004 + (Math.random()-0.5)*0.15;
-    motionState.vibAmp = (eAmp+Math.abs(road)*0.5)*Math.min(1,s/80);
-    motionState.vibFreq = eFreq;
+function simMotion(t) {
+    const s = S.spd;
+    const idle = 0.02; // base engine idle vibration
+    const eFreq = 28 + s*0.25;
+    const eAmp = idle + s*0.003;
+    // Road noise: low-freq sway + mid-freq bumps, scales with speed
+    const roadFactor = Math.min(1, s/100);
+    const road = (Math.sin(t*1.8)*0.15 + Math.sin(t*4.3)*0.06)*roadFactor;
+    MO.ax = Math.sin(t*0.6)*s*0.006 + (Math.random()-0.5)*0.08*roadFactor;
+    MO.ay = road*0.6 + Math.sin(t*eFreq*0.08)*eAmp*0.5;
+    MO.az = Math.cos(t*0.25)*s*0.003 + (Math.random()-0.5)*0.05*roadFactor;
+    MO.vib = eAmp + Math.abs(road)*0.3;
+    MO.freq = eFreq;
 }
 
-// ==================== Render Updates ====================
-function updatePressureHeatmapCushion() {
-    const ctx=pressureCtxCushion, w=128, h=128;
-    ctx.clearRect(0,0,w,h);
-    const cw=w/16, ch=h/16;
+// === Render ===
+function updPressCush() {
+    const ctx=pCtxC; ctx.clearRect(0,0,128,128);
+    const cw=8;
     for (let y=0;y<16;y++) for (let x=0;x<16;x++) {
-        const v=pressureGrid[y*16+x];
-        if (v>0.01) { ctx.fillStyle=pressureColor(v); ctx.beginPath(); ctx.arc(x*cw+cw/2,y*ch+ch/2,cw*0.6,0,Math.PI*2); ctx.fill(); }
+        const v=PG[y*16+x];
+        if (v>0.01) { ctx.fillStyle=pColor(v); ctx.beginPath(); ctx.arc(x*cw+4,y*cw+4,3.5,0,Math.PI*2); ctx.fill(); }
     }
-    pressureTextureCushion.needsUpdate = true;
+    pTexC.needsUpdate = true;
 }
 
-function updatePressureHeatmapBack() {
-    const ctx=pressureCtxBack, w=128, h=128;
-    ctx.clearRect(0,0,w,h);
-    if (!seatState.occupied) { pressureTextureBack.needsUpdate=true; return; }
-    const wF=seatState.occupantWeight/80*0.4, cw=w/12, ch=h/16;
+function updPressBack() {
+    const ctx=pCtxB; ctx.clearRect(0,0,128,128);
+    if (!S.occ) { pTexB.needsUpdate=true; return; }
+    const wf=S.w/80*0.4, cw=128/12, ch=8;
     for (let y=0;y<16;y++) for (let x=0;x<12;x++) {
         const nx=(x/11)*2-1, ny=(y/15)*2-1;
-        const v=(gaussian2D(nx+0.3,ny+0.1,0.4,0.35)+gaussian2D(nx-0.3,ny+0.1,0.4,0.35))*wF;
-        if (v>0.01) { ctx.fillStyle=pressureColor(v); ctx.beginPath(); ctx.arc(x*cw+cw/2,y*ch+ch/2,cw*0.6,0,Math.PI*2); ctx.fill(); }
+        const v=(g2d(nx+0.3,ny+0.1,0.4,0.35)+g2d(nx-0.3,ny+0.1,0.4,0.35))*wf;
+        if (v>0.01) { ctx.fillStyle=pColor(v); ctx.beginPath(); ctx.arc(x*cw+cw/2,y*ch+4,3.5,0,Math.PI*2); ctx.fill(); }
     }
-    pressureTextureBack.needsUpdate = true;
+    pTexB.needsUpdate = true;
 }
 
-function updateTemperatureVisuals() {
-    const meshes = [cushionMesh,cushionMesh,backrestMesh,backrestMesh,leftBolsterMesh,rightBolsterMesh];
-    temperatureZones.forEach((z,i) => {
-        const m=meshes[i]; if (!m) return;
-        m.material.emissive = temperatureColor(z.temp);
-        m.material.emissiveIntensity = (z.heating||z.cooling) ? 0.5 : 0.15;
+function updTempVis() {
+    const meshes = [cushionMesh,cushionMesh,backMesh,backMesh,lBolster,rBolster];
+    TZ.forEach((z,i) => {
+        const m=meshes[i]; if(!m) return;
+        m.material.emissive = tColor(z.t);
+        m.material.emissiveIntensity = (z.h||z.c) ? 0.35 : 0.08;
     });
 }
 
-function updateSeatPositionVisuals() {
-    seatGroup.position.z = seatState.forwardBack/100*0.12;
-    seatGroup.position.y = seatState.upDown/100*0.04;
-    const rec = THREE.MathUtils.degToRad(seatState.recline);
-    if (backrestMesh) backrestMesh.rotation.x = -rec;
-    if (pressureOverlayBack) pressureOverlayBack.rotation.x = -rec;
-    if (headrestMesh) headrestMesh.position.y = 0.78 + seatState.headrest/100*0.06;
+function updPosVis() {
+    // Fore/aft: move seatRoot Z (rails stay, seat slides)
+    seatRoot.position.z = S.fb/100*0.12;
+    // Height: move baseGroup Y
+    baseGroup.position.y = S.ud/50*0.03;
+    // Recline: rotate backrestPivot
+    if (backrestPivot) backrestPivot.rotation.x = -THREE.MathUtils.degToRad(S.rec);
+    // Headrest extend: move headMesh local Y
+    if (headMesh) headMesh.position.y = 0.61 + S.hr/100*0.08;
 }
 
-function updateMotionVisuals(time) {
-    if (!arrowGroup.visible) return;
-    const s=0.3;
-    arrowX.setLength(Math.max(0.05,Math.abs(motionState.accelX)*s),0.04,0.025);
-    arrowX.setDirection(new THREE.Vector3(Math.sign(motionState.accelX)||1,0,0).normalize());
-    arrowY.setLength(Math.max(0.05,Math.abs(motionState.accelY)*s),0.04,0.025);
-    arrowY.setDirection(new THREE.Vector3(0,Math.sign(motionState.accelY)||1,0).normalize());
-    arrowZ.setLength(Math.max(0.05,Math.abs(motionState.accelZ)*s),0.04,0.025);
-    arrowZ.setDirection(new THREE.Vector3(0,0,Math.sign(motionState.accelZ)||1).normalize());
-    if (motionState.vibAmp > 0.01) {
-        seatGroup.rotation.z = Math.sin(time*motionState.vibFreq*0.3)*motionState.vibAmp*0.002;
-        seatGroup.position.y = (seatState.upDown/100*0.04) + Math.sin(time*motionState.vibFreq*0.5)*motionState.vibAmp*0.003;
+function updMotVis(t) {
+    if (!arGrp.visible) return;
+    const s = 0.25;
+    arX.setLength(Math.max(0.04, Math.abs(MO.ax)*s), 0.035, 0.02);
+    arX.setDirection(new THREE.Vector3(Math.sign(MO.ax)||1,0,0).normalize());
+    arY.setLength(Math.max(0.04, Math.abs(MO.ay)*s), 0.035, 0.02);
+    arY.setDirection(new THREE.Vector3(0,Math.sign(MO.ay)||1,0).normalize());
+    arZ.setLength(Math.max(0.04, Math.abs(MO.az)*s), 0.035, 0.02);
+    arZ.setDirection(new THREE.Vector3(0,0,Math.sign(MO.az)||1).normalize());
+    // Vibration — subtle shake
+    if (MO.vib > 0.005) {
+        const v = MO.vib * 0.0015;
+        baseGroup.rotation.z = Math.sin(t*MO.freq*0.25)*v;
+        baseGroup.position.y = (S.ud/50*0.03) + Math.sin(t*MO.freq*0.4)*v*1.5;
     }
 }
 
-// ==================== UI Updates ====================
-let lastUIUpdate = 0;
-
-function updateDashboard() {
-    if (activeSensors.has('pressure')) {
-        let sum=0, max=0, count=0;
-        for (let i=0;i<pressureGrid.length;i++) if (pressureGrid[i]>0.01) { sum+=pressureGrid[i]; count++; max=Math.max(max,pressureGrid[i]); }
-        const avg = count>0 ? (sum/count*100).toFixed(1) : '0';
-        const peak = (max*100).toFixed(1);
-        document.getElementById('rTotalWeight').textContent = seatState.occupied ? seatState.occupantWeight : '0';
-        document.getElementById('rOccupancy').textContent = seatState.occupied ? 'Occupied' : 'Empty';
-        document.getElementById('rAvgPress').textContent = avg;
-        document.getElementById('rPeakPress').textContent = peak;
-
-        const mc=document.getElementById('miniHeatmap'), mctx=mc.getContext('2d');
+// === UI ===
+let lastUI = 0;
+function updDash() {
+    if (AS.has('pressure')) {
+        let sum=0,mx=0,cnt=0;
+        for (let i=0;i<256;i++) if(PG[i]>0.01){sum+=PG[i];cnt++;mx=Math.max(mx,PG[i]);}
+        const avg=cnt>0?(sum/cnt*100).toFixed(1):'0', pk=(mx*100).toFixed(1);
+        $('rW').textContent = S.occ ? S.w : '0';
+        $('rOcc').textContent = S.occ ? 'Occupied' : 'Empty';
+        $('rAvg').textContent = avg; $('rPk').textContent = pk;
+        const mc=$('miniHeatmap'), mctx=mc.getContext('2d');
         mctx.clearRect(0,0,160,160);
         for (let y=0;y<16;y++) for (let x=0;x<16;x++) {
-            const v=pressureGrid[y*16+x];
-            if (v>0.01) { mctx.fillStyle=pressureColor(v); mctx.fillRect(x*10,y*10,10,10); }
+            const v=PG[y*16+x];
+            if(v>0.01){mctx.fillStyle=pColor(v);mctx.fillRect(x*10,y*10,10,10);}
         }
-        if (max*100>thresholds.pressure) addAlert('warn',`Peak pressure ${peak} kPa - threshold exceeded`);
+        if (mx*100>TH.pressure) addAlert('warn','Peak pressure '+pk+' kPa — threshold');
     }
-    if (activeSensors.has('temperature')) {
-        temperatureZones.forEach(z => { if (z.temp>thresholds.temperature) addAlert('error',`${z.name} ${z.temp.toFixed(1)}°C - overheat`); });
+    if (AS.has('temperature')) TZ.forEach(z=>{ if(z.t>TH.temperature) addAlert('error',z.n+' '+z.t.toFixed(1)+'°C — overheat'); });
+    if (AS.has('motion')) {
+        $('rVib').textContent=MO.vib.toFixed(2); $('rFrq').textContent=Math.round(MO.freq);
+        $('rAX').textContent=MO.ax.toFixed(2)+' G'; $('rAY').textContent=MO.ay.toFixed(2)+' G'; $('rAZ').textContent=MO.az.toFixed(2)+' G';
+        mBar('bAX',MO.ax,2); mBar('bAY',MO.ay,2); mBar('bAZ',MO.az,2);
+        if (MO.vib>TH.vibration) addAlert('warn','Vibration '+MO.vib.toFixed(2)+' G');
     }
-    if (activeSensors.has('motion')) {
-        document.getElementById('rVib').textContent = motionState.vibAmp.toFixed(2);
-        document.getElementById('rFreq').textContent = Math.round(motionState.vibFreq);
-        document.getElementById('rAX').textContent = motionState.accelX.toFixed(2)+' G';
-        document.getElementById('rAY').textContent = motionState.accelY.toFixed(2)+' G';
-        document.getElementById('rAZ').textContent = motionState.accelZ.toFixed(2)+' G';
-        setMotionBar('barAX',motionState.accelX,2,'var(--red)');
-        setMotionBar('barAY',motionState.accelY,2,'var(--green)');
-        setMotionBar('barAZ',motionState.accelZ,2,'var(--blue)');
-        if (motionState.vibAmp>thresholds.vibration) addAlert('warn',`Vibration ${motionState.vibAmp.toFixed(2)} G - exceeded`);
-    }
-    if (activeSensors.has('position')) {
-        document.getElementById('rFB').textContent = Math.round(seatState.forwardBack*1.5);
-        document.getElementById('rUD').textContent = Math.round(seatState.upDown*0.5);
-        document.getElementById('rRec').textContent = seatState.recline+'°';
-        document.getElementById('rHR').textContent = Math.round(seatState.headrest*0.8);
+    if (AS.has('position')) {
+        $('rFB').textContent=Math.round(S.fb*1.5); $('rUD').textContent=Math.round(S.ud*0.6);
+        $('rRec').textContent=S.rec+'°'; $('rHR').textContent=Math.round(S.hr*0.8);
     }
 }
 
-function setMotionBar(id, value, maxVal, color) {
-    const bar=document.getElementById(id), pct=(value/maxVal)*50;
-    if (pct>=0) { bar.style.left='50%'; bar.style.width=Math.min(50,pct)+'%'; }
-    else { const w=Math.min(50,Math.abs(pct)); bar.style.left=(50-w)+'%'; bar.style.width=w+'%'; }
-    bar.style.background = color;
+function mBar(id,v,mx) {
+    const b=$(id), p=(v/mx)*50;
+    if(p>=0){b.style.left='50%';b.style.width=Math.min(50,p)+'%';}
+    else{const w=Math.min(50,Math.abs(p));b.style.left=(50-w)+'%';b.style.width=w+'%';}
 }
 
-// ==================== Alerts ====================
-let lastAlertTime = 0;
-function addAlert(type, msg) {
-    const now=Date.now();
-    if (now-lastAlertTime<3000) return;
-    if (alerts.length>0 && alerts[alerts.length-1].msg===msg) return;
-    lastAlertTime = now;
-    alerts.unshift({type,msg,time:new Date()});
-    if (alerts.length>20) alerts.pop();
-    renderAlerts();
+// === Alerts ===
+let lastAT=0;
+function addAlert(tp,msg) {
+    const n=Date.now(); if(n-lastAT<3500)return; if(alerts.length&&alerts[0].msg===msg)return;
+    lastAT=n; alerts.unshift({tp,msg,time:new Date()}); if(alerts.length>15)alerts.pop(); rendAlerts();
 }
-function renderAlerts() {
-    const el=document.getElementById('alertList');
-    document.getElementById('alertCount').textContent = `(${alerts.length})`;
-    if (!alerts.length) { el.innerHTML='<div style="font-size:11px;color:var(--text-tertiary);text-align:center;padding:24px;">No alerts</div>'; return; }
-    el.innerHTML = alerts.slice(0,8).map(a => `
-        <div class="alert-item ${a.type}">
-            <span class="alert-time">${a.time.toLocaleTimeString()}</span>
-            <span class="alert-msg">${a.msg}</span>
-        </div>`).join('');
+function rendAlerts() {
+    $('aCnt').textContent='('+alerts.length+')';
+    if(!alerts.length){$('aList').innerHTML='<div style="font-size:11px;color:var(--text3);text-align:center;padding:20px;">No alerts</div>';return;}
+    $('aList').innerHTML=alerts.slice(0,6).map(a=>'<div class="al '+a.tp+'"><span class="al-t">'+a.time.toLocaleTimeString()+'</span><span class="al-m">'+a.msg+'</span></div>').join('');
 }
 
-// ==================== Sensor Toggle ====================
-function toggleSensor(name) {
-    const el = document.querySelector(`.sensor-toggle[data-sensor="${name}"]`);
-    const isActive = el.classList.toggle('active');
-    el.querySelector('.toggle-icon').className = 'fas ' + (isActive ? 'fa-eye' : 'fa-eye-slash') + ' toggle-icon';
-    if (isActive) activeSensors.add(name); else activeSensors.delete(name);
+// === Sensor toggle ===
+function toggleSensor(n) {
+    const el=document.querySelector('.s-tog[data-s="'+n+'"]');
+    const on=el.classList.toggle('on');
+    el.querySelector('.s-eye').className='fas '+(on?'fa-eye':'fa-eye-slash')+' s-eye';
+    if(on)AS.add(n);else AS.delete(n);
 
-    if (pressureOverlayCushion) pressureOverlayCushion.visible = activeSensors.has('pressure');
-    if (pressureOverlayBack) pressureOverlayBack.visible = activeSensors.has('pressure');
-    document.getElementById('pressureLegend').classList.toggle('show', activeSensors.has('pressure'));
-    document.getElementById('pressurePanel').style.display = activeSensors.has('pressure') ? '' : 'none';
-    document.getElementById('tempPanel').style.display = activeSensors.has('temperature') ? '' : 'none';
-    document.getElementById('positionPanel').style.display = activeSensors.has('position') ? '' : 'none';
-    document.getElementById('posPanel').style.display = activeSensors.has('position') ? '' : 'none';
-    document.getElementById('motionPanel').style.display = activeSensors.has('motion') ? '' : 'none';
-    if (arrowGroup) arrowGroup.visible = activeSensors.has('motion');
-    if (!activeSensors.has('temperature'))
-        [cushionMesh,backrestMesh,leftBolsterMesh,rightBolsterMesh].forEach(m => { if(m){m.material.emissive=new THREE.Color(0);m.material.emissiveIntensity=0;} });
-    // Update sensor count
-    document.querySelector('.sensor-count').textContent = activeSensors.size + ' Sensor' + (activeSensors.size!==1?'s':'') + ' Active';
+    if(pressOvCush)pressOvCush.visible=AS.has('pressure');
+    if(pressOvBack)pressOvBack.visible=AS.has('pressure');
+    $('pLeg').classList.toggle('show',AS.has('pressure'));
+    $('rPress').style.display=AS.has('pressure')?'':'none';
+    $('rTemp').style.display=AS.has('temperature')?'':'none';
+    $('posPanel').style.display=AS.has('position')?'':'none';
+    $('rPos').style.display=AS.has('position')?'':'none';
+    $('rMot').style.display=AS.has('motion')?'':'none';
+    if(arGrp)arGrp.visible=AS.has('motion');
+    if(!AS.has('temperature'))[cushionMesh,backMesh,lBolster,rBolster].forEach(m=>{if(m){m.material.emissive=new THREE.Color(0);m.material.emissiveIntensity=0;}});
+    $('sCount').textContent=AS.size+' sensor'+(AS.size!==1?'s':'');
 }
 
-// ==================== Controls ====================
-function toggleSimulation() {
-    simulationRunning = !simulationRunning;
-    document.getElementById('simDot').className = 'sim-dot '+(simulationRunning?'running':'paused');
-    document.getElementById('simLabel').textContent = simulationRunning ? 'Running' : 'Paused';
-    document.getElementById('simBtn').innerHTML = simulationRunning ? '<i class="fas fa-pause"></i>' : '<i class="fas fa-play"></i>';
+// === Controls ===
+function toggleSim() {
+    simOn=!simOn;
+    $('simDot').className='sim-d '+(simOn?'go':'no');
+    $('simLabel').textContent=simOn?'Running':'Paused';
+    $('simBtn').innerHTML=simOn?'<i class="fas fa-pause"></i>':'<i class="fas fa-play"></i>';
 }
-function updateWeight(v) { seatState.occupantWeight=+v; document.getElementById('weightVal').textContent=v+' kg'; }
-function updateSpeed(v) { seatState.vehicleSpeed=+v; document.getElementById('speedVal').textContent=v+' km/h'; }
-function setOccupancy(type, btn) {
-    btn.parentElement.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active'));
-    btn.classList.add('active');
-    switch(type) {
-        case 'seated': seatState.occupied=true; seatState.occupantWeight=70; document.getElementById('weightSlider').value=70; updateWeight(70); break;
-        case 'empty': seatState.occupied=false; break;
-        case 'child': seatState.occupied=true; seatState.occupantWeight=25; document.getElementById('weightSlider').value=25; updateWeight(25); break;
-        case 'heavy': seatState.occupied=true; seatState.occupantWeight=110; document.getElementById('weightSlider').value=110; updateWeight(110); break;
+function setWeight(v){S.w=+v;$('wVal').textContent=v+' kg';}
+function setSpeed(v){S.spd=+v;$('spdVal').textContent=v+' km/h';}
+function setOcc(t,btn) {
+    btn.parentElement.querySelectorAll('.pb').forEach(b=>b.classList.remove('on')); btn.classList.add('on');
+    switch(t){
+        case'seated':S.occ=true;S.w=70;$('wSlider').value=70;setWeight(70);break;
+        case'empty':S.occ=false;break;
+        case'child':S.occ=true;S.w=25;$('wSlider').value=25;setWeight(25);break;
+        case'heavy':S.occ=true;S.w=110;$('wSlider').value=110;setWeight(110);break;
     }
 }
-function updatePosition(axis, val) {
-    switch(axis) {
-        case 'forwardBack': seatState.forwardBack=+val; document.getElementById('fbVal').textContent=val; break;
-        case 'upDown': seatState.upDown=+val; document.getElementById('udVal').textContent=val; break;
-        case 'recline': seatState.recline=+val; document.getElementById('recVal').textContent=val+'°'; break;
-        case 'headrest': seatState.headrest=+val; document.getElementById('hrVal').textContent=val; break;
+function setPos(axis,v) {
+    switch(axis){
+        case'fb':S.fb=+v;$('fbVal').textContent=v;break;
+        case'ud':S.ud=+v;$('udVal').textContent=v;break;
+        case'rec':S.rec=+v;$('recVal').textContent=v+'°';break;
+        case'hr':S.hr=+v;$('hrVal').textContent=v;break;
     }
 }
-const presets = {
-    normal:{forwardBack:0,upDown:0,recline:18,headrest:0},
-    sport:{forwardBack:30,upDown:-20,recline:12,headrest:30},
-    relax:{forwardBack:-50,upDown:30,recline:38,headrest:50},
-    entry:{forwardBack:-100,upDown:0,recline:18,headrest:0}
+
+// Presets — realistic values
+const presets_data = {
+    normal: {fb:0, ud:0, rec:18, hr:0},
+    sport:  {fb:20, ud:-15, rec:12, hr:20},
+    relax:  {fb:-40, ud:10, rec:42, hr:65},
+    entry:  {fb:-80, ud:-10, rec:18, hr:0}
 };
-let animTarget = null;
-function applyPreset(name, btn) {
-    btn.parentElement.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active'));
-    btn.classList.add('active');
-    animTarget = {...presets[name]};
+let animTgt = null;
+function preset(n,btn) {
+    btn.parentElement.querySelectorAll('.pb').forEach(b=>b.classList.remove('on')); btn.classList.add('on');
+    animTgt = {...presets_data[n]};
 }
-function setSeatOpacity(v) {
-    document.getElementById('opVal').textContent=v+'%';
-    const op=v/100;
-    [cushionMesh,backrestMesh,headrestMesh,leftBolsterMesh,rightBolsterMesh].forEach(m => {
-        if(!m) return; m.material.transparent=op<1; m.material.opacity=op;
+function setOpacity(v) {
+    $('opVal').textContent=v+'%'; const op=v/100;
+    [cushionMesh,backMesh,headMesh,lBolster,rBolster,lbBack,rbBack].forEach(m=>{
+        if(!m)return; m.material.transparent=op<1; m.material.opacity=op;
     });
 }
-function resetCamera() { camera.position.set(1.3,0.9,1.6); controls.target.set(0,0.35,0); }
-function toggleAutoRotate() { controls.autoRotate=!controls.autoRotate; controls.autoRotateSpeed=1.5; }
+function resetCam(){cam.position.set(1.2,0.85,1.5);ctrl.target.set(0,0.32,0);}
+function autoRot(){ctrl.autoRotate=!ctrl.autoRotate;ctrl.autoRotateSpeed=1.5;}
 
-// ==================== Temperature UI ====================
-function renderTempZones() {
-    const el=document.getElementById('tempZoneList');
-    el.innerHTML = temperatureZones.map((z,i) => {
-        const hex = '#'+temperatureColor(z.temp).getHexString();
-        return `<div class="temp-zone">
-            <div class="temp-zone-info"><div class="temp-zone-dot" style="background:${hex};"></div><div><div class="temp-zone-name">${z.name}</div></div></div>
-            <div style="display:flex;align-items:center;gap:6px;">
-                <span class="temp-zone-value" style="color:${hex};">${z.temp.toFixed(1)}°</span>
-                <button class="temp-zone-btn ${z.heating?'on':''}" onclick="toggleHeating(${i})"><i class="fas fa-fire"></i></button>
-                <button class="temp-zone-btn ${z.cooling?'cool':''}" onclick="toggleCooling(${i})"><i class="fas fa-snowflake"></i></button>
-            </div></div>`;
+// === Temperature UI ===
+function rendTZ() {
+    $('tzList').innerHTML=TZ.map((z,i)=>{
+        const hex='#'+tColor(z.t).getHexString();
+        return '<div class="tz"><div class="tz-i"><div class="tz-d" style="background:'+hex+';"></div><span class="tz-n">'+z.n+'</span></div>'+
+        '<div style="display:flex;align-items:center;gap:5px;"><span class="tz-v" style="color:'+hex+';">'+z.t.toFixed(1)+'°</span>'+
+        '<button class="tz-b '+(z.h?'hot':'')+'" onclick="togH('+i+')"><i class="fas fa-fire"></i></button>'+
+        '<button class="tz-b '+(z.c?'cool':'')+'" onclick="togC('+i+')"><i class="fas fa-snowflake"></i></button></div></div>';
     }).join('');
 }
-function toggleHeating(i) { temperatureZones[i].heating=!temperatureZones[i].heating; if(temperatureZones[i].heating) temperatureZones[i].cooling=false; }
-function toggleCooling(i) { temperatureZones[i].cooling=!temperatureZones[i].cooling; if(temperatureZones[i].cooling) temperatureZones[i].heating=false; }
+function togH(i){TZ[i].h=!TZ[i].h;if(TZ[i].h)TZ[i].c=false;}
+function togC(i){TZ[i].c=!TZ[i].c;if(TZ[i].c)TZ[i].h=false;}
 
-// ==================== Export ====================
+// === Export ===
 function exportJSON() {
-    const data = {
-        timestamp: new Date().toISOString(), system: 'KETI Smart Seat Sensor Monitor',
-        seatState: {...seatState},
-        pressure: { grid:Array.from(pressureGrid), avg:Array.from(pressureGrid).filter(v=>v>0.01).reduce((a,b)=>a+b,0)/Math.max(1,Array.from(pressureGrid).filter(v=>v>0.01).length)*100, peak:Math.max(...pressureGrid)*100 },
-        temperature: temperatureZones.map(z=>({name:z.name,current:z.temp,target:z.target,heating:z.heating,cooling:z.cooling})),
-        motion: {...motionState}
-    };
-    const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
-    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`seat-sensor-${Date.now()}.json`; a.click(); URL.revokeObjectURL(a.href);
-    showToast('JSON exported');
+    const d={timestamp:new Date().toISOString(),system:'KETI Smart Seat Monitor',
+        seat:{occupied:S.occ,weight:S.w,speed:S.spd,fb:S.fb,ud:S.ud,recline:S.rec,headrest:S.hr},
+        pressure:{grid:Array.from(PG),avg:Array.from(PG).filter(v=>v>0.01).reduce((a,b)=>a+b,0)/Math.max(1,Array.from(PG).filter(v=>v>0.01).length)*100,peak:Math.max(...PG)*100},
+        temperature:TZ.map(z=>({name:z.n,current:z.t,target:z.tgt,heating:z.h,cooling:z.c})),
+        motion:{...MO}};
+    const bl=new Blob([JSON.stringify(d,null,2)],{type:'application/json'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(bl);a.download='seat-'+Date.now()+'.json';a.click();URL.revokeObjectURL(a.href);
+    toast('JSON exported');
 }
 function exportCSV() {
-    const now=new Date().toISOString();
-    let csv='timestamp,sensor_type,zone,value,unit\n';
-    for (let y=0;y<16;y++) for (let x=0;x<16;x++) csv+=`${now},pressure,cushion_${x}_${y},${(pressureGrid[y*16+x]*100).toFixed(2)},kPa\n`;
-    temperatureZones.forEach(z => csv+=`${now},temperature,${z.name},${z.temp.toFixed(2)},C\n`);
-    csv+=`${now},motion,accel_x,${motionState.accelX.toFixed(4)},G\n`;
-    csv+=`${now},motion,accel_y,${motionState.accelY.toFixed(4)},G\n`;
-    csv+=`${now},motion,accel_z,${motionState.accelZ.toFixed(4)},G\n`;
-    csv+=`${now},motion,vibration,${motionState.vibAmp.toFixed(4)},G\n`;
-    const blob=new Blob([csv],{type:'text/csv'});
-    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`seat-sensor-${Date.now()}.csv`; a.click(); URL.revokeObjectURL(a.href);
-    showToast('CSV exported');
+    const now=new Date().toISOString(); let csv='timestamp,type,zone,value,unit\n';
+    for(let y=0;y<16;y++)for(let x=0;x<16;x++)csv+=now+',pressure,cushion_'+x+'_'+y+','+(PG[y*16+x]*100).toFixed(2)+',kPa\n';
+    TZ.forEach(z=>csv+=now+',temperature,'+z.n+','+z.t.toFixed(2)+',C\n');
+    csv+=now+',motion,accel_x,'+MO.ax.toFixed(4)+',G\n';
+    csv+=now+',motion,accel_y,'+MO.ay.toFixed(4)+',G\n';
+    csv+=now+',motion,accel_z,'+MO.az.toFixed(4)+',G\n';
+    const bl=new Blob([csv],{type:'text/csv'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(bl);a.download='seat-'+Date.now()+'.csv';a.click();URL.revokeObjectURL(a.href);
+    toast('CSV exported');
 }
 
-// ==================== Utils ====================
-let toastTimer;
-function showToast(msg) { const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove('show'),2500); }
-function drawLegend() { const ctx=document.getElementById('legendBar').getContext('2d'); for(let x=0;x<180;x++){ctx.fillStyle=pressureColor(x/180);ctx.fillRect(x,0,1,10);} }
-function updateClock() { document.getElementById('clock').textContent=new Date().toLocaleTimeString(); }
+// === Utils ===
+let toastTm;
+function toast(msg){const t=$('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastTm);toastTm=setTimeout(()=>t.classList.remove('show'),2200);}
+function drawLeg(){const ctx=$('legBar').getContext('2d');for(let x=0;x<160;x++){ctx.fillStyle=pColor(x/160);ctx.fillRect(x,0,1,8);}}
+function updClk(){$('clock').textContent=new Date().toLocaleTimeString();}
 
-// ==================== Animation Loop ====================
+// === Animation loop ===
 function animate() {
     requestAnimationFrame(animate);
-    const dt=Math.min(clock.getDelta(),0.1), elapsed=clock.getElapsedTime();
+    const dt=Math.min(clk.getDelta(),0.1), el=clk.getElapsedTime();
 
-    if (simulationRunning) { simulatePressure(elapsed); simulateTemperature(dt); simulateMotion(elapsed); }
+    if(simOn){simPress(el);simTemp(dt);simMotion(el);}
 
-    if (animTarget) {
+    // Smooth preset animation with per-axis speeds
+    if(animTgt) {
         let done=true;
-        ['forwardBack','upDown','recline','headrest'].forEach(k => {
-            const diff=animTarget[k]-seatState[k];
-            if (Math.abs(diff)>0.5) { seatState[k]+=diff*dt*3; done=false; } else seatState[k]=animTarget[k];
+        const speeds = {fb:2.5, ud:3, rec:2.2, hr:3.5};
+        ['fb','ud','rec','hr'].forEach(k=>{
+            const diff=animTgt[k]-S[k];
+            if(Math.abs(diff)>0.3){S[k]+=diff*dt*speeds[k];done=false;}else S[k]=animTgt[k];
         });
-        document.getElementById('fbSlider').value=seatState.forwardBack;
-        document.getElementById('udSlider').value=seatState.upDown;
-        document.getElementById('recSlider').value=seatState.recline;
-        document.getElementById('hrSlider').value=seatState.headrest;
-        document.getElementById('fbVal').textContent=Math.round(seatState.forwardBack);
-        document.getElementById('udVal').textContent=Math.round(seatState.upDown);
-        document.getElementById('recVal').textContent=Math.round(seatState.recline)+'°';
-        document.getElementById('hrVal').textContent=Math.round(seatState.headrest);
-        if (done) animTarget=null;
+        $('fbS').value=S.fb; $('udS').value=S.ud; $('recS').value=S.rec; $('hrS').value=S.hr;
+        $('fbVal').textContent=Math.round(S.fb); $('udVal').textContent=Math.round(S.ud);
+        $('recVal').textContent=Math.round(S.rec)+'°'; $('hrVal').textContent=Math.round(S.hr);
+        if(done)animTgt=null;
     }
 
-    if (activeSensors.has('pressure')) { updatePressureHeatmapCushion(); updatePressureHeatmapBack(); }
-    if (activeSensors.has('temperature')) updateTemperatureVisuals();
-    if (activeSensors.has('position')) updateSeatPositionVisuals();
-    if (activeSensors.has('motion')) updateMotionVisuals(elapsed);
+    if(AS.has('pressure')){updPressCush();updPressBack();}
+    if(AS.has('temperature'))updTempVis();
+    if(AS.has('position'))updPosVis();
+    if(AS.has('motion'))updMotVis(el);
 
-    if (elapsed-lastUIUpdate>0.15) { updateDashboard(); if(activeSensors.has('temperature')) renderTempZones(); lastUIUpdate=elapsed; }
+    if(el-lastUI>0.16){updDash();if(AS.has('temperature'))rendTZ();lastUI=el;}
 
-    controls.update();
-    renderer.render(scene, camera);
+    ctrl.update();
+    rend.render(scene,cam);
 }
 
-// ==================== Init ====================
-initScene();
-drawLegend();
-document.getElementById('pressureLegend').classList.add('show');
-setInterval(updateClock, 1000);
-updateClock();
+// === Init ===
+init();
+drawLeg();
+$('pLeg').classList.add('show');
+setInterval(updClk,1000); updClk();
 animate();
 </script>
 </body>
