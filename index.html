@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KETI - 차량 시트 센서 모니터링 시스템</title>
+    <title>KETI — Smart Seat Sensor Monitoring System</title>
     <script src="libs/three.min.js"></script>
     <script src="libs/OrbitControls.js"></script>
     <script src="libs/GLTFLoader.js"></script>
@@ -262,6 +262,19 @@
         /* Mini heatmap */
         #miniHeatmap { width: 100%; border-radius: 10px; background: #f5f5f7; border: 1px solid rgba(0,0,0,0.04); }
 
+        /* Gauge */
+        .gauge-wrap { display:flex; justify-content:center; margin:8px 0; }
+        .gauge { position:relative; width:120px; height:120px; }
+        .gauge canvas { width:100%; height:100%; }
+        .gauge-val { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+        .gauge-num { font-size:22px; font-weight:300; font-variant-numeric:tabular-nums; color:#ff3b30; }
+        .gauge-unit { font-size:7px; color:#86868b; letter-spacing:0.5px; margin-top:1px; font-weight:600; }
+        #motionWave { width:100%; height:80px; border-radius:10px; background:#f5f5f7; border:1px solid rgba(0,0,0,0.04); margin-top:6px; }
+        .peak-row { display:flex; gap:6px; margin-top:8px; }
+        .peak-badge { flex:1; text-align:center; padding:6px 4px; border-radius:8px; background:#f5f5f7; border:1px solid rgba(0,0,0,0.04); }
+        .peak-badge .pk-v { font-size:14px; font-weight:600; font-variant-numeric:tabular-nums; }
+        .peak-badge .pk-l { font-size:7px; color:#86868b; margin-top:1px; font-weight:500; letter-spacing:0.2px; }
+
         /* Footer credit */
         .footer-credit {
             padding: 12px 16px; text-align: center;
@@ -277,11 +290,11 @@
         <div class="header-left">
             <img src="keti.png" alt="KETI">
             <div class="header-divider"></div>
-            <h1>차량 시트 센서 모니터링<span class="version">v1.0</span></h1>
+            <h1>Smart Seat Monitor<span class="version">v1.0</span></h1>
         </div>
         <div class="header-center">
-            <div class="status-pill"><div class="status-dot"></div>시스템 정상</div>
-            <div class="status-pill"><div class="status-dot"></div>센서 4종 연결</div>
+            <div class="status-pill"><div class="status-dot"></div>System OK</div>
+            <div class="status-pill"><div class="status-dot"></div>4 Sensors Connected</div>
         </div>
         <div class="header-right">
             <span class="clock" id="clock">00:00:00</span>
@@ -295,13 +308,13 @@
         <div class="left-panel">
             <!-- Sensor Layers -->
             <div class="panel-section">
-                <div class="section-title"><i class="fas fa-layer-group"></i> 센서 레이어</div>
+                <div class="section-title"><i class="fas fa-layer-group"></i> Sensor Layers</div>
                 <div class="sensor-toggle active" data-sensor="pressure" onclick="toggleSensor('pressure')">
                     <div class="sensor-info">
                         <div class="sensor-dot" style="background:#ff3b30;"></div>
                         <div>
-                            <div class="sensor-name">압력 센서</div>
-                            <div class="sensor-desc">착석 감지 / 하중 분포</div>
+                            <div class="sensor-name">Pressure</div>
+                            <div class="sensor-desc">Occupancy &amp; load distribution</div>
                         </div>
                     </div>
                     <i class="fas fa-eye toggle-icon"></i>
@@ -310,8 +323,8 @@
                     <div class="sensor-info">
                         <div class="sensor-dot" style="background:#ff9f0a;"></div>
                         <div>
-                            <div class="sensor-name">온도 센서</div>
-                            <div class="sensor-desc">히팅 / 쿨링 구역 제어</div>
+                            <div class="sensor-name">Temperature</div>
+                            <div class="sensor-desc">Heating / cooling zone control</div>
                         </div>
                     </div>
                     <i class="fas fa-eye-slash toggle-icon"></i>
@@ -320,8 +333,8 @@
                     <div class="sensor-info">
                         <div class="sensor-dot" style="background:#007aff;"></div>
                         <div>
-                            <div class="sensor-name">위치 센서</div>
-                            <div class="sensor-desc">시트 조절 추적</div>
+                            <div class="sensor-name">Position</div>
+                            <div class="sensor-desc">Seat adjustment tracking</div>
                         </div>
                     </div>
                     <i class="fas fa-eye-slash toggle-icon"></i>
@@ -330,8 +343,8 @@
                     <div class="sensor-info">
                         <div class="sensor-dot" style="background:#30d158;"></div>
                         <div>
-                            <div class="sensor-name">모션 센서</div>
-                            <div class="sensor-desc">가속도 / 진동 감지</div>
+                            <div class="sensor-name">Motion</div>
+                            <div class="sensor-desc">Acceleration / vibration sensing</div>
                         </div>
                     </div>
                     <i class="fas fa-eye-slash toggle-icon"></i>
@@ -340,98 +353,107 @@
 
             <!-- Simulation -->
             <div class="panel-section">
-                <div class="section-title"><i class="fas fa-play-circle"></i> 시뮬레이션</div>
+                <div class="section-title"><i class="fas fa-play-circle"></i> Simulation</div>
                 <div class="sim-control">
                     <div class="sim-dot running" id="simDot"></div>
-                    <span class="sim-label" id="simLabel">실행중</span>
+                    <span class="sim-label" id="simLabel">Running</span>
                     <button class="btn" id="simBtn" onclick="toggleSimulation()" style="padding:4px 10px;font-size:11px;">
                         <i class="fas fa-pause"></i>
                     </button>
                 </div>
                 <div class="ctrl-group">
-                    <div class="ctrl-label"><span>탑승자 체중</span><span class="ctrl-value" id="weightVal">70 kg</span></div>
+                    <div class="ctrl-label"><span>Occupant Weight</span><span class="ctrl-value" id="weightVal">70 kg</span></div>
                     <input type="range" min="30" max="130" value="70" id="weightSlider" oninput="updateWeight(this.value)">
                 </div>
                 <div class="ctrl-group">
-                    <div class="ctrl-label"><span>차량 속도</span><span class="ctrl-value" id="speedVal">0 km/h</span></div>
+                    <div class="ctrl-label"><span>Vehicle Speed</span><span class="ctrl-value" id="speedVal">0 km/h</span></div>
                     <input type="range" min="0" max="200" value="0" id="speedSlider" oninput="updateSpeed(this.value)">
                 </div>
                 <div class="ctrl-group">
-                    <div class="ctrl-label"><span>착석 상태</span></div>
+                    <div class="ctrl-label"><span style="font-size:11px;font-weight:600;color:#86868b;text-transform:uppercase;letter-spacing:0.5px;">Road Surface</span></div>
                     <div class="preset-grid">
-                        <button class="preset-btn active" onclick="setOccupancy('seated',this)">착석</button>
-                        <button class="preset-btn" onclick="setOccupancy('empty',this)">비어있음</button>
-                        <button class="preset-btn" onclick="setOccupancy('child',this)">어린이</button>
-                        <button class="preset-btn" onclick="setOccupancy('heavy',this)">과체중</button>
+                        <button class="preset-btn" onclick="setRoad('smooth',this)">Smooth</button>
+                        <button class="preset-btn active" onclick="setRoad('normal',this)">Normal</button>
+                        <button class="preset-btn" onclick="setRoad('rough',this)">Rough</button>
+                        <button class="preset-btn" onclick="setRoad('cobble',this)">Cobble</button>
+                    </div>
+                </div>
+                <div class="ctrl-group">
+                    <div class="ctrl-label"><span>Occupancy</span></div>
+                    <div class="preset-grid">
+                        <button class="preset-btn active" onclick="setOccupancy('seated',this)">Seated</button>
+                        <button class="preset-btn" onclick="setOccupancy('empty',this)">Empty</button>
+                        <button class="preset-btn" onclick="setOccupancy('child',this)">Child</button>
+                        <button class="preset-btn" onclick="setOccupancy('heavy',this)">Heavy</button>
                     </div>
                 </div>
             </div>
 
             <!-- Position Presets -->
             <div class="panel-section" id="positionPanel" style="display:none;">
-                <div class="section-title"><i class="fas fa-arrows-alt"></i> 시트 포지션</div>
+                <div class="section-title"><i class="fas fa-arrows-alt"></i> Seat Position</div>
                 <div class="preset-grid" style="margin-bottom:14px;">
-                    <button class="preset-btn active" onclick="applyPreset('normal',this)">운전 기본</button>
-                    <button class="preset-btn" onclick="applyPreset('sport',this)">스포츠</button>
-                    <button class="preset-btn" onclick="applyPreset('relax',this)">휴식</button>
-                    <button class="preset-btn" onclick="applyPreset('entry',this)">승하차</button>
+                    <button class="preset-btn active" onclick="applyPreset('normal',this)">Drive</button>
+                    <button class="preset-btn" onclick="applyPreset('sport',this)">Sport</button>
+                    <button class="preset-btn" onclick="applyPreset('relax',this)">Relax</button>
+                    <button class="preset-btn" onclick="applyPreset('entry',this)">Entry</button>
                 </div>
                 <div class="ctrl-group">
-                    <div class="ctrl-label"><span>전후 조절</span><span class="ctrl-value" id="fbVal">0</span></div>
+                    <div class="ctrl-label"><span>Fore / Aft</span><span class="ctrl-value" id="fbVal">0</span></div>
                     <input type="range" min="-100" max="100" value="0" id="fbSlider" oninput="updatePosition('forwardBack',this.value)">
                 </div>
                 <div class="ctrl-group">
-                    <div class="ctrl-label"><span>높이 조절</span><span class="ctrl-value" id="udVal">0</span></div>
+                    <div class="ctrl-label"><span>Height</span><span class="ctrl-value" id="udVal">0</span></div>
                     <input type="range" min="-100" max="100" value="0" id="udSlider" oninput="updatePosition('upDown',this.value)">
                 </div>
                 <div class="ctrl-group">
-                    <div class="ctrl-label"><span>등받이 각도</span><span class="ctrl-value" id="recVal">18°</span></div>
+                    <div class="ctrl-label"><span>Recline</span><span class="ctrl-value" id="recVal">18°</span></div>
                     <input type="range" min="5" max="50" value="18" id="recSlider" oninput="updatePosition('recline',this.value)">
                 </div>
                 <div class="ctrl-group">
-                    <div class="ctrl-label"><span>헤드레스트</span><span class="ctrl-value" id="hrVal">0</span></div>
+                    <div class="ctrl-label"><span>Headrest</span><span class="ctrl-value" id="hrVal">0</span></div>
                     <input type="range" min="0" max="100" value="0" id="hrSlider" oninput="updatePosition('headrest',this.value)">
                 </div>
             </div>
 
             <!-- Thresholds -->
             <div class="panel-section">
-                <div class="section-title"><i class="fas fa-sliders-h"></i> 임계값 설정</div>
+                <div class="section-title"><i class="fas fa-sliders-h"></i> Thresholds</div>
                 <div class="ctrl-group">
-                    <div class="ctrl-label"><span>압력 경고</span><span class="ctrl-value" id="pressThVal">80 kPa</span></div>
+                    <div class="ctrl-label"><span>Pressure Alert</span><span class="ctrl-value" id="pressThVal">80 kPa</span></div>
                     <input type="range" min="30" max="120" value="80" id="pressThSlider" oninput="thresholds.pressure=+this.value;document.getElementById('pressThVal').textContent=this.value+' kPa'">
                 </div>
                 <div class="ctrl-group">
-                    <div class="ctrl-label"><span>과열 경고</span><span class="ctrl-value" id="tempThVal">40°C</span></div>
+                    <div class="ctrl-label"><span>Overheat Alert</span><span class="ctrl-value" id="tempThVal">40°C</span></div>
                     <input type="range" min="30" max="50" value="40" id="tempThSlider" oninput="thresholds.temperature=+this.value;document.getElementById('tempThVal').textContent=this.value+'°C'">
                 </div>
                 <div class="ctrl-group">
-                    <div class="ctrl-label"><span>진동 경고</span><span class="ctrl-value" id="vibThVal">0.7 G</span></div>
+                    <div class="ctrl-label"><span>Vibration Alert</span><span class="ctrl-value" id="vibThVal">0.7 G</span></div>
                     <input type="range" min="1" max="20" value="7" id="vibThSlider" oninput="thresholds.vibration=this.value/10;document.getElementById('vibThVal').textContent=(this.value/10).toFixed(1)+' G'">
                 </div>
             </div>
 
             <!-- View -->
             <div class="panel-section">
-                <div class="section-title"><i class="fas fa-eye"></i> 뷰 설정</div>
+                <div class="section-title"><i class="fas fa-eye"></i> View Settings</div>
                 <div class="ctrl-group">
-                    <div class="ctrl-label"><span>시트 투명도</span><span class="ctrl-value" id="opVal">100%</span></div>
+                    <div class="ctrl-label"><span>Seat Opacity</span><span class="ctrl-value" id="opVal">100%</span></div>
                     <input type="range" min="10" max="100" value="100" id="opSlider" oninput="setSeatOpacity(this.value)">
                 </div>
                 <div class="preset-grid">
-                    <button class="preset-btn" onclick="resetCamera()">카메라 리셋</button>
-                    <button class="preset-btn" onclick="toggleAutoRotate()">자동 회전</button>
+                    <button class="preset-btn" onclick="resetCamera()">Reset View</button>
+                    <button class="preset-btn" onclick="toggleAutoRotate()">Auto Rotate</button>
                 </div>
             </div>
 
-            <div class="footer-credit">KETI 한국전자기술연구원</div>
+            <div class="footer-credit">KETI — Korea Electronics Technology Institute</div>
         </div>
 
         <!-- 3D Canvas -->
         <div class="canvas-area">
             <div id="canvas3d"></div>
             <div class="legend" id="pressureLegend">
-                <span class="legend-title">압력 (kPa)</span>
+                <span class="legend-title">Pressure (kPa)</span>
                 <div>
                     <canvas id="legendBar" width="200" height="12" style="border-radius:6px;"></canvas>
                     <div class="legend-labels"><span>0</span><span>25</span><span>50</span><span>75</span><span>100</span></div>
@@ -443,74 +465,93 @@
         <div class="right-panel">
             <!-- Pressure stats -->
             <div class="panel-section" id="pressurePanel">
-                <div class="section-title"><i class="fas fa-weight-hanging"></i> 압력 데이터</div>
+                <div class="section-title"><i class="fas fa-weight-hanging"></i> Pressure Data</div>
                 <div class="stats-grid">
                     <div class="stat-card highlight">
                         <div class="value" id="rTotalWeight">0</div>
-                        <div class="label">총 하중 (kg)</div>
+                        <div class="label">Total Load (kg)</div>
                     </div>
                     <div class="stat-card success">
-                        <div class="value" id="rOccupancy">비어있음</div>
-                        <div class="label">좌석 상태</div>
+                        <div class="value" id="rOccupancy">Empty</div>
+                        <div class="label">Status</div>
                     </div>
                     <div class="stat-card">
                         <div class="value" id="rAvgPress">0</div>
-                        <div class="label">평균 압력</div>
+                        <div class="label">Avg Pressure</div>
                     </div>
                     <div class="stat-card warning">
                         <div class="value" id="rPeakPress">0</div>
-                        <div class="label">최대 압력</div>
+                        <div class="label">Peak Pressure</div>
                     </div>
                 </div>
                 <div style="margin-top:12px;">
-                    <div class="ctrl-label"><span>압력 분포 미니맵</span></div>
+                    <div class="ctrl-label"><span>Pressure Distribution</span></div>
                     <canvas id="miniHeatmap" width="160" height="160"></canvas>
                 </div>
             </div>
 
             <!-- Temperature stats -->
             <div class="panel-section" id="tempPanel" style="display:none;">
-                <div class="section-title"><i class="fas fa-thermometer-half"></i> 온도 현황</div>
+                <div class="section-title"><i class="fas fa-thermometer-half"></i> Temperature</div>
                 <div id="tempZoneList"></div>
             </div>
 
             <!-- Position stats -->
             <div class="panel-section" id="posPanel" style="display:none;">
-                <div class="section-title"><i class="fas fa-arrows-alt"></i> 시트 위치</div>
+                <div class="section-title"><i class="fas fa-arrows-alt"></i> Position</div>
                 <div class="stats-grid">
-                    <div class="stat-card"><div class="value" id="rFB">0</div><div class="label">전후 (mm)</div></div>
-                    <div class="stat-card"><div class="value" id="rUD">0</div><div class="label">높이 (mm)</div></div>
-                    <div class="stat-card"><div class="value" id="rRec">18°</div><div class="label">리클라인</div></div>
-                    <div class="stat-card"><div class="value" id="rHR">0</div><div class="label">헤드레스트</div></div>
+                    <div class="stat-card"><div class="value" id="rFB">0</div><div class="label">Fore/Aft (mm)</div></div>
+                    <div class="stat-card"><div class="value" id="rUD">0</div><div class="label">Height (mm)</div></div>
+                    <div class="stat-card"><div class="value" id="rRec">18°</div><div class="label">Recline</div></div>
+                    <div class="stat-card"><div class="value" id="rHR">0</div><div class="label">Headrest (mm)</div></div>
                 </div>
             </div>
 
             <!-- Motion stats -->
             <div class="panel-section" id="motionPanel" style="display:none;">
-                <div class="section-title"><i class="fas fa-wave-square"></i> 모션 데이터</div>
-                <div class="stats-grid" style="margin-bottom:12px;">
-                    <div class="stat-card"><div class="value" id="rVib">0.0</div><div class="label">진동 (G)</div></div>
-                    <div class="stat-card"><div class="value" id="rFreq">0</div><div class="label">주파수 (Hz)</div></div>
+                <div class="section-title"><i class="fas fa-wave-square"></i> Motion Data</div>
+                <div class="gauge-wrap">
+                    <div class="gauge">
+                        <canvas id="gaugeC" width="240" height="240"></canvas>
+                        <div class="gauge-val">
+                            <div class="gauge-num" id="gVal">0.00</div>
+                            <div class="gauge-unit">VIBRATION (G)</div>
+                        </div>
+                    </div>
                 </div>
+                <div class="stats-grid" style="margin-bottom:12px;">
+                    <div class="stat-card"><div class="value" id="rVib">0.0</div><div class="label">Amplitude (G)</div></div>
+                    <div class="stat-card"><div class="value" id="rFreq">0</div><div class="label">Freq (Hz)</div></div>
+                    <div class="stat-card"><div class="value" id="rSpd2">0</div><div class="label">Speed (km/h)</div></div>
+                    <div class="stat-card"><div class="value" id="rRoadD">Normal</div><div class="label">Road Surface</div></div>
+                </div>
+                <div class="section-title" style="margin-bottom:6px;"><i class="fas fa-chart-line"></i> Acceleration</div>
                 <div class="motion-axis">
-                    <div class="motion-axis-label"><span>X축 (좌우)</span><span id="rAX">0.00</span></div>
+                    <div class="motion-axis-label"><span>X Lateral</span><span id="rAX">0.00 G</span></div>
                     <div class="motion-bar-bg"><div class="motion-bar" id="barAX" style="background:#ff3b30;width:50%;left:25%;"></div></div>
                 </div>
                 <div class="motion-axis">
-                    <div class="motion-axis-label"><span>Y축 (상하)</span><span id="rAY">0.00</span></div>
+                    <div class="motion-axis-label"><span>Y Vertical</span><span id="rAY">0.00 G</span></div>
                     <div class="motion-bar-bg"><div class="motion-bar" id="barAY" style="background:#30d158;width:50%;left:25%;"></div></div>
                 </div>
                 <div class="motion-axis">
-                    <div class="motion-axis-label"><span>Z축 (전후)</span><span id="rAZ">0.00</span></div>
+                    <div class="motion-axis-label"><span>Z Longitudinal</span><span id="rAZ">0.00 G</span></div>
                     <div class="motion-bar-bg"><div class="motion-bar" id="barAZ" style="background:#007aff;width:50%;left:25%;"></div></div>
                 </div>
+                <div class="peak-row">
+                    <div class="peak-badge"><div class="pk-v" id="pkAX" style="color:#ff3b30;">0.00</div><div class="pk-l">PEAK X</div></div>
+                    <div class="peak-badge"><div class="pk-v" id="pkAY" style="color:#30d158;">0.00</div><div class="pk-l">PEAK Y</div></div>
+                    <div class="peak-badge"><div class="pk-v" id="pkAZ" style="color:#007aff;">0.00</div><div class="pk-l">PEAK Z</div></div>
+                </div>
+                <div class="section-title" style="margin-top:10px;margin-bottom:4px;"><i class="fas fa-wave-square"></i> Waveform</div>
+                <canvas id="motionWave" width="260" height="80"></canvas>
             </div>
 
             <!-- Alerts -->
             <div class="panel-section">
-                <div class="section-title"><i class="fas fa-bell"></i> 알림 <span style="color:#aeaeb2;font-weight:400;" id="alertCount">(0)</span></div>
+                <div class="section-title"><i class="fas fa-bell"></i> Alerts <span style="color:#aeaeb2;font-weight:400;" id="alertCount">(0)</span></div>
                 <div id="alertList">
-                    <div style="font-size:12px;color:#aeaeb2;text-align:center;padding:24px;">알림 없음</div>
+                    <div style="font-size:12px;color:#aeaeb2;text-align:center;padding:24px;">No alerts</div>
                 </div>
             </div>
         </div>
@@ -531,17 +572,24 @@ const seatState = {
 };
 
 const temperatureZones = [
-    { name: '좌측 쿠션', temp: 22, target: 28, heating: false, cooling: false },
-    { name: '우측 쿠션', temp: 22, target: 28, heating: false, cooling: false },
-    { name: '좌측 등받이', temp: 22, target: 30, heating: false, cooling: false },
-    { name: '우측 등받이', temp: 22, target: 30, heating: false, cooling: false },
-    { name: '좌측 볼스터', temp: 22, target: 26, heating: false, cooling: false },
-    { name: '우측 볼스터', temp: 22, target: 26, heating: false, cooling: false }
+    { name: 'L-Cushion', temp: 22, target: 28, heating: false, cooling: false },
+    { name: 'R-Cushion', temp: 22, target: 28, heating: false, cooling: false },
+    { name: 'L-Back', temp: 22, target: 30, heating: false, cooling: false },
+    { name: 'R-Back', temp: 22, target: 30, heating: false, cooling: false },
+    { name: 'L-Bolster', temp: 22, target: 26, heating: false, cooling: false },
+    { name: 'R-Bolster', temp: 22, target: 26, heating: false, cooling: false }
 ];
 
 const motionState = { accelX: 0, accelY: 0, accelZ: 0, vibAmp: 0, vibFreq: 30 };
 const pressureGrid = new Float32Array(16 * 16);
 const alerts = [];
+
+let roadType = 'normal';
+const ROADS = { smooth:{r:0.15,n:'Smooth'}, normal:{r:1.0,n:'Normal'}, rough:{r:2.8,n:'Rough'}, cobble:{r:5.0,n:'Cobble'} };
+const waveH = { ax:[], ay:[], az:[] };
+const WAVE_LEN = 200;
+const peakMO = { ax:0, ay:0, az:0 };
+let peakDecay = 0;
 
 // ==================== Three.js Setup ====================
 let scene, camera, renderer, controls;
@@ -630,10 +678,10 @@ function initScene() {
             model.traverse(c => { if (c.isMesh) { c.castShadow = true; c.receiveShadow = true; } });
             seatGroup.add(model);
             buildProceduralSeat();
-            showToast('GLB 모델 로드 완료');
+            showToast('GLB model loaded');
         },
         undefined,
-        () => { buildProceduralSeat(); showToast('3D 시트 모델 준비 완료'); }
+        () => { buildProceduralSeat(); showToast('3D seat model ready'); }
     );
 
     setupPressureOverlays();
@@ -796,13 +844,23 @@ function simulateTemperature(dt) {
 
 function simulateMotion(time) {
     const s = seatState.vehicleSpeed;
-    const eFreq = 25+s*0.3, eAmp = 0.05+s*0.004;
-    const road = Math.sin(time*2.3)*0.2 + Math.sin(time*5.7)*0.08;
-    motionState.accelX = Math.sin(time*0.8)*s*0.008 + (Math.random()-0.5)*0.3;
-    motionState.accelY = road*s*0.008 + Math.sin(time*eFreq*0.1)*eAmp;
-    motionState.accelZ = Math.cos(time*0.3)*s*0.004 + (Math.random()-0.5)*0.15;
+    const rf = ROADS[roadType].r;
+    const eFreq = 25+s*0.3, eAmp = (0.05+s*0.004)*rf;
+    const road = (Math.sin(time*2.3)*0.2 + Math.sin(time*5.7)*0.08 + Math.sin(time*11.3)*0.04 + Math.sin(time*23.1)*0.02)*rf;
+    let cobbleHit = 0;
+    if (roadType==='cobble') cobbleHit = (Math.sin(time*17)*0.5+0.5>0.85) ? (Math.random()*0.8+0.4)*rf*0.3 : 0;
+    motionState.accelX = Math.sin(time*0.8)*s*0.008*rf + (Math.random()-0.5)*0.3*rf;
+    motionState.accelY = road*s*0.008 + Math.sin(time*eFreq*0.1)*eAmp + cobbleHit;
+    motionState.accelZ = Math.cos(time*0.3)*s*0.004*rf + (Math.random()-0.5)*0.15*rf;
     motionState.vibAmp = (eAmp+Math.abs(road)*0.5)*Math.min(1,s/80);
     motionState.vibFreq = eFreq;
+    // waveform history
+    waveH.ax.push(motionState.accelX); waveH.ay.push(motionState.accelY); waveH.az.push(motionState.accelZ);
+    if (waveH.ax.length>WAVE_LEN) { waveH.ax.shift(); waveH.ay.shift(); waveH.az.shift(); }
+    // peak tracking
+    peakMO.ax = Math.max(peakMO.ax*0.998, Math.abs(motionState.accelX));
+    peakMO.ay = Math.max(peakMO.ay*0.998, Math.abs(motionState.accelY));
+    peakMO.az = Math.max(peakMO.az*0.998, Math.abs(motionState.accelZ));
 }
 
 // ==================== Render Updates ====================
@@ -873,7 +931,7 @@ function updateDashboard() {
         const avg = count>0 ? (sum/count*100).toFixed(1) : '0';
         const peak = (max*100).toFixed(1);
         document.getElementById('rTotalWeight').textContent = seatState.occupied ? seatState.occupantWeight : '0';
-        document.getElementById('rOccupancy').textContent = seatState.occupied ? '착석 감지' : '비어있음';
+        document.getElementById('rOccupancy').textContent = seatState.occupied ? 'Occupied' : 'Empty';
         document.getElementById('rAvgPress').textContent = avg;
         document.getElementById('rPeakPress').textContent = peak;
 
@@ -883,21 +941,29 @@ function updateDashboard() {
             const v=pressureGrid[y*16+x];
             if (v>0.01) { mctx.fillStyle=pressureColor(v); mctx.fillRect(x*10,y*10,10,10); }
         }
-        if (max*100>thresholds.pressure) addAlert('warn',`최대 압력 ${peak} kPa - 임계값 초과`);
+        if (max*100>thresholds.pressure) addAlert('warn',`Peak pressure ${peak} kPa — threshold exceeded`);
     }
     if (activeSensors.has('temperature')) {
-        temperatureZones.forEach(z => { if (z.temp>thresholds.temperature) addAlert('error',`${z.name} ${z.temp.toFixed(1)}°C - 과열`); });
+        temperatureZones.forEach(z => { if (z.temp>thresholds.temperature) addAlert('error',`${z.name} ${z.temp.toFixed(1)}°C — overheat`); });
     }
     if (activeSensors.has('motion')) {
         document.getElementById('rVib').textContent = motionState.vibAmp.toFixed(2);
         document.getElementById('rFreq').textContent = Math.round(motionState.vibFreq);
+        document.getElementById('rSpd2').textContent = Math.round(seatState.vehicleSpeed);
+        document.getElementById('rRoadD').textContent = ROADS[roadType].n;
+        document.getElementById('gVal').textContent = motionState.vibAmp.toFixed(2);
         document.getElementById('rAX').textContent = motionState.accelX.toFixed(2)+' G';
         document.getElementById('rAY').textContent = motionState.accelY.toFixed(2)+' G';
         document.getElementById('rAZ').textContent = motionState.accelZ.toFixed(2)+' G';
         setMotionBar('barAX',motionState.accelX,2,'#ff3b30');
         setMotionBar('barAY',motionState.accelY,2,'#30d158');
         setMotionBar('barAZ',motionState.accelZ,2,'#007aff');
-        if (motionState.vibAmp>thresholds.vibration) addAlert('warn',`진동 ${motionState.vibAmp.toFixed(2)} G - 초과`);
+        document.getElementById('pkAX').textContent = peakMO.ax.toFixed(2);
+        document.getElementById('pkAY').textContent = peakMO.ay.toFixed(2);
+        document.getElementById('pkAZ').textContent = peakMO.az.toFixed(2);
+        drawGauge(motionState.vibAmp);
+        drawWaveform();
+        if (motionState.vibAmp>thresholds.vibration) addAlert('warn',`Vibration ${motionState.vibAmp.toFixed(2)} G — exceeded`);
     }
     if (activeSensors.has('position')) {
         document.getElementById('rFB').textContent = Math.round(seatState.forwardBack*1.5);
@@ -928,10 +994,10 @@ function addAlert(type, msg) {
 function renderAlerts() {
     const el=document.getElementById('alertList');
     document.getElementById('alertCount').textContent = `(${alerts.length})`;
-    if (!alerts.length) { el.innerHTML='<div style="font-size:12px;color:#aeaeb2;text-align:center;padding:24px;">알림 없음</div>'; return; }
+    if (!alerts.length) { el.innerHTML='<div style="font-size:12px;color:#aeaeb2;text-align:center;padding:24px;">No alerts</div>'; return; }
     el.innerHTML = alerts.slice(0,8).map(a => `
         <div class="alert-item ${a.type}">
-            <span class="alert-time">${a.time.toLocaleTimeString('ko-KR')}</span>
+            <span class="alert-time">${a.time.toLocaleTimeString()}</span>
             <span class="alert-msg">${a.msg}</span>
         </div>`).join('');
 }
@@ -960,7 +1026,7 @@ function toggleSensor(name) {
 function toggleSimulation() {
     simulationRunning = !simulationRunning;
     document.getElementById('simDot').className = 'sim-dot '+(simulationRunning?'running':'paused');
-    document.getElementById('simLabel').textContent = simulationRunning ? '실행중' : '일시정지';
+    document.getElementById('simLabel').textContent = simulationRunning ? 'Running' : 'Paused';
     document.getElementById('simBtn').innerHTML = simulationRunning ? '<i class="fas fa-pause"></i>' : '<i class="fas fa-play"></i>';
 }
 function updateWeight(v) { seatState.occupantWeight=+v; document.getElementById('weightVal').textContent=v+' kg'; }
@@ -1022,18 +1088,81 @@ function renderTempZones() {
 function toggleHeating(i) { temperatureZones[i].heating=!temperatureZones[i].heating; if(temperatureZones[i].heating) temperatureZones[i].cooling=false; }
 function toggleCooling(i) { temperatureZones[i].cooling=!temperatureZones[i].cooling; if(temperatureZones[i].cooling) temperatureZones[i].heating=false; }
 
+// ==================== Road & Gauge & Waveform ====================
+function setRoad(type, btn) {
+    roadType = type;
+    btn.parentElement.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    peakMO.ax = 0; peakMO.ay = 0; peakMO.az = 0;
+}
+
+function drawGauge(val) {
+    const c = document.getElementById('gaugeC');
+    if (!c) return;
+    const ctx = c.getContext('2d');
+    const W = c.width, H = c.height, cx = W/2, cy = H*0.58, R = W*0.42;
+    ctx.clearRect(0,0,W,H);
+    const startA = Math.PI*0.8, endA = Math.PI*2.2, range = endA-startA;
+    // background arc
+    ctx.beginPath(); ctx.arc(cx,cy,R,startA,endA); ctx.lineWidth=14; ctx.strokeStyle='#e5e5ea'; ctx.lineCap='round'; ctx.stroke();
+    // gradient arc
+    const t = Math.min(val/2, 1);
+    const grad = ctx.createLinearGradient(cx-R,cy,cx+R,cy);
+    grad.addColorStop(0,'#34c759'); grad.addColorStop(0.5,'#ff9f0a'); grad.addColorStop(1,'#ff3b30');
+    ctx.beginPath(); ctx.arc(cx,cy,R,startA,startA+range*t); ctx.lineWidth=14; ctx.strokeStyle=grad; ctx.lineCap='round'; ctx.stroke();
+    // tick marks
+    ctx.lineWidth = 1; ctx.strokeStyle = '#c7c7cc';
+    for (let i=0;i<=10;i++) {
+        const a = startA + range*(i/10);
+        const inner = R-10, outer = R+6;
+        ctx.beginPath();
+        ctx.moveTo(cx+Math.cos(a)*inner, cy+Math.sin(a)*inner);
+        ctx.lineTo(cx+Math.cos(a)*outer, cy+Math.sin(a)*outer);
+        ctx.stroke();
+    }
+    // threshold marker
+    const thA = startA + range*(thresholds.vibration/2);
+    ctx.beginPath();
+    ctx.moveTo(cx+Math.cos(thA)*(R-14), cy+Math.sin(thA)*(R-14));
+    ctx.lineTo(cx+Math.cos(thA)*(R+10), cy+Math.sin(thA)*(R+10));
+    ctx.lineWidth=2; ctx.strokeStyle='#ff3b30'; ctx.stroke();
+}
+
+function drawWaveform() {
+    const c = document.getElementById('motionWave');
+    if (!c) return;
+    const ctx = c.getContext('2d');
+    const W = c.width, H = c.height;
+    ctx.clearRect(0,0,W,H);
+    const colors = ['#ff3b30','#30d158','#007aff'];
+    const keys = ['ax','ay','az'];
+    keys.forEach((k,ki) => {
+        const arr = waveH[k]; if (!arr.length) return;
+        ctx.beginPath(); ctx.strokeStyle = colors[ki]; ctx.lineWidth = 1.2; ctx.globalAlpha = 0.85;
+        for (let i=0;i<arr.length;i++) {
+            const x = (i/WAVE_LEN)*W;
+            const y = H/2 - (arr[i]/2)*H*0.4;
+            if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+        }
+        ctx.stroke(); ctx.globalAlpha = 1;
+    });
+    // center line
+    ctx.beginPath(); ctx.moveTo(0,H/2); ctx.lineTo(W,H/2);
+    ctx.strokeStyle='rgba(0,0,0,0.06)'; ctx.lineWidth=1; ctx.stroke();
+}
+
 // ==================== Export ====================
 function exportJSON() {
     const data = {
-        timestamp: new Date().toISOString(), system: 'KETI 차량 시트 센서 모니터링',
+        timestamp: new Date().toISOString(), system: 'KETI Smart Seat Sensor Monitor',
         seatState: {...seatState},
         pressure: { grid:Array.from(pressureGrid), avg:Array.from(pressureGrid).filter(v=>v>0.01).reduce((a,b)=>a+b,0)/Math.max(1,Array.from(pressureGrid).filter(v=>v>0.01).length)*100, peak:Math.max(...pressureGrid)*100 },
         temperature: temperatureZones.map(z=>({name:z.name,current:z.temp,target:z.target,heating:z.heating,cooling:z.cooling})),
-        motion: {...motionState}
+        motion: {...motionState, road: roadType, peaks: {...peakMO}}
     };
     const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
     const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`seat-sensor-${Date.now()}.json`; a.click(); URL.revokeObjectURL(a.href);
-    showToast('JSON 내보내기 완료');
+    showToast('JSON exported');
 }
 function exportCSV() {
     const now=new Date().toISOString();
@@ -1046,14 +1175,14 @@ function exportCSV() {
     csv+=`${now},motion,vibration,${motionState.vibAmp.toFixed(4)},G\n`;
     const blob=new Blob([csv],{type:'text/csv'});
     const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`seat-sensor-${Date.now()}.csv`; a.click(); URL.revokeObjectURL(a.href);
-    showToast('CSV 내보내기 완료');
+    showToast('CSV exported');
 }
 
 // ==================== Utils ====================
 let toastTimer;
 function showToast(msg) { const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove('show'),2500); }
 function drawLegend() { const ctx=document.getElementById('legendBar').getContext('2d'); for(let x=0;x<200;x++){ctx.fillStyle=pressureColor(x/200);ctx.fillRect(x,0,1,12);} }
-function updateClock() { document.getElementById('clock').textContent=new Date().toLocaleTimeString('ko-KR'); }
+function updateClock() { document.getElementById('clock').textContent=new Date().toLocaleTimeString(); }
 
 // ==================== Animation Loop ====================
 function animate() {
