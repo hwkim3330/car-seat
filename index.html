@@ -592,14 +592,17 @@ let peakDecay = 0;
 
 // ==================== Three.js Setup ====================
 let scene, camera, renderer, controls;
-let seatGroup, seatBaseY = 0;
+let seatRoot;      // root group: fore/aft (Z)
+let baseGroup;     // child of seatRoot: height (Y) + vibration
+let backrestPivot; // child of baseGroup: recline rotation
 let cushionMesh, backrestMesh, headrestMesh, leftBolsterMesh, rightBolsterMesh;
-let railMeshes = [];
+let leftBackBolster, rightBackBolster;
 let pressureOverlayCushion, pressureOverlayBack;
 let pressureCanvasCushion, pressureCtxCushion, pressureTextureCushion;
 let pressureCanvasBack, pressureCtxBack, pressureTextureBack;
 let arrowX, arrowY, arrowZ, arrowGroup;
 const clock = new THREE.Clock();
+const PIVOT_Y = 0.125, PIVOT_Z = -0.18;
 
 function initScene() {
     const container = document.getElementById('canvas3d');
@@ -660,8 +663,11 @@ function initScene() {
     floor.receiveShadow = true;
     scene.add(floor);
 
-    seatGroup = new THREE.Group();
-    scene.add(seatGroup);
+    // Seat hierarchy: seatRoot (fore/aft) → baseGroup (height/vibration) → backrestPivot (recline)
+    seatRoot = new THREE.Group();
+    scene.add(seatRoot);
+    baseGroup = new THREE.Group();
+    seatRoot.add(baseGroup);
 
     buildProceduralSeat();
 
@@ -677,60 +683,61 @@ function initScene() {
 
 // ==================== Procedural Seat ====================
 function buildProceduralSeat() {
-    // Apple-style muted seat colors
-    const seatMat = new THREE.MeshStandardMaterial({ color: 0x3a3a3c, roughness: 0.55, metalness: 0.05 });
+    const seatMat = () => new THREE.MeshStandardMaterial({ color: 0x3a3a3c, roughness: 0.55, metalness: 0.05 });
     const frameMat = new THREE.MeshStandardMaterial({ color: 0x636366, roughness: 0.3, metalness: 0.6 });
-    const bolsterMat = new THREE.MeshStandardMaterial({ color: 0x48484a, roughness: 0.5, metalness: 0.05 });
+    const bolsterMat = () => new THREE.MeshStandardMaterial({ color: 0x48484a, roughness: 0.5, metalness: 0.05 });
 
-    // Rails
+    // Rails — on baseGroup (stay fixed when fore/aft moves)
     const railGeo = new THREE.BoxGeometry(0.04, 0.02, 0.45);
-    const rail1 = new THREE.Mesh(railGeo, frameMat);
-    rail1.position.set(-0.15, 0.01, 0); rail1.castShadow = true;
-    seatGroup.add(rail1); railMeshes.push(rail1);
-    const rail2 = new THREE.Mesh(railGeo, frameMat);
-    rail2.position.set(0.15, 0.01, 0); rail2.castShadow = true;
-    seatGroup.add(rail2); railMeshes.push(rail2);
+    [-0.15, 0.15].forEach(x => {
+        const r = new THREE.Mesh(railGeo, frameMat);
+        r.position.set(x, 0.01, 0); r.castShadow = true;
+        baseGroup.add(r);
+    });
 
     // Cushion
-    const cushionGeo = new THREE.BoxGeometry(0.44, 0.07, 0.44);
-    cushionMesh = new THREE.Mesh(cushionGeo, seatMat.clone());
+    cushionMesh = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.07, 0.44), seatMat());
     cushionMesh.position.set(0, 0.09, 0);
     cushionMesh.castShadow = true; cushionMesh.receiveShadow = true;
-    seatGroup.add(cushionMesh);
+    baseGroup.add(cushionMesh);
 
-    // Backrest
-    const backGeo = new THREE.BoxGeometry(0.42, 0.55, 0.07);
-    backrestMesh = new THREE.Mesh(backGeo, seatMat.clone());
-    backrestMesh.position.set(0, 0.42, -0.2);
-    backrestMesh.rotation.x = -THREE.MathUtils.degToRad(seatState.recline);
-    backrestMesh.castShadow = true; backrestMesh.receiveShadow = true;
-    seatGroup.add(backrestMesh);
-
-    // Headrest
-    const hrGeo = new THREE.BoxGeometry(0.22, 0.16, 0.06);
-    headrestMesh = new THREE.Mesh(hrGeo, seatMat.clone());
-    headrestMesh.position.set(0, 0.78, -0.25);
-    headrestMesh.castShadow = true;
-    seatGroup.add(headrestMesh);
-
-    // Bolsters
+    // Cushion bolsters
     const bolGeo = new THREE.BoxGeometry(0.06, 0.12, 0.42);
-    leftBolsterMesh = new THREE.Mesh(bolGeo, bolsterMat.clone());
+    leftBolsterMesh = new THREE.Mesh(bolGeo, bolsterMat());
     leftBolsterMesh.position.set(-0.24, 0.14, 0); leftBolsterMesh.castShadow = true;
-    seatGroup.add(leftBolsterMesh);
-    rightBolsterMesh = new THREE.Mesh(bolGeo, bolsterMat.clone());
+    baseGroup.add(leftBolsterMesh);
+    rightBolsterMesh = new THREE.Mesh(bolGeo, bolsterMat());
     rightBolsterMesh.position.set(0.24, 0.14, 0); rightBolsterMesh.castShadow = true;
-    seatGroup.add(rightBolsterMesh);
+    baseGroup.add(rightBolsterMesh);
 
-    const bbolGeo = new THREE.BoxGeometry(0.06, 0.5, 0.06);
-    const lbb = new THREE.Mesh(bbolGeo, bolsterMat.clone());
-    lbb.position.set(-0.23, 0.42, -0.16);
-    lbb.rotation.x = -THREE.MathUtils.degToRad(seatState.recline);
-    seatGroup.add(lbb);
-    const rbb = new THREE.Mesh(bbolGeo, bolsterMat.clone());
-    rbb.position.set(0.23, 0.42, -0.16);
-    rbb.rotation.x = -THREE.MathUtils.degToRad(seatState.recline);
-    seatGroup.add(rbb);
+    // === Backrest pivot group ===
+    backrestPivot = new THREE.Group();
+    backrestPivot.position.set(0, PIVOT_Y, PIVOT_Z);
+    baseGroup.add(backrestPivot);
+
+    // Backrest (relative to pivot)
+    backrestMesh = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.55, 0.07), seatMat());
+    backrestMesh.position.set(0, 0.27, -0.015);
+    backrestMesh.castShadow = true; backrestMesh.receiveShadow = true;
+    backrestPivot.add(backrestMesh);
+
+    // Back bolsters (children of pivot — follow recline)
+    const bbGeo = new THREE.BoxGeometry(0.06, 0.5, 0.06);
+    leftBackBolster = new THREE.Mesh(bbGeo, bolsterMat());
+    leftBackBolster.position.set(-0.23, 0.27, 0.01);
+    backrestPivot.add(leftBackBolster);
+    rightBackBolster = new THREE.Mesh(bbGeo, bolsterMat());
+    rightBackBolster.position.set(0.23, 0.27, 0.01);
+    backrestPivot.add(rightBackBolster);
+
+    // Headrest (child of pivot — follows recline)
+    headrestMesh = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.16, 0.06), seatMat());
+    headrestMesh.position.set(0, 0.61, -0.01);
+    headrestMesh.castShadow = true;
+    backrestPivot.add(headrestMesh);
+
+    // Set initial recline
+    backrestPivot.rotation.x = -THREE.MathUtils.degToRad(seatState.recline);
 }
 
 // ==================== Pressure Overlay ====================
@@ -747,7 +754,7 @@ function setupPressureOverlays() {
     );
     pressureOverlayCushion.rotation.x = -Math.PI / 2;
     pressureOverlayCushion.position.set(0, 0.131, 0);
-    seatGroup.add(pressureOverlayCushion);
+    baseGroup.add(pressureOverlayCushion);
 
     pressureCanvasBack = document.createElement('canvas');
     pressureCanvasBack.width = 128; pressureCanvasBack.height = 128;
@@ -759,9 +766,9 @@ function setupPressureOverlays() {
         new THREE.PlaneGeometry(0.40, 0.50),
         new THREE.MeshBasicMaterial({ map: pressureTextureBack, transparent: true, opacity: 0.75, depthWrite: false, side: THREE.DoubleSide })
     );
-    pressureOverlayBack.position.set(0, 0.42, -0.165);
-    pressureOverlayBack.rotation.x = -THREE.MathUtils.degToRad(seatState.recline);
-    seatGroup.add(pressureOverlayBack);
+    pressureOverlayBack.position.set(0, 0.27, 0.02);
+    // Added to backrestPivot after it's created
+    setTimeout(() => { if(backrestPivot) backrestPivot.add(pressureOverlayBack); }, 100);
 }
 
 // ==================== Motion Arrows ====================
@@ -772,7 +779,7 @@ function setupMotionArrows() {
     arrowY = new THREE.ArrowHelper(new THREE.Vector3(0,1,0), new THREE.Vector3(0,0.5,0.3), 0.2, 0x30d158, 0.04, 0.025);
     arrowZ = new THREE.ArrowHelper(new THREE.Vector3(0,0,-1), new THREE.Vector3(0,0.5,0.3), 0.2, 0x007aff, 0.04, 0.025);
     arrowGroup.add(arrowX, arrowY, arrowZ);
-    seatGroup.add(arrowGroup);
+    baseGroup.add(arrowGroup);
 }
 
 // ==================== Colors ====================
@@ -879,12 +886,14 @@ function updateTemperatureVisuals() {
 }
 
 function updateSeatPositionVisuals() {
-    seatGroup.position.z = seatState.forwardBack/100*0.12;
-    seatGroup.position.y = seatState.upDown/100*0.04;
-    const rec = THREE.MathUtils.degToRad(seatState.recline);
-    if (backrestMesh) backrestMesh.rotation.x = -rec;
-    if (pressureOverlayBack) pressureOverlayBack.rotation.x = -rec;
-    if (headrestMesh) headrestMesh.position.y = 0.78 + seatState.headrest/100*0.06;
+    // Fore/aft: move seatRoot Z (rails stay, seat slides)
+    seatRoot.position.z = seatState.forwardBack/100*0.12;
+    // Height: move baseGroup Y
+    baseGroup.position.y = seatState.upDown/100*0.04;
+    // Recline: rotate backrestPivot (backrest + headrest + back bolsters follow)
+    if (backrestPivot) backrestPivot.rotation.x = -THREE.MathUtils.degToRad(seatState.recline);
+    // Headrest extend: local Y relative to pivot
+    if (headrestMesh) headrestMesh.position.y = 0.61 + seatState.headrest/100*0.08;
 }
 
 function updateMotionVisuals(time) {
@@ -897,8 +906,8 @@ function updateMotionVisuals(time) {
     arrowZ.setLength(Math.max(0.05,Math.abs(motionState.accelZ)*s),0.04,0.025);
     arrowZ.setDirection(new THREE.Vector3(0,0,-(Math.sign(motionState.accelZ)||1)).normalize());
     if (motionState.vibAmp > 0.01) {
-        seatGroup.rotation.z = Math.sin(time*motionState.vibFreq*0.3)*motionState.vibAmp*0.002;
-        seatGroup.position.y = (seatState.upDown/100*0.04) + Math.sin(time*motionState.vibFreq*0.5)*motionState.vibAmp*0.003;
+        baseGroup.rotation.z = Math.sin(time*motionState.vibFreq*0.3)*motionState.vibAmp*0.002;
+        baseGroup.position.y = (seatState.upDown/100*0.04) + Math.sin(time*motionState.vibFreq*0.5)*motionState.vibAmp*0.003;
     }
 }
 
@@ -1045,7 +1054,7 @@ function applyPreset(name, btn) {
 function setSeatOpacity(v) {
     document.getElementById('opVal').textContent=v+'%';
     const op=v/100;
-    [cushionMesh,backrestMesh,headrestMesh,leftBolsterMesh,rightBolsterMesh].forEach(m => {
+    [cushionMesh,backrestMesh,headrestMesh,leftBolsterMesh,rightBolsterMesh,leftBackBolster,rightBackBolster].forEach(m => {
         if(!m) return; m.material.transparent=op<1; m.material.opacity=op;
     });
 }
