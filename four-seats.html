@@ -354,6 +354,34 @@
                 </div>
             </div>
 
+            <!-- Seat Position (selected seat) -->
+            <div class="panel-section" id="seatPositionPanel">
+                <div class="section-title"><i class="fas fa-arrows-alt"></i> Seat Position — <span id="positionSeatLabel">FL</span></div>
+                <div class="ctrl-group">
+                    <div class="ctrl-label"><span>Recline</span><span class="ctrl-value" id="recVal">0°</span></div>
+                    <input type="range" min="0" max="40" value="0" id="recSlider" oninput="setSeatPose('recline',this.value)">
+                </div>
+                <div class="ctrl-group">
+                    <div class="ctrl-label"><span>Headrest Height</span><span class="ctrl-value" id="hrVal">0</span></div>
+                    <input type="range" min="0" max="100" value="0" id="hrSlider" oninput="setSeatPose('headrest',this.value)">
+                </div>
+                <div class="ctrl-group">
+                    <div class="ctrl-label"><span>Fore / Aft</span><span class="ctrl-value" id="slideVal">0</span></div>
+                    <input type="range" min="-100" max="100" value="0" id="slideSlider" oninput="setSeatPose('slide',this.value)">
+                </div>
+                <div class="ctrl-group">
+                    <div class="ctrl-label"><span>Height</span><span class="ctrl-value" id="heightVal">0</span></div>
+                    <input type="range" min="0" max="100" value="0" id="heightSlider" oninput="setSeatPose('height',this.value)">
+                </div>
+                <div class="ctrl-label"><span style="font-size:11px;font-weight:600;color:#86868b;text-transform:uppercase;letter-spacing:0.5px;">Presets</span></div>
+                <div class="preset-grid">
+                    <button class="preset-btn active" onclick="applyPosePreset('drive',this)">Drive</button>
+                    <button class="preset-btn" onclick="applyPosePreset('sport',this)">Sport</button>
+                    <button class="preset-btn" onclick="applyPosePreset('relax',this)">Relax</button>
+                    <button class="preset-btn" onclick="applyPosePreset('entry',this)">Entry</button>
+                </div>
+            </div>
+
             <!-- View -->
             <div class="panel-section">
                 <div class="section-title"><i class="fas fa-eye"></i> View</div>
@@ -451,7 +479,10 @@ const seats = SEAT_CONFIG.map((cfg, i) => ({
     ],
     pressureGrid: new Float32Array(16 * 16),
     avgPressure: 0, peakPressure: 0,
-    model: null, highlight: null
+    model: null, highlight: null,
+    mixer: null, // AnimationMixer for this seat
+    bones: {},   // { Backrest, Headrest, Slide, Cushion }
+    pose: { recline: 0, headrest: 0, slide: 0, height: 0 }
 }));
 
 let selectedSeat = 0;
@@ -554,22 +585,24 @@ function initScene() {
 
 function loadSeats() {
     const loader = new THREE.GLTFLoader();
-    loader.load('models/car-seat.glb', (gltf) => {
-        const original = gltf.scene;
-        const box = new THREE.Box3().setFromObject(original);
-        const size = box.getSize(new THREE.Vector3());
-        const center = box.getCenter(new THREE.Vector3());
-        const maxDim = Math.max(size.x, size.y, size.z);
-        const scale = 0.8 / maxDim;
+    let loadCount = 0;
 
-        seats.forEach((seat, i) => {
-            const model = i === 0 ? original : original.clone();
+    seats.forEach((seat, i) => {
+        loader.load('models/car-seat-rigged.glb', (gltf) => {
+            const model = gltf.scene;
+            const box = new THREE.Box3().setFromObject(model);
+            const size = box.getSize(new THREE.Vector3());
+            const center = box.getCenter(new THREE.Vector3());
+            const maxDim = Math.max(size.x, size.y, size.z);
+            const scale = 0.8 / maxDim;
+
             model.scale.setScalar(scale);
             model.position.set(
                 seat.pos[0] - center.x * scale,
                 seat.pos[1] - box.min.y * scale,
                 seat.pos[2] - center.z * scale
             );
+
             model.traverse(c => {
                 if (c.isMesh) {
                     c.castShadow = true; c.receiveShadow = true;
@@ -580,7 +613,14 @@ function loadSeats() {
                         c.material.envMapIntensity = 1.5;
                     }
                 }
+                // Capture bone references
+                if (c.isBone) {
+                    if (['Backrest', 'Headrest', 'Slide', 'Cushion', 'Root'].includes(c.name)) {
+                        seat.bones[c.name] = c;
+                    }
+                }
             });
+
             scene.add(model);
             seat.model = model;
 
@@ -595,13 +635,17 @@ function loadSeats() {
             ring.position.set(seat.pos[0], 0.01, seat.pos[2]);
             scene.add(ring);
             seat.highlight = ring;
-        });
 
-        updateSeatHighlights();
-        document.getElementById('loadingOverlay').classList.add('hidden');
-    }, undefined, (err) => {
-        console.error('Model load error:', err);
-        document.getElementById('loadingText').textContent = 'Failed to load model';
+            loadCount++;
+            document.getElementById('loadingText').textContent = `Loading seats... ${loadCount}/4`;
+            if (loadCount === 4) {
+                updateSeatHighlights();
+                document.getElementById('loadingOverlay').classList.add('hidden');
+            }
+        }, undefined, (err) => {
+            console.error('Model load error:', err);
+            document.getElementById('loadingText').textContent = 'Failed to load model';
+        });
     });
 }
 
@@ -689,6 +733,7 @@ function selectSeat(idx) {
     // Update seat cards
     document.querySelectorAll('.seat-card').forEach((c, i) => c.classList.toggle('selected', i === idx));
     document.getElementById('overviewSeatName').textContent = seats[idx].name + ' (' + seats[idx].label + ')';
+    updatePoseSliders();
     updateRightPanel();
 }
 
@@ -803,6 +848,91 @@ function toggleCool(si, zi) {
     if (seats[si].temperature[zi].cooling) seats[si].temperature[zi].heating = false;
 }
 
+// ==================== Bone Pose Control ====================
+function setSeatPose(axis, val) {
+    const s = seats[selectedSeat];
+    val = +val;
+    s.pose[axis === 'recline' ? 'recline' : axis] = val;
+
+    switch(axis) {
+        case 'recline':
+            document.getElementById('recVal').textContent = val + '°';
+            if (s.bones.Backrest) {
+                s.bones.Backrest.rotation.x = THREE.MathUtils.degToRad(val) * 0.7;
+            }
+            break;
+        case 'headrest':
+            document.getElementById('hrVal').textContent = val;
+            if (s.bones.Headrest) {
+                s.bones.Headrest.position.y = (val / 100) * 0.4;
+            }
+            break;
+        case 'slide':
+            document.getElementById('slideVal').textContent = val;
+            if (s.bones.Slide) {
+                s.bones.Slide.position.y = (val / 100) * 0.3;
+            }
+            break;
+        case 'height':
+            document.getElementById('heightVal').textContent = val;
+            if (s.bones.Cushion) {
+                s.bones.Cushion.position.z = (val / 100) * 0.15;
+            }
+            break;
+    }
+}
+
+const POSE_PRESETS = {
+    drive:  { recline: 8,  headrest: 30, slide: 0,   height: 20 },
+    sport:  { recline: 3,  headrest: 50, slide: 30,  height: 0  },
+    relax:  { recline: 35, headrest: 60, slide: -40, height: 40 },
+    entry:  { recline: 0,  headrest: 0,  slide: -80, height: 0  }
+};
+
+function applyPosePreset(name, btn) {
+    btn.parentElement.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const preset = POSE_PRESETS[name];
+    // Animate to preset
+    const s = seats[selectedSeat];
+    s.poseTarget = { ...preset };
+}
+
+function updatePoseSliders() {
+    const s = seats[selectedSeat];
+    document.getElementById('recSlider').value = s.pose.recline;
+    document.getElementById('recVal').textContent = Math.round(s.pose.recline) + '°';
+    document.getElementById('hrSlider').value = s.pose.headrest;
+    document.getElementById('hrVal').textContent = Math.round(s.pose.headrest);
+    document.getElementById('slideSlider').value = s.pose.slide;
+    document.getElementById('slideVal').textContent = Math.round(s.pose.slide);
+    document.getElementById('heightSlider').value = s.pose.height;
+    document.getElementById('heightVal').textContent = Math.round(s.pose.height);
+    document.getElementById('positionSeatLabel').textContent = s.label;
+}
+
+function animatePoses(dt) {
+    seats.forEach(s => {
+        if (!s.poseTarget) return;
+        let done = true;
+        ['recline', 'headrest', 'slide', 'height'].forEach(k => {
+            const diff = s.poseTarget[k] - s.pose[k];
+            if (Math.abs(diff) > 0.5) {
+                s.pose[k] += diff * dt * 4;
+                done = false;
+            } else {
+                s.pose[k] = s.poseTarget[k];
+            }
+        });
+        // Apply bone transforms
+        if (s.bones.Backrest) s.bones.Backrest.rotation.x = THREE.MathUtils.degToRad(s.pose.recline) * 0.7;
+        if (s.bones.Headrest) s.bones.Headrest.position.y = (s.pose.headrest / 100) * 0.4;
+        if (s.bones.Slide) s.bones.Slide.position.y = (s.pose.slide / 100) * 0.3;
+        if (s.bones.Cushion) s.bones.Cushion.position.z = (s.pose.height / 100) * 0.15;
+        if (done) s.poseTarget = null;
+    });
+}
+
 function setCameraView(view) {
     switch(view) {
         case 'top':     camera.position.set(0, 4, 0.01); controls.target.set(0, 0, -0.05); break;
@@ -899,6 +1029,11 @@ function animate() {
             simulateTemperature(s, dt);
         });
     }
+
+    // Animate bone poses (presets)
+    animatePoses(dt);
+    // Update sliders if animating selected seat
+    if (seats[selectedSeat].poseTarget) updatePoseSliders();
 
     // Update UI every 150ms
     if (elapsed - lastUIUpdate > 0.15) {
