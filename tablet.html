@@ -1,0 +1,1075 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>KETI — Smart Seat Monitor · Hyundai Pleos</title>
+    <script src="libs/three.min.js"></script>
+    <script src="libs/OrbitControls.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        :root {
+            --bg: #0B0E13;
+            --bg2: #111520;
+            --card: #151922;
+            --card2: #1A2030;
+            --border: rgba(0,170,210,0.12);
+            --border2: rgba(0,170,210,0.25);
+            --cyan: #00AAD2;
+            --blue: #002C5F;
+            --green: #00C896;
+            --red: #FF5C5C;
+            --orange: #FFB84D;
+            --text: #E8EDF2;
+            --text2: #8A96A8;
+            --text3: #4E5A6E;
+            --glow: rgba(0,170,210,0.15);
+        }
+        * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+        body {
+            font-family:'Inter',system-ui,sans-serif; background:var(--bg); color:var(--text);
+            overflow:hidden; -webkit-font-smoothing:antialiased; touch-action:manipulation;
+        }
+        .app { display:flex; flex-direction:column; height:100vh; height:100dvh; }
+
+        /* Header */
+        .hdr {
+            height:56px; background:rgba(11,14,19,0.95); backdrop-filter:blur(20px);
+            border-bottom:1px solid var(--border); display:flex; align-items:center;
+            justify-content:space-between; padding:0 24px; flex-shrink:0; z-index:20;
+        }
+        .hdr-l { display:flex; align-items:center; gap:14px; }
+        .hdr-l img { height:22px; opacity:0.85; }
+        .hdr-sep { width:1px; height:20px; background:var(--border2); }
+        .hdr-l h1 { font-size:14px; font-weight:600; color:var(--text); letter-spacing:0.5px; }
+        .hdr-l .sub { font-size:10px; color:var(--cyan); font-weight:500; margin-left:8px; letter-spacing:1px; }
+        .hdr-c { display:flex; align-items:center; gap:14px; }
+        .pill {
+            display:flex; align-items:center; gap:6px; padding:5px 14px;
+            border-radius:100px; font-size:11px; font-weight:600; letter-spacing:0.3px;
+            background:rgba(0,170,210,0.1); color:var(--cyan); border:1px solid rgba(0,170,210,0.2);
+        }
+        .pill-dot { width:6px; height:6px; border-radius:50%; background:var(--cyan); animation:pulse 2s ease-in-out infinite; }
+        .pill-live { background:rgba(255,92,92,0.1); color:var(--red); border-color:rgba(255,92,92,0.2); }
+        .pill-live .pill-dot { background:var(--red); }
+        @keyframes pulse { 0%,100%{opacity:1;transform:scale(1);} 50%{opacity:0.3;transform:scale(0.8);} }
+        .hdr-r { display:flex; align-items:center; gap:8px; }
+        .clk { font-size:12px; color:var(--text2); font-variant-numeric:tabular-nums; margin-right:8px; }
+
+        /* Buttons */
+        .btn {
+            padding:8px 16px; border-radius:8px; border:1px solid var(--border);
+            background:rgba(0,170,210,0.06); color:var(--text2); font-size:12px;
+            font-weight:500; font-family:inherit; cursor:pointer;
+            display:inline-flex; align-items:center; gap:6px; transition:all 0.2s;
+            min-height:40px;
+        }
+        .btn:hover { background:rgba(0,170,210,0.12); border-color:var(--border2); }
+        .btn:active { transform:scale(0.96); background:rgba(0,170,210,0.18); }
+        .btn i { font-size:11px; }
+
+        /* Main Layout */
+        .main { flex:1; display:flex; overflow:hidden; }
+
+        /* Left Sidebar */
+        .sidebar {
+            width:320px; flex-shrink:0; background:var(--bg2);
+            border-right:1px solid var(--border); overflow-y:auto; display:flex;
+            flex-direction:column;
+        }
+        .sec { padding:16px 18px 12px; }
+        .sec + .sec { border-top:1px solid rgba(0,170,210,0.06); }
+        .sec-t {
+            font-size:10px; font-weight:700; color:var(--text3); letter-spacing:1px;
+            margin-bottom:12px; display:flex; align-items:center; gap:6px;
+        }
+        .sec-t i { font-size:9px; color:var(--cyan); opacity:0.5; }
+
+        /* Sensor Toggles */
+        .s-tog {
+            display:flex; align-items:center; justify-content:space-between;
+            padding:12px 14px; border-radius:10px; cursor:pointer;
+            transition:all 0.2s; margin-bottom:4px; border:1px solid transparent;
+        }
+        .s-tog:active { transform:scale(0.98); }
+        .s-tog.on { background:var(--card); border-color:var(--border); box-shadow:0 0 12px var(--glow); }
+        .s-info { display:flex; align-items:center; gap:10px; }
+        .s-bar { width:4px; height:22px; border-radius:2px; }
+        .s-name { font-size:13px; font-weight:500; color:var(--text); }
+        .s-desc { font-size:10px; color:var(--text3); margin-top:2px; }
+        .s-eye { font-size:11px; color:var(--text3); }
+        .s-tog.on .s-eye { color:var(--cyan); }
+
+        /* Controls */
+        .cg { margin-bottom:16px; }
+        .cg:last-child { margin-bottom:0; }
+        .cl { display:flex; justify-content:space-between; font-size:12px; color:var(--text2); margin-bottom:8px; }
+        .cv { color:var(--cyan); font-weight:600; font-variant-numeric:tabular-nums; }
+        input[type="range"] {
+            width:100%; height:4px; appearance:none; -webkit-appearance:none;
+            background:var(--card2); border-radius:2px; outline:none; cursor:pointer;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance:none; width:28px; height:28px; border-radius:50%;
+            background:var(--cyan); cursor:pointer;
+            box-shadow:0 0 10px rgba(0,170,210,0.4), 0 2px 6px rgba(0,0,0,0.3);
+        }
+
+        /* Preset Grid */
+        .pg { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+        .pb {
+            padding:12px 8px; border-radius:8px; border:1px solid var(--border);
+            background:transparent; color:var(--text2); font-size:12px; font-weight:500;
+            cursor:pointer; text-align:center; font-family:inherit; transition:all 0.2s;
+            min-height:44px; display:flex; align-items:center; justify-content:center;
+        }
+        .pb:active { transform:scale(0.96); }
+        .pb.on { background:var(--cyan); border-color:var(--cyan); color:#fff; box-shadow:0 0 14px rgba(0,170,210,0.35); }
+
+        /* Sim control */
+        .sim-c {
+            display:flex; align-items:center; gap:10px;
+            padding:12px 14px; background:var(--card); border-radius:10px;
+            border:1px solid var(--border); margin-bottom:16px;
+        }
+        .sim-d { width:8px; height:8px; border-radius:50%; }
+        .sim-d.go { background:var(--green); animation:pulse 2s ease-in-out infinite; }
+        .sim-d.no { background:var(--orange); }
+        .sim-l { font-size:13px; flex:1; color:var(--text2); font-weight:500; }
+
+        /* Right Area */
+        .right-area { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+
+        /* Canvas */
+        .canvas-wrap { flex:1; position:relative; background:var(--bg); }
+        #canvas3d { width:100%; height:100%; display:block; }
+        .legend {
+            position:absolute; bottom:14px; left:50%; transform:translateX(-50%);
+            background:rgba(21,25,34,0.92); backdrop-filter:blur(12px);
+            border:1px solid var(--border); border-radius:10px; padding:8px 16px;
+            display:flex; align-items:center; gap:10px; z-index:10;
+        }
+        .legend.hide { display:none; }
+        .leg-t { font-size:10px; color:var(--text2); font-weight:600; white-space:nowrap; }
+        .leg-l { display:flex; justify-content:space-between; width:180px; font-size:9px; color:var(--text3); }
+
+        /* Bottom Dashboard */
+        .dashboard {
+            height:280px; flex-shrink:0; background:var(--bg2);
+            border-top:1px solid var(--border); display:flex; flex-direction:column;
+            transition:height 0.3s cubic-bezier(0.4,0,0.2,1);
+        }
+        .dashboard.collapsed { height:48px; }
+        .dash-handle {
+            height:48px; flex-shrink:0; display:flex; align-items:center;
+            padding:0 20px; cursor:pointer; gap:16px;
+        }
+        .dash-grip {
+            width:40px; height:4px; border-radius:2px; background:var(--text3);
+            margin:0 auto; position:absolute; left:50%; transform:translateX(-50%);
+        }
+        .dash-tabs { display:flex; gap:4px; flex:1; }
+        .dash-tab {
+            padding:8px 20px; border-radius:8px; border:none; background:transparent;
+            color:var(--text3); font-size:12px; font-weight:600; font-family:inherit;
+            cursor:pointer; transition:all 0.2s; min-height:36px;
+            display:flex; align-items:center; gap:6px;
+        }
+        .dash-tab.on { background:rgba(0,170,210,0.12); color:var(--cyan); }
+        .dash-tab:active { transform:scale(0.96); }
+        .dash-tab i { font-size:10px; }
+        .dash-toggle {
+            width:36px; height:36px; border-radius:8px; border:1px solid var(--border);
+            background:transparent; color:var(--text3); cursor:pointer; font-size:12px;
+            display:flex; align-items:center; justify-content:center; transition:all 0.2s;
+        }
+        .dash-toggle:active { transform:scale(0.94); }
+
+        .dash-body { flex:1; overflow-y:auto; padding:0 20px 16px; }
+        .dashboard.collapsed .dash-body { display:none; }
+        .dash-panel { display:none; }
+        .dash-panel.on { display:block; }
+
+        /* Stats grid */
+        .sg { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:14px; }
+        .sc {
+            background:var(--card); border-radius:10px; padding:14px 16px;
+            border:1px solid var(--border);
+        }
+        .sc .v {
+            font-size:28px; font-weight:300; font-variant-numeric:tabular-nums;
+            letter-spacing:-0.5px; color:var(--text);
+        }
+        .sc .l { font-size:9px; color:var(--text3); margin-top:4px; letter-spacing:0.3px; font-weight:600; }
+        .sc.hi .v { color:var(--cyan); }
+        .sc.ok .v { color:var(--green); }
+        .sc.wa .v { color:var(--orange); }
+        .sc.er .v { color:var(--red); }
+
+        /* Temp zones */
+        .tz-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+        .tz {
+            display:flex; align-items:center; justify-content:space-between;
+            padding:12px 14px; border-radius:10px; background:var(--card);
+            border:1px solid var(--border);
+        }
+        .tz-i { display:flex; align-items:center; gap:8px; }
+        .tz-d { width:4px; height:18px; border-radius:2px; }
+        .tz-n { font-size:12px; color:var(--text2); }
+        .tz-v { font-size:16px; font-weight:600; font-variant-numeric:tabular-nums; }
+        .tz-b {
+            width:36px; height:36px; border-radius:8px; border:1px solid var(--border);
+            background:transparent; color:var(--text3); font-size:12px; cursor:pointer;
+            display:flex; align-items:center; justify-content:center; transition:all 0.2s;
+        }
+        .tz-b:active { transform:scale(0.92); }
+        .tz-b.hot { background:var(--red); border-color:var(--red); color:#fff; }
+        .tz-b.cool { background:var(--cyan); border-color:var(--cyan); color:#fff; }
+
+        /* Motion */
+        .mot-row { display:flex; gap:16px; align-items:flex-start; }
+        .mot-left { flex:1; }
+        .mot-right { display:flex; gap:12px; align-items:flex-start; }
+        .gauge-wrap { display:flex; justify-content:center; }
+        .gauge { position:relative; width:140px; height:140px; }
+        .gauge canvas { width:100%; height:100%; }
+        .gauge-val { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+        .gauge-num { font-size:26px; font-weight:300; font-variant-numeric:tabular-nums; color:var(--red); }
+        .gauge-unit { font-size:8px; color:var(--text3); letter-spacing:0.5px; margin-top:2px; font-weight:600; }
+
+        .ma { margin-bottom:10px; }
+        .ma-l { display:flex; justify-content:space-between; font-size:11px; color:var(--text3); margin-bottom:5px; font-weight:500; }
+        .ma-l span:last-child { font-variant-numeric:tabular-nums; color:var(--text2); font-weight:600; }
+        .mb-bg { height:4px; background:var(--card2); border-radius:2px; overflow:hidden; position:relative; }
+        .mb { position:absolute; top:0; height:100%; border-radius:2px; transition:width 0.12s, left 0.12s; }
+
+        .peak-row { display:flex; gap:8px; margin-top:10px; }
+        .peak-badge { flex:1; text-align:center; padding:8px 6px; border-radius:8px; background:var(--card); border:1px solid var(--border); }
+        .peak-badge .pk-v { font-size:16px; font-weight:600; font-variant-numeric:tabular-nums; }
+        .peak-badge .pk-l { font-size:8px; color:var(--text3); margin-top:2px; font-weight:600; letter-spacing:0.3px; }
+
+        #motionWave { width:100%; height:90px; border-radius:10px; background:var(--card); border:1px solid var(--border); margin-top:10px; }
+
+        /* Mini heatmap */
+        #miniHeatmap { border-radius:10px; background:var(--card); border:1px solid var(--border); }
+
+        /* Alerts */
+        .al {
+            display:flex; align-items:flex-start; gap:8px;
+            padding:10px 14px; border-radius:10px; margin-bottom:4px;
+            background:var(--card); font-size:11px; border:1px solid var(--border);
+            border-left:3px solid transparent;
+        }
+        .al.info { border-left-color:var(--cyan); }
+        .al.warn { border-left-color:var(--orange); }
+        .al.error { border-left-color:var(--red); }
+        .al-t { color:var(--text3); font-size:10px; white-space:nowrap; font-variant-numeric:tabular-nums; }
+        .al-m { color:var(--text2); line-height:1.4; }
+
+        /* Toast */
+        .toast {
+            position:fixed; bottom:24px; right:24px;
+            background:rgba(21,25,34,0.95); backdrop-filter:blur(16px);
+            border:1px solid var(--border2); box-shadow:0 4px 20px rgba(0,0,0,0.3);
+            border-radius:10px; padding:10px 20px; font-size:13px; color:var(--text);
+            font-weight:500; z-index:100; opacity:0; transform:translateY(8px);
+            transition:all 0.3s; pointer-events:none;
+        }
+        .toast.show { opacity:1; transform:translateY(0); }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width:4px; }
+        ::-webkit-scrollbar-track { background:transparent; }
+        ::-webkit-scrollbar-thumb { background:rgba(0,170,210,0.15); border-radius:2px; }
+
+        .foot { padding:14px 18px; text-align:center; font-size:9px; color:var(--text3); border-top:1px solid rgba(0,170,210,0.06); letter-spacing:0.5px; }
+    </style>
+</head>
+<body>
+<div class="app">
+    <!-- Header -->
+    <div class="hdr">
+        <div class="hdr-l">
+            <img src="keti.png" alt="KETI">
+            <div class="hdr-sep"></div>
+            <h1>Smart Seat Monitor</h1>
+            <span class="sub">HYUNDAI PLEOS</span>
+        </div>
+        <div class="hdr-c">
+            <div class="pill pill-live"><div class="pill-dot"></div>LIVE</div>
+            <div class="pill"><div class="pill-dot"></div><span id="sCount">4 sensors</span></div>
+        </div>
+        <div class="hdr-r">
+            <span class="clk" id="clock">00:00:00</span>
+            <button class="btn" onclick="exportJSON()"><i class="fas fa-download"></i> JSON</button>
+            <button class="btn" onclick="exportCSV()"><i class="fas fa-table"></i> CSV</button>
+        </div>
+    </div>
+
+    <div class="main">
+        <!-- Left Sidebar -->
+        <div class="sidebar">
+            <div class="sec">
+                <div class="sec-t"><i class="fas fa-layer-group"></i> SENSOR LAYERS</div>
+                <div class="s-tog on" data-s="pressure" onclick="toggleSensor('pressure')">
+                    <div class="s-info"><div class="s-bar" style="background:var(--red);"></div><div><div class="s-name">Pressure</div><div class="s-desc">Occupancy &amp; load distribution</div></div></div>
+                    <i class="fas fa-eye s-eye"></i>
+                </div>
+                <div class="s-tog on" data-s="temperature" onclick="toggleSensor('temperature')">
+                    <div class="s-info"><div class="s-bar" style="background:var(--orange);"></div><div><div class="s-name">Temperature</div><div class="s-desc">Heating / cooling zones</div></div></div>
+                    <i class="fas fa-eye s-eye"></i>
+                </div>
+                <div class="s-tog on" data-s="position" onclick="toggleSensor('position')">
+                    <div class="s-info"><div class="s-bar" style="background:var(--cyan);"></div><div><div class="s-name">Position</div><div class="s-desc">Seat adjustment tracking</div></div></div>
+                    <i class="fas fa-eye s-eye"></i>
+                </div>
+                <div class="s-tog on" data-s="motion" onclick="toggleSensor('motion')">
+                    <div class="s-info"><div class="s-bar" style="background:var(--green);"></div><div><div class="s-name">Motion</div><div class="s-desc">Acceleration / vibration</div></div></div>
+                    <i class="fas fa-eye s-eye"></i>
+                </div>
+            </div>
+
+            <div class="sec">
+                <div class="sec-t"><i class="fas fa-play-circle"></i> SIMULATION</div>
+                <div class="sim-c">
+                    <div class="sim-d go" id="simDot"></div>
+                    <span class="sim-l" id="simLabel">Running</span>
+                    <button class="btn" id="simBtn" onclick="toggleSim()" style="padding:6px 12px;min-height:36px;"><i class="fas fa-pause"></i></button>
+                </div>
+                <div class="cg">
+                    <div class="cl"><span>Occupant Weight</span><span class="cv" id="wVal">70 kg</span></div>
+                    <input type="range" min="30" max="130" value="70" id="wSlider" oninput="setWeight(this.value)">
+                </div>
+                <div class="cg">
+                    <div class="cl"><span>Vehicle Speed</span><span class="cv" id="spdVal">0 km/h</span></div>
+                    <input type="range" min="0" max="200" value="0" id="spdSlider" oninput="setSpeed(this.value)">
+                </div>
+                <div class="cg">
+                    <div class="sec-t" style="margin-top:4px;margin-bottom:8px;"><i class="fas fa-road"></i> ROAD SURFACE</div>
+                    <div class="pg">
+                        <button class="pb" onclick="setRoad('smooth',this)">Smooth</button>
+                        <button class="pb on" onclick="setRoad('normal',this)">Normal</button>
+                        <button class="pb" onclick="setRoad('rough',this)">Rough</button>
+                        <button class="pb" onclick="setRoad('cobble',this)">Cobble</button>
+                    </div>
+                </div>
+                <div class="cg">
+                    <div class="cl"><span>Occupancy</span></div>
+                    <div class="pg">
+                        <button class="pb on" onclick="setOcc('seated',this)">Seated</button>
+                        <button class="pb" onclick="setOcc('empty',this)">Empty</button>
+                        <button class="pb" onclick="setOcc('child',this)">Child</button>
+                        <button class="pb" onclick="setOcc('heavy',this)">Heavy</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sec" id="posCtrl">
+                <div class="sec-t"><i class="fas fa-arrows-alt"></i> SEAT POSITION</div>
+                <div class="pg" style="margin-bottom:14px;">
+                    <button class="pb on" onclick="preset('normal',this)">Drive</button>
+                    <button class="pb" onclick="preset('sport',this)">Sport</button>
+                    <button class="pb" onclick="preset('relax',this)">Relax</button>
+                    <button class="pb" onclick="preset('entry',this)">Entry</button>
+                </div>
+                <div class="cg"><div class="cl"><span>Fore / Aft</span><span class="cv" id="fbVal">0</span></div><input type="range" min="-100" max="100" value="0" id="fbS" oninput="setPos('fb',this.value)"></div>
+                <div class="cg"><div class="cl"><span>Height</span><span class="cv" id="udVal">0</span></div><input type="range" min="-50" max="50" value="0" id="udS" oninput="setPos('ud',this.value)"></div>
+                <div class="cg"><div class="cl"><span>Recline</span><span class="cv" id="recVal">18°</span></div><input type="range" min="8" max="52" value="18" id="recS" oninput="setPos('rec',this.value)"></div>
+                <div class="cg"><div class="cl"><span>Headrest</span><span class="cv" id="hrVal">0</span></div><input type="range" min="0" max="100" value="0" id="hrS" oninput="setPos('hr',this.value)"></div>
+            </div>
+
+            <div class="sec">
+                <div class="sec-t"><i class="fas fa-sliders-h"></i> THRESHOLDS</div>
+                <div class="cg"><div class="cl"><span>Pressure Alert</span><span class="cv" id="pThV">80 kPa</span></div><input type="range" min="30" max="120" value="80" oninput="TH.pressure=+this.value;$('pThV').textContent=this.value+' kPa'"></div>
+                <div class="cg"><div class="cl"><span>Overheat Alert</span><span class="cv" id="tThV">40°C</span></div><input type="range" min="30" max="50" value="40" oninput="TH.temperature=+this.value;$('tThV').textContent=this.value+'°C'"></div>
+                <div class="cg"><div class="cl"><span>Vibration Alert</span><span class="cv" id="vThV">0.7 G</span></div><input type="range" min="1" max="20" value="7" oninput="TH.vibration=this.value/10;$('vThV').textContent=(this.value/10).toFixed(1)+' G'"></div>
+            </div>
+
+            <div class="sec">
+                <div class="sec-t"><i class="fas fa-eye"></i> VIEW</div>
+                <div class="cg"><div class="cl"><span>Seat Opacity</span><span class="cv" id="opVal">100%</span></div><input type="range" min="10" max="100" value="100" oninput="setOpacity(this.value)"></div>
+                <div class="pg">
+                    <button class="pb" onclick="resetCam()">Reset View</button>
+                    <button class="pb" onclick="autoRot()">Auto Rotate</button>
+                </div>
+            </div>
+            <div class="foot">KETI — Korea Electronics Technology Institute</div>
+        </div>
+
+        <!-- Right: Canvas + Dashboard -->
+        <div class="right-area">
+            <div class="canvas-wrap">
+                <div id="canvas3d"></div>
+                <div class="legend" id="pLeg">
+                    <span class="leg-t">Pressure (kPa)</span>
+                    <div><canvas id="legBar" width="180" height="10" style="border-radius:5px;"></canvas>
+                    <div class="leg-l"><span>0</span><span>25</span><span>50</span><span>75</span><span>100</span></div></div>
+                </div>
+            </div>
+
+            <!-- Bottom Dashboard -->
+            <div class="dashboard" id="dashboard">
+                <div class="dash-handle" onclick="toggleDash()">
+                    <div class="dash-tabs">
+                        <button class="dash-tab on" onclick="event.stopPropagation();showTab('pressure')"><i class="fas fa-weight-hanging"></i> Pressure</button>
+                        <button class="dash-tab" onclick="event.stopPropagation();showTab('temperature')"><i class="fas fa-thermometer-half"></i> Temperature</button>
+                        <button class="dash-tab" onclick="event.stopPropagation();showTab('position')"><i class="fas fa-arrows-alt"></i> Position</button>
+                        <button class="dash-tab" onclick="event.stopPropagation();showTab('motion')"><i class="fas fa-wave-square"></i> Motion</button>
+                        <button class="dash-tab" onclick="event.stopPropagation();showTab('alerts')"><i class="fas fa-bell"></i> Alerts <span id="aCnt" style="color:var(--text3);font-weight:400;">(0)</span></button>
+                    </div>
+                    <button class="dash-toggle" id="dashToggle"><i class="fas fa-chevron-down"></i></button>
+                </div>
+
+                <div class="dash-body">
+                    <!-- Pressure -->
+                    <div class="dash-panel on" id="panPress">
+                        <div style="display:flex;gap:16px;align-items:flex-start;">
+                            <div style="flex:1;">
+                                <div class="sg">
+                                    <div class="sc hi"><div class="v" id="rW">0</div><div class="l">TOTAL LOAD (KG)</div></div>
+                                    <div class="sc ok"><div class="v" id="rOcc">Empty</div><div class="l">STATUS</div></div>
+                                    <div class="sc"><div class="v" id="rAvg">0</div><div class="l">AVG PRESSURE</div></div>
+                                    <div class="sc wa"><div class="v" id="rPk">0</div><div class="l">PEAK PRESSURE</div></div>
+                                </div>
+                            </div>
+                            <canvas id="miniHeatmap" width="180" height="180"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Temperature -->
+                    <div class="dash-panel" id="panTemp">
+                        <div class="tz-grid" id="tzList"></div>
+                    </div>
+
+                    <!-- Position -->
+                    <div class="dash-panel" id="panPos">
+                        <div class="sg">
+                            <div class="sc"><div class="v" id="rFB">0</div><div class="l">FORE/AFT (MM)</div></div>
+                            <div class="sc"><div class="v" id="rUD">0</div><div class="l">HEIGHT (MM)</div></div>
+                            <div class="sc"><div class="v" id="rRec">18°</div><div class="l">RECLINE</div></div>
+                            <div class="sc"><div class="v" id="rHR">0</div><div class="l">HEADREST (MM)</div></div>
+                        </div>
+                    </div>
+
+                    <!-- Motion -->
+                    <div class="dash-panel" id="panMotion">
+                        <div class="mot-row">
+                            <div class="mot-left">
+                                <div class="sg" style="grid-template-columns:repeat(4,1fr);margin-bottom:10px;">
+                                    <div class="sc"><div class="v" id="rVib">0.0</div><div class="l">AMPLITUDE (G)</div></div>
+                                    <div class="sc"><div class="v" id="rFrq">0</div><div class="l">FREQ (HZ)</div></div>
+                                    <div class="sc"><div class="v" id="rSpd2">0</div><div class="l">SPEED (KM/H)</div></div>
+                                    <div class="sc"><div class="v" id="rRoadD">Normal</div><div class="l">ROAD SURFACE</div></div>
+                                </div>
+                                <div style="display:flex;gap:16px;">
+                                    <div style="flex:1;">
+                                        <div class="ma"><div class="ma-l"><span>X Lateral (L/R)</span><span id="rAX">0.00 G</span></div><div class="mb-bg"><div class="mb" id="bAX" style="background:var(--red);width:50%;left:25%;"></div></div></div>
+                                        <div class="ma"><div class="ma-l"><span>Y Vertical (U/D)</span><span id="rAY">0.00 G</span></div><div class="mb-bg"><div class="mb" id="bAY" style="background:var(--green);width:50%;left:25%;"></div></div></div>
+                                        <div class="ma"><div class="ma-l"><span>Z Longitudinal (F/B)</span><span id="rAZ">0.00 G</span></div><div class="mb-bg"><div class="mb" id="bAZ" style="background:var(--cyan);width:50%;left:25%;"></div></div></div>
+                                        <div class="peak-row">
+                                            <div class="peak-badge"><div class="pk-v" id="pkAX" style="color:var(--red);">0.00</div><div class="pk-l">PEAK X</div></div>
+                                            <div class="peak-badge"><div class="pk-v" id="pkAY" style="color:var(--green);">0.00</div><div class="pk-l">PEAK Y</div></div>
+                                            <div class="peak-badge"><div class="pk-v" id="pkAZ" style="color:var(--cyan);">0.00</div><div class="pk-l">PEAK Z</div></div>
+                                        </div>
+                                    </div>
+                                    <canvas id="motionWave" width="320" height="160"></canvas>
+                                </div>
+                            </div>
+                            <div class="gauge-wrap">
+                                <div class="gauge">
+                                    <canvas id="gaugeC" width="280" height="280"></canvas>
+                                    <div class="gauge-val">
+                                        <div class="gauge-num" id="gVal">0.00</div>
+                                        <div class="gauge-unit">VIBRATION (G)</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Alerts -->
+                    <div class="dash-panel" id="panAlerts">
+                        <div id="aList"><div style="font-size:12px;color:var(--text3);text-align:center;padding:24px;">No alerts</div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+// === State ===
+const AS = new Set(['pressure','temperature','position','motion']);
+let simOn = true;
+const TH = { pressure:80, temperature:40, vibration:0.7 };
+const S = { occ:true, w:70, spd:0, fb:0, ud:0, rec:18, hr:0 };
+const TZ = [
+    {n:'L-Cushion',t:22,tgt:28,h:false,c:false}, {n:'R-Cushion',t:22,tgt:28,h:false,c:false},
+    {n:'L-Back',t:22,tgt:30,h:false,c:false}, {n:'R-Back',t:22,tgt:30,h:false,c:false},
+    {n:'L-Bolster',t:22,tgt:26,h:false,c:false}, {n:'R-Bolster',t:22,tgt:26,h:false,c:false}
+];
+const MO = { ax:0, ay:0, az:0, vib:0, freq:30 };
+const PG = new Float32Array(256);
+const alerts = [];
+let roadType = 'normal';
+const ROADS = { smooth:{r:0.15,n:'Smooth'}, normal:{r:1.0,n:'Normal'}, rough:{r:2.8,n:'Rough'}, cobble:{r:5.0,n:'Cobble'} };
+const waveH = { ax:[], ay:[], az:[] };
+const WAVE_LEN = 200;
+const peakMO = { ax:0, ay:0, az:0 };
+
+// === Three.js ===
+let scene, cam, rend, ctrl;
+let seatRoot, baseGroup, backrestPivot;
+let cushionMesh, backMesh, headMesh, lBolster, rBolster, lbBack, rbBack;
+let pressOvCush, pressOvBack;
+let pCanC, pCtxC, pTexC, pCanB, pCtxB, pTexB;
+let arX, arY, arZ, arGrp;
+const clk = new THREE.Clock();
+const PIVOT_Y = 0.125, PIVOT_Z = -0.18;
+
+function init() {
+    const c = $('canvas3d');
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0B0E13);
+    scene.fog = new THREE.Fog(0x0B0E13, 5, 12);
+
+    cam = new THREE.PerspectiveCamera(40, c.clientWidth/c.clientHeight, 0.01, 100);
+    cam.position.set(1.2, 0.85, 1.5);
+
+    rend = new THREE.WebGLRenderer({ antialias:true });
+    rend.setPixelRatio(Math.min(devicePixelRatio, 2));
+    rend.setSize(c.clientWidth, c.clientHeight);
+    rend.shadowMap.enabled = true;
+    rend.shadowMap.type = THREE.PCFSoftShadowMap;
+    rend.toneMapping = THREE.ACESFilmicToneMapping;
+    rend.toneMappingExposure = 1.0;
+    c.appendChild(rend.domElement);
+
+    ctrl = new THREE.OrbitControls(cam, rend.domElement);
+    ctrl.enableDamping = true; ctrl.dampingFactor = 0.07;
+    ctrl.target.set(0, 0.32, 0);
+    ctrl.minDistance = 0.4; ctrl.maxDistance = 4;
+    ctrl.maxPolarAngle = Math.PI * 0.85;
+
+    // Lighting — dark studio with blue tint
+    scene.add(new THREE.AmbientLight(0x8899bb, 0.5));
+    const d1 = new THREE.DirectionalLight(0xc8d8ff, 0.9);
+    d1.position.set(2.5, 4, 3); d1.castShadow = true;
+    d1.shadow.mapSize.set(1024, 1024); d1.shadow.bias = -0.001;
+    scene.add(d1);
+    const d2 = new THREE.DirectionalLight(0x00AAD2, 0.15);
+    d2.position.set(-3, 2, -1); scene.add(d2);
+    const d3 = new THREE.DirectionalLight(0xaabbcc, 0.2);
+    d3.position.set(0, 5, 0); scene.add(d3);
+    const rim = new THREE.PointLight(0x00AAD2, 0.08, 4);
+    rim.position.set(0, -0.2, 1.5); scene.add(rim);
+
+    // Grid — dark subtle
+    const gr = new THREE.GridHelper(3, 18, 0x1a2030, 0x151922);
+    gr.material.opacity = 0.6; gr.material.transparent = true; scene.add(gr);
+    const fl = new THREE.Mesh(new THREE.PlaneGeometry(6,6), new THREE.MeshStandardMaterial({color:0x0a0d12, roughness:0.95}));
+    fl.rotation.x = -Math.PI/2; fl.position.y = -0.005; fl.receiveShadow = true; scene.add(fl);
+
+    seatRoot = new THREE.Group(); scene.add(seatRoot);
+    baseGroup = new THREE.Group(); seatRoot.add(baseGroup);
+
+    buildSeat();
+    setupPressure();
+    setupArrows();
+
+    window.addEventListener('resize', () => {
+        cam.aspect = c.clientWidth/c.clientHeight;
+        cam.updateProjectionMatrix();
+        rend.setSize(c.clientWidth, c.clientHeight);
+    });
+}
+
+function buildSeat() {
+    const mat = k => new THREE.MeshStandardMaterial(k);
+    const seatM = () => mat({color:0x2a2e38, roughness:0.5, metalness:0.06});
+    const frameM = mat({color:0x40485a, roughness:0.2, metalness:0.7});
+    const boltM = () => mat({color:0x30343e, roughness:0.45, metalness:0.06});
+
+    const rGeo = new THREE.BoxGeometry(0.035, 0.018, 0.48);
+    [-0.15, 0.15].forEach(x => {
+        const r = new THREE.Mesh(rGeo, frameM);
+        r.position.set(x, 0.009, 0); r.castShadow = true;
+        baseGroup.add(r);
+    });
+
+    const cGeo = new THREE.BoxGeometry(0.44, 0.065, 0.44);
+    cushionMesh = new THREE.Mesh(cGeo, seatM());
+    cushionMesh.position.set(0, 0.085, 0);
+    cushionMesh.castShadow = true; cushionMesh.receiveShadow = true;
+    baseGroup.add(cushionMesh);
+
+    const cbGeo = new THREE.BoxGeometry(0.055, 0.10, 0.42);
+    lBolster = new THREE.Mesh(cbGeo, boltM());
+    lBolster.position.set(-0.24, 0.12, 0); lBolster.castShadow = true;
+    baseGroup.add(lBolster);
+    rBolster = new THREE.Mesh(cbGeo, boltM());
+    rBolster.position.set(0.24, 0.12, 0); rBolster.castShadow = true;
+    baseGroup.add(rBolster);
+
+    backrestPivot = new THREE.Group();
+    backrestPivot.position.set(0, PIVOT_Y, PIVOT_Z);
+    baseGroup.add(backrestPivot);
+
+    const bGeo = new THREE.BoxGeometry(0.42, 0.54, 0.065);
+    backMesh = new THREE.Mesh(bGeo, seatM());
+    backMesh.position.set(0, 0.27, -0.015);
+    backMesh.castShadow = true; backMesh.receiveShadow = true;
+    backrestPivot.add(backMesh);
+
+    const bbGeo = new THREE.BoxGeometry(0.055, 0.48, 0.055);
+    lbBack = new THREE.Mesh(bbGeo, boltM());
+    lbBack.position.set(-0.225, 0.27, 0.01);
+    backrestPivot.add(lbBack);
+    rbBack = new THREE.Mesh(bbGeo, boltM());
+    rbBack.position.set(0.225, 0.27, 0.01);
+    backrestPivot.add(rbBack);
+
+    const hGeo = new THREE.BoxGeometry(0.21, 0.14, 0.055);
+    headMesh = new THREE.Mesh(hGeo, seatM());
+    headMesh.position.set(0, 0.61, -0.01);
+    headMesh.castShadow = true;
+    backrestPivot.add(headMesh);
+
+    backrestPivot.rotation.x = -THREE.MathUtils.degToRad(S.rec);
+}
+
+function setupPressure() {
+    pCanC = document.createElement('canvas'); pCanC.width=128; pCanC.height=128;
+    pCtxC = pCanC.getContext('2d');
+    pTexC = new THREE.CanvasTexture(pCanC); pTexC.minFilter = THREE.LinearFilter;
+    pressOvCush = new THREE.Mesh(
+        new THREE.PlaneGeometry(0.42, 0.42),
+        new THREE.MeshBasicMaterial({map:pTexC, transparent:true, opacity:0.82, depthWrite:false, side:THREE.DoubleSide})
+    );
+    pressOvCush.rotation.x = -Math.PI/2;
+    pressOvCush.position.set(0, 0.125, 0);
+    baseGroup.add(pressOvCush);
+
+    pCanB = document.createElement('canvas'); pCanB.width=128; pCanB.height=128;
+    pCtxB = pCanB.getContext('2d');
+    pTexB = new THREE.CanvasTexture(pCanB); pTexB.minFilter = THREE.LinearFilter;
+    pressOvBack = new THREE.Mesh(
+        new THREE.PlaneGeometry(0.38, 0.48),
+        new THREE.MeshBasicMaterial({map:pTexB, transparent:true, opacity:0.7, depthWrite:false, side:THREE.DoubleSide})
+    );
+    pressOvBack.position.set(0, 0.27, 0.02);
+    setTimeout(() => { if(backrestPivot) backrestPivot.add(pressOvBack); }, 100);
+}
+
+function setupArrows() {
+    arGrp = new THREE.Group(); arGrp.visible = true;
+    arX = new THREE.ArrowHelper(new THREE.Vector3(1,0,0), new THREE.Vector3(0,0.4,0.25), 0.2, 0xFF5C5C, 0.035, 0.02);
+    arY = new THREE.ArrowHelper(new THREE.Vector3(0,1,0), new THREE.Vector3(0,0.4,0.25), 0.2, 0x00C896, 0.035, 0.02);
+    arZ = new THREE.ArrowHelper(new THREE.Vector3(0,0,-1), new THREE.Vector3(0,0.4,0.25), 0.2, 0x00AAD2, 0.035, 0.02);
+    arGrp.add(arX, arY, arZ);
+    baseGroup.add(arGrp);
+}
+
+// === Colors ===
+function pColor(t) {
+    t = Math.max(0, Math.min(1, t));
+    let r,g,b;
+    if (t<0.25) { const f=t/0.25; r=0; g=Math.round(80+f*120); b=Math.round(140+f*70); }
+    else if (t<0.5) { const f=(t-0.25)/0.25; r=Math.round(f*170); g=Math.round(200+f*30); b=Math.round(210-f*140); }
+    else if (t<0.75) { const f=(t-0.5)/0.25; r=Math.round(170+f*60); g=Math.round(230-f*80); b=Math.round(70-f*30); }
+    else { const f=(t-0.75)/0.25; r=Math.round(230+f*25); g=Math.round(150-f*60); b=Math.round(40-f*15); }
+    return `rgba(${r},${g},${b},${0.35+t*0.65})`;
+}
+
+function tColor(temp) {
+    const t = Math.max(0, Math.min(1, (temp-15)/25));
+    const c = new THREE.Color();
+    if (t<0.3) c.lerpColors(new THREE.Color(0x00AAD2), new THREE.Color(0x2a2e38), t/0.3);
+    else if (t<0.6) c.set(0x2a2e38);
+    else c.lerpColors(new THREE.Color(0xFFB84D), new THREE.Color(0xFF5C5C), (t-0.6)/0.4);
+    return c;
+}
+
+function g2d(x,y,sx,sy){ return Math.exp(-(x*x)/(2*sx*sx)-(y*y)/(2*sy*sy)); }
+
+// === Simulation ===
+function simPress(t) {
+    if (!S.occ) { PG.fill(0); return; }
+    const wf = S.w/80;
+    const breath = Math.sin(t*0.4)*0.012;
+    const shift = Math.sin(t*0.065)*0.02;
+    for (let y=0;y<16;y++) for (let x=0;x<16;x++) {
+        const nx=(x/15)*2-1, ny=(y/15)*2-1;
+        const lp = g2d(nx+0.35, ny-0.1, 0.28, 0.32);
+        const rp = g2d(nx-0.35, ny-0.1, 0.28, 0.32);
+        const lt = g2d(nx+0.3, ny+0.25, 0.22, 0.4)*0.35;
+        const rt = g2d(nx-0.3, ny+0.25, 0.22, 0.4)*0.35;
+        PG[y*16+x] = Math.max(0, Math.min(1,
+            (lp+rp+lt+rt)*wf + breath + shift*nx + (Math.random()-0.5)*0.005));
+    }
+}
+
+function simTemp(dt) {
+    TZ.forEach(z => {
+        if (z.h) z.t += (z.tgt - z.t)*dt*0.04;
+        else if (z.c) z.t += (18 - z.t)*dt*0.03;
+        else z.t += (22 - z.t)*dt*0.005;
+        z.t = Math.max(5, Math.min(50, z.t + (Math.random()-0.5)*0.03));
+    });
+}
+
+function simMotion(t) {
+    const s = S.spd, rf = ROADS[roadType].r;
+    const idle = 0.02, eFreq = 28 + s*0.25, eAmp = idle + s*0.003;
+    const roadFactor = Math.min(1, s/100) * rf;
+    const road = (Math.sin(t*1.8)*0.15 + Math.sin(t*4.3)*0.06 + Math.sin(t*7.1)*0.03*rf + Math.sin(t*12.5)*0.015*rf)*roadFactor;
+    const cobbleHit = roadType==='cobble' ? Math.sin(t*18)*0.08*roadFactor : 0;
+    MO.ax = Math.sin(t*0.6)*s*0.006 + (Math.random()-0.5)*0.08*roadFactor + Math.sin(t*3.2)*0.02*rf*roadFactor;
+    MO.ay = road*0.6 + Math.sin(t*eFreq*0.08)*eAmp*0.5 + cobbleHit;
+    MO.az = Math.cos(t*0.25)*s*0.003 + (Math.random()-0.5)*0.05*roadFactor;
+    MO.vib = eAmp + Math.abs(road)*0.3 + Math.abs(cobbleHit)*0.5;
+    MO.freq = eFreq;
+    waveH.ax.push(MO.ax); waveH.ay.push(MO.ay); waveH.az.push(MO.az);
+    if(waveH.ax.length>WAVE_LEN){waveH.ax.shift();waveH.ay.shift();waveH.az.shift();}
+    peakMO.ax = Math.max(peakMO.ax*0.998, Math.abs(MO.ax));
+    peakMO.ay = Math.max(peakMO.ay*0.998, Math.abs(MO.ay));
+    peakMO.az = Math.max(peakMO.az*0.998, Math.abs(MO.az));
+}
+
+// === Render ===
+function updPressCush() {
+    const ctx=pCtxC; ctx.clearRect(0,0,128,128);
+    for (let y=0;y<16;y++) for (let x=0;x<16;x++) {
+        const v=PG[y*16+x];
+        if (v>0.01) { ctx.fillStyle=pColor(v); ctx.beginPath(); ctx.arc(x*8+4,y*8+4,3.5,0,Math.PI*2); ctx.fill(); }
+    }
+    pTexC.needsUpdate = true;
+}
+
+function updPressBack() {
+    const ctx=pCtxB; ctx.clearRect(0,0,128,128);
+    if (!S.occ) { pTexB.needsUpdate=true; return; }
+    const wf=S.w/80*0.4, cw=128/12;
+    for (let y=0;y<16;y++) for (let x=0;x<12;x++) {
+        const nx=(x/11)*2-1, ny=(y/15)*2-1;
+        const v=(g2d(nx+0.3,ny+0.1,0.4,0.35)+g2d(nx-0.3,ny+0.1,0.4,0.35))*wf;
+        if (v>0.01) { ctx.fillStyle=pColor(v); ctx.beginPath(); ctx.arc(x*cw+cw/2,y*8+4,3.5,0,Math.PI*2); ctx.fill(); }
+    }
+    pTexB.needsUpdate = true;
+}
+
+function updTempVis() {
+    const meshes = [cushionMesh,cushionMesh,backMesh,backMesh,lBolster,rBolster];
+    TZ.forEach((z,i) => {
+        const m=meshes[i]; if(!m) return;
+        m.material.emissive = tColor(z.t);
+        m.material.emissiveIntensity = (z.h||z.c) ? 0.35 : 0.08;
+    });
+}
+
+function updPosVis() {
+    seatRoot.position.z = S.fb/100*0.12;
+    baseGroup.position.y = S.ud/50*0.03;
+    if (backrestPivot) backrestPivot.rotation.x = -THREE.MathUtils.degToRad(S.rec);
+    if (headMesh) headMesh.position.y = 0.61 + S.hr/100*0.08;
+}
+
+function updMotVis(t) {
+    if (!arGrp.visible) return;
+    const s = 0.25;
+    arX.setLength(Math.max(0.04, Math.abs(MO.ax)*s), 0.035, 0.02);
+    arX.setDirection(new THREE.Vector3(Math.sign(MO.ax)||1,0,0).normalize());
+    arY.setLength(Math.max(0.04, Math.abs(MO.ay)*s), 0.035, 0.02);
+    arY.setDirection(new THREE.Vector3(0,Math.sign(MO.ay)||1,0).normalize());
+    arZ.setLength(Math.max(0.04, Math.abs(MO.az)*s), 0.035, 0.02);
+    arZ.setDirection(new THREE.Vector3(0,0,-(Math.sign(MO.az)||1)).normalize());
+    if (MO.vib > 0.005) {
+        const v = MO.vib * 0.0015;
+        baseGroup.rotation.z = Math.sin(t*MO.freq*0.25)*v;
+        baseGroup.position.y = (S.ud/50*0.03) + Math.sin(t*MO.freq*0.4)*v*1.5;
+    }
+}
+
+// === UI ===
+let lastUI = 0;
+function updDash() {
+    if (AS.has('pressure')) {
+        let sum=0,mx=0,cnt=0;
+        for (let i=0;i<256;i++) if(PG[i]>0.01){sum+=PG[i];cnt++;mx=Math.max(mx,PG[i]);}
+        const avg=cnt>0?(sum/cnt*100).toFixed(1):'0', pk=(mx*100).toFixed(1);
+        $('rW').textContent = S.occ ? S.w : '0';
+        $('rOcc').textContent = S.occ ? 'Occupied' : 'Empty';
+        $('rAvg').textContent = avg; $('rPk').textContent = pk;
+        const mc=$('miniHeatmap'), mctx=mc.getContext('2d');
+        mctx.clearRect(0,0,180,180);
+        const cs=180/16;
+        for (let y=0;y<16;y++) for (let x=0;x<16;x++) {
+            const v=PG[y*16+x];
+            if(v>0.01){mctx.fillStyle=pColor(v);mctx.fillRect(x*cs,y*cs,cs,cs);}
+        }
+        if (mx*100>TH.pressure) addAlert('warn','Peak pressure '+pk+' kPa — threshold');
+    }
+    if (AS.has('temperature')) TZ.forEach(z=>{ if(z.t>TH.temperature) addAlert('error',z.n+' '+z.t.toFixed(1)+'°C — overheat'); });
+    if (AS.has('motion')) {
+        $('rVib').textContent=MO.vib.toFixed(2); $('rFrq').textContent=Math.round(MO.freq);
+        $('rSpd2').textContent=S.spd; $('rRoadD').textContent=ROADS[roadType].n;
+        $('rAX').textContent=MO.ax.toFixed(2)+' G'; $('rAY').textContent=MO.ay.toFixed(2)+' G'; $('rAZ').textContent=MO.az.toFixed(2)+' G';
+        mBar('bAX',MO.ax,2); mBar('bAY',MO.ay,2); mBar('bAZ',MO.az,2);
+        $('pkAX').textContent=peakMO.ax.toFixed(2); $('pkAY').textContent=peakMO.ay.toFixed(2); $('pkAZ').textContent=peakMO.az.toFixed(2);
+        $('gVal').textContent=MO.vib.toFixed(2); drawGauge(MO.vib,1.5);
+        drawWaveform();
+        if (MO.vib>TH.vibration) addAlert('warn','Vibration '+MO.vib.toFixed(2)+' G');
+    }
+    if (AS.has('position')) {
+        $('rFB').textContent=Math.round(S.fb*1.5); $('rUD').textContent=Math.round(S.ud*0.6);
+        $('rRec').textContent=S.rec+'°'; $('rHR').textContent=Math.round(S.hr*0.8);
+    }
+}
+
+function mBar(id,v,mx) {
+    const b=$(id), p=(v/mx)*50;
+    if(p>=0){b.style.left='50%';b.style.width=Math.min(50,p)+'%';}
+    else{const w=Math.min(50,Math.abs(p));b.style.left=(50-w)+'%';b.style.width=w+'%';}
+}
+
+// === Alerts ===
+let lastAT=0;
+function addAlert(tp,msg) {
+    const n=Date.now(); if(n-lastAT<3500)return; if(alerts.length&&alerts[0].msg===msg)return;
+    lastAT=n; alerts.unshift({tp,msg,time:new Date()}); if(alerts.length>15)alerts.pop(); rendAlerts();
+}
+function rendAlerts() {
+    $('aCnt').textContent='('+alerts.length+')';
+    if(!alerts.length){$('aList').innerHTML='<div style="font-size:12px;color:var(--text3);text-align:center;padding:24px;">No alerts</div>';return;}
+    $('aList').innerHTML=alerts.slice(0,6).map(a=>'<div class="al '+a.tp+'"><span class="al-t">'+a.time.toLocaleTimeString()+'</span><span class="al-m">'+a.msg+'</span></div>').join('');
+}
+
+// === Sensor Toggle ===
+function toggleSensor(n) {
+    const el=document.querySelector('.s-tog[data-s="'+n+'"]');
+    const on=el.classList.toggle('on');
+    el.querySelector('.s-eye').className='fas '+(on?'fa-eye':'fa-eye-slash')+' s-eye';
+    if(on)AS.add(n);else AS.delete(n);
+
+    if(pressOvCush)pressOvCush.visible=AS.has('pressure');
+    if(pressOvBack)pressOvBack.visible=AS.has('pressure');
+    $('pLeg').classList.toggle('hide',!AS.has('pressure'));
+    $('posCtrl').style.display=AS.has('position')?'':'none';
+    if(arGrp)arGrp.visible=AS.has('motion');
+    if(!AS.has('temperature'))[cushionMesh,backMesh,lBolster,rBolster].forEach(m=>{if(m){m.material.emissive=new THREE.Color(0);m.material.emissiveIntensity=0;}});
+    $('sCount').textContent=AS.size+' sensor'+(AS.size!==1?'s':'');
+}
+
+// === Controls ===
+function toggleSim() {
+    simOn=!simOn;
+    $('simDot').className='sim-d '+(simOn?'go':'no');
+    $('simLabel').textContent=simOn?'Running':'Paused';
+    $('simBtn').innerHTML=simOn?'<i class="fas fa-pause"></i>':'<i class="fas fa-play"></i>';
+}
+function setWeight(v){S.w=+v;$('wVal').textContent=v+' kg';}
+function setSpeed(v){S.spd=+v;$('spdVal').textContent=v+' km/h';}
+function setOcc(t,btn) {
+    btn.parentElement.querySelectorAll('.pb').forEach(b=>b.classList.remove('on')); btn.classList.add('on');
+    switch(t){
+        case'seated':S.occ=true;S.w=70;$('wSlider').value=70;setWeight(70);break;
+        case'empty':S.occ=false;break;
+        case'child':S.occ=true;S.w=25;$('wSlider').value=25;setWeight(25);break;
+        case'heavy':S.occ=true;S.w=110;$('wSlider').value=110;setWeight(110);break;
+    }
+}
+function setRoad(r,btn) {
+    btn.parentElement.querySelectorAll('.pb').forEach(b=>b.classList.remove('on')); btn.classList.add('on');
+    roadType = r; peakMO.ax=0; peakMO.ay=0; peakMO.az=0;
+}
+function setPos(axis,v) {
+    switch(axis){
+        case'fb':S.fb=+v;$('fbVal').textContent=v;break;
+        case'ud':S.ud=+v;$('udVal').textContent=v;break;
+        case'rec':S.rec=+v;$('recVal').textContent=v+'°';break;
+        case'hr':S.hr=+v;$('hrVal').textContent=v;break;
+    }
+}
+const presets_data = {
+    normal:{fb:0,ud:0,rec:18,hr:0}, sport:{fb:20,ud:-15,rec:12,hr:20},
+    relax:{fb:-40,ud:10,rec:42,hr:65}, entry:{fb:-80,ud:-10,rec:18,hr:0}
+};
+let animTgt = null;
+function preset(n,btn) {
+    btn.parentElement.querySelectorAll('.pb').forEach(b=>b.classList.remove('on')); btn.classList.add('on');
+    animTgt = {...presets_data[n]};
+}
+function setOpacity(v) {
+    $('opVal').textContent=v+'%'; const op=v/100;
+    [cushionMesh,backMesh,headMesh,lBolster,rBolster,lbBack,rbBack].forEach(m=>{
+        if(!m)return; m.material.transparent=op<1; m.material.opacity=op;
+    });
+}
+function resetCam(){cam.position.set(1.2,0.85,1.5);ctrl.target.set(0,0.32,0);}
+function autoRot(){ctrl.autoRotate=!ctrl.autoRotate;ctrl.autoRotateSpeed=1.5;}
+
+// === Temperature UI ===
+function rendTZ() {
+    $('tzList').innerHTML=TZ.map((z,i)=>{
+        const hex='#'+tColor(z.t).getHexString();
+        return '<div class="tz"><div class="tz-i"><div class="tz-d" style="background:'+hex+';"></div><span class="tz-n">'+z.n+'</span></div>'+
+        '<div style="display:flex;align-items:center;gap:6px;"><span class="tz-v" style="color:'+hex+';">'+z.t.toFixed(1)+'°</span>'+
+        '<button class="tz-b '+(z.h?'hot':'')+'" onclick="togH('+i+')"><i class="fas fa-fire"></i></button>'+
+        '<button class="tz-b '+(z.c?'cool':'')+'" onclick="togC('+i+')"><i class="fas fa-snowflake"></i></button></div></div>';
+    }).join('');
+}
+function togH(i){TZ[i].h=!TZ[i].h;if(TZ[i].h)TZ[i].c=false;}
+function togC(i){TZ[i].c=!TZ[i].c;if(TZ[i].c)TZ[i].h=false;}
+
+// === Gauge ===
+function drawGauge(val,max) {
+    const c=$('gaugeC'); if(!c) return;
+    const ctx=c.getContext('2d'); const W=c.width,H=c.height;
+    ctx.clearRect(0,0,W,H);
+    const cx=W/2,cy=H*0.55,r=W*0.4,start=0.75*Math.PI,end=2.25*Math.PI;
+    // Background arc
+    ctx.beginPath();ctx.arc(cx,cy,r,start,end);ctx.strokeStyle='rgba(78,90,110,0.3)';ctx.lineWidth=8;ctx.stroke();
+    // Tick marks
+    for(let i=0;i<=10;i++){
+        const a=start+(end-start)*(i/10);
+        const x1=cx+Math.cos(a)*(r-12),y1=cy+Math.sin(a)*(r-12);
+        const x2=cx+Math.cos(a)*(r-4),y2=cy+Math.sin(a)*(r-4);
+        ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);
+        ctx.strokeStyle=i>7?'rgba(255,92,92,0.4)':'rgba(138,150,168,0.2)';ctx.lineWidth=i%5===0?2:1;ctx.stroke();
+    }
+    // Value arc
+    const pct=Math.min(1,val/max); const vEnd=start+(end-start)*pct;
+    if(pct>0.01){
+        const grad=ctx.createLinearGradient(20,cy,W-20,cy);
+        grad.addColorStop(0,'#00AAD2');grad.addColorStop(0.5,'#FFB84D');grad.addColorStop(1,'#FF5C5C');
+        ctx.beginPath();ctx.arc(cx,cy,r,start,vEnd);ctx.strokeStyle=grad;ctx.lineWidth=8;ctx.lineCap='round';ctx.stroke();
+    }
+    // Threshold marker
+    const thPct=TH.vibration/max; const thA=start+(end-start)*thPct;
+    ctx.beginPath();ctx.arc(cx,cy,r,thA-0.02,thA+0.02);ctx.strokeStyle='rgba(255,92,92,0.6)';ctx.lineWidth=12;ctx.stroke();
+}
+
+// === Waveform ===
+function drawWaveform() {
+    const c=$('motionWave'); if(!c) return;
+    const ctx=c.getContext('2d');
+    const w=c.width, h=c.height;
+    ctx.clearRect(0,0,w,h);
+    // Grid
+    ctx.strokeStyle='rgba(78,90,110,0.15)'; ctx.lineWidth=1;
+    for(let y=0;y<h;y+=20){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();}
+    ctx.strokeStyle='rgba(78,90,110,0.25)';ctx.beginPath();ctx.moveTo(0,h/2);ctx.lineTo(w,h/2);ctx.stroke();
+    // Axes
+    const colors = ['rgba(255,92,92,0.8)','rgba(0,200,150,0.8)','rgba(0,170,210,0.8)'];
+    const data = [waveH.ax, waveH.ay, waveH.az];
+    const maxV = 1.5;
+    data.forEach((d,ci) => {
+        if(d.length<2) return;
+        ctx.beginPath(); ctx.strokeStyle=colors[ci]; ctx.lineWidth=1.5;
+        const step = w / WAVE_LEN;
+        const offset = WAVE_LEN - d.length;
+        for(let i=0;i<d.length;i++){
+            const x = (offset+i)*step;
+            const y = h/2 - (d[i]/maxV)*(h/2)*0.85;
+            if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+        }
+        ctx.stroke();
+    });
+}
+
+// === Dashboard tabs ===
+let activeTab = 'pressure';
+function showTab(name) {
+    activeTab = name;
+    document.querySelectorAll('.dash-tab').forEach(t=>t.classList.remove('on'));
+    document.querySelectorAll('.dash-panel').forEach(p=>p.classList.remove('on'));
+    const tabs = ['pressure','temperature','position','motion','alerts'];
+    const panels = ['panPress','panTemp','panPos','panMotion','panAlerts'];
+    const idx = tabs.indexOf(name);
+    if(idx>=0) {
+        document.querySelectorAll('.dash-tab')[idx].classList.add('on');
+        $(panels[idx]).classList.add('on');
+    }
+    // Expand if collapsed
+    $('dashboard').classList.remove('collapsed');
+    $('dashToggle').innerHTML='<i class="fas fa-chevron-down"></i>';
+}
+function toggleDash() {
+    const d=$('dashboard');
+    d.classList.toggle('collapsed');
+    $('dashToggle').innerHTML=d.classList.contains('collapsed')?'<i class="fas fa-chevron-up"></i>':'<i class="fas fa-chevron-down"></i>';
+}
+
+// === Export ===
+function exportJSON() {
+    const d={timestamp:new Date().toISOString(),system:'KETI Smart Seat Monitor — Hyundai Pleos',
+        seat:{occupied:S.occ,weight:S.w,speed:S.spd,fb:S.fb,ud:S.ud,recline:S.rec,headrest:S.hr},
+        pressure:{grid:Array.from(PG),avg:Array.from(PG).filter(v=>v>0.01).reduce((a,b)=>a+b,0)/Math.max(1,Array.from(PG).filter(v=>v>0.01).length)*100,peak:Math.max(...PG)*100},
+        temperature:TZ.map(z=>({name:z.n,current:z.t,target:z.tgt,heating:z.h,cooling:z.c})),
+        motion:{...MO,road:roadType,peaks:{x:peakMO.ax,y:peakMO.ay,z:peakMO.az}}};
+    const bl=new Blob([JSON.stringify(d,null,2)],{type:'application/json'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(bl);a.download='pleos-seat-'+Date.now()+'.json';a.click();URL.revokeObjectURL(a.href);
+    toast('JSON exported');
+}
+function exportCSV() {
+    const now=new Date().toISOString(); let csv='timestamp,type,zone,value,unit\n';
+    for(let y=0;y<16;y++)for(let x=0;x<16;x++)csv+=now+',pressure,cushion_'+x+'_'+y+','+(PG[y*16+x]*100).toFixed(2)+',kPa\n';
+    TZ.forEach(z=>csv+=now+',temperature,'+z.n+','+z.t.toFixed(2)+',C\n');
+    csv+=now+',motion,accel_x,'+MO.ax.toFixed(4)+',G\n';
+    csv+=now+',motion,accel_y,'+MO.ay.toFixed(4)+',G\n';
+    csv+=now+',motion,accel_z,'+MO.az.toFixed(4)+',G\n';
+    const bl=new Blob([csv],{type:'text/csv'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(bl);a.download='pleos-seat-'+Date.now()+'.csv';a.click();URL.revokeObjectURL(a.href);
+    toast('CSV exported');
+}
+
+// === Utils ===
+let toastTm;
+function toast(msg){const t=$('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastTm);toastTm=setTimeout(()=>t.classList.remove('show'),2200);}
+function drawLeg(){const ctx=$('legBar').getContext('2d');for(let x=0;x<180;x++){ctx.fillStyle=pColor(x/180);ctx.fillRect(x,0,1,10);}}
+function updClk(){$('clock').textContent=new Date().toLocaleTimeString();}
+
+// === Animation Loop ===
+function animate() {
+    requestAnimationFrame(animate);
+    const dt=Math.min(clk.getDelta(),0.1), el=clk.getElapsedTime();
+
+    if(simOn){simPress(el);simTemp(dt);simMotion(el);}
+
+    if(animTgt) {
+        let done=true;
+        const speeds = {fb:2.5, ud:3, rec:2.2, hr:3.5};
+        ['fb','ud','rec','hr'].forEach(k=>{
+            const diff=animTgt[k]-S[k];
+            if(Math.abs(diff)>0.3){S[k]+=diff*dt*speeds[k];done=false;}else S[k]=animTgt[k];
+        });
+        $('fbS').value=S.fb; $('udS').value=S.ud; $('recS').value=S.rec; $('hrS').value=S.hr;
+        $('fbVal').textContent=Math.round(S.fb); $('udVal').textContent=Math.round(S.ud);
+        $('recVal').textContent=Math.round(S.rec)+'°'; $('hrVal').textContent=Math.round(S.hr);
+        if(done)animTgt=null;
+    }
+
+    if(AS.has('pressure')){updPressCush();updPressBack();}
+    if(AS.has('temperature'))updTempVis();
+    if(AS.has('position'))updPosVis();
+    if(AS.has('motion'))updMotVis(el);
+
+    if(el-lastUI>0.16){updDash();if(AS.has('temperature'))rendTZ();lastUI=el;}
+
+    ctrl.update();
+    rend.render(scene,cam);
+}
+
+// === Init ===
+init();
+drawLeg();
+setInterval(updClk,1000); updClk();
+animate();
+</script>
+</body>
+</html>
