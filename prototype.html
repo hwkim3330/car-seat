@@ -686,14 +686,15 @@ function setupPressureOverlays(seatId) {
     obj.pivot.add(pressOverlayBack);
 }
 
-// ==================== COLORS (muted palette) ====================
+// ==================== COLORS ====================
 function pressureColor(t) {
     t = Math.max(0, Math.min(1, t));
     let r,g,b;
-    if (t<0.33){const f=t/0.33;r=Math.round(80+f*40);g=Math.round(140+f*60);b=Math.round(180-f*40);}
-    else if(t<0.66){const f=(t-0.33)/0.33;r=Math.round(120+f*80);g=Math.round(200-f*60);b=Math.round(140-f*80);}
-    else{const f=(t-0.66)/0.34;r=Math.round(200+f*30);g=Math.round(140-f*80);b=Math.round(60-f*30);}
-    return `rgba(${r},${g},${b},${0.25+t*0.6})`;
+    if (t<0.25){const f=t/0.25;r=Math.round(40+f*10);g=Math.round(80+f*140);b=Math.round(160+f*60);}
+    else if(t<0.5){const f=(t-0.25)/0.25;r=Math.round(50+f*100);g=Math.round(220-f*30);b=Math.round(220-f*160);}
+    else if(t<0.75){const f=(t-0.5)/0.25;r=Math.round(150+f*80);g=Math.round(190-f*90);b=Math.round(60-f*30);}
+    else{const f=(t-0.75)/0.25;r=Math.round(230);g=Math.round(100-f*50);b=Math.round(30);}
+    return `rgba(${r},${g},${b},${0.45+t*0.5})`;
 }
 function gaussian2D(x,y,sx,sy){return Math.exp(-(x*x)/(2*sx*sx)-(y*y)/(2*sy*sy));}
 
