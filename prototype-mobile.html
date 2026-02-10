@@ -537,7 +537,7 @@ function simulateBio() {
     bio.conf = Math.max(70, Math.min(99, bio.conf));
 
     // HR waveform
-    hrData.push(Math.sin(simTime * 5) * 0.3 + Math.sin(simTime * 10) * 0.5 * Math.exp(-((simTime * 5) % (Math.PI * 2) - 1) ** 2));
+    hrData.push(Math.sin(simTime * 5) * 0.3 + Math.sin(simTime * 10) * 0.5 * Math.exp(-(((simTime * 5) % (Math.PI * 2) - 1) ** 2)));
     if (hrData.length > WLEN) hrData.shift();
 }
 
