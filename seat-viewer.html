@@ -647,6 +647,13 @@ function loadGLBModel() {
     );
 }
 
+// Material configs based on GLB node names
+const MAT_LEATHER = { color: 0xf0ebe4, roughness: 0.42, metalness: 0.0 };
+const MAT_FRAME   = { color: 0x888890, roughness: 0.20, metalness: 0.7 };
+const MAT_ACCENT  = { color: 0xe5dfd8, roughness: 0.38, metalness: 0.02 };
+const FRAME_NODES  = new Set(['01 Base', '02 Base rim', '03 Base controls']);
+const ACCENT_NODES = new Set(['05 Bottom sides', '07 Seat back sides']);
+
 function placeSeat(seatId, posX, posZ) {
     const isOccupied = seats[seatId].occupied;
 
@@ -664,34 +671,33 @@ function placeSeat(seatId, posX, posZ) {
     model.scale.setScalar(modelScale);
     model.position.set(0, modelYOffset, 0);
 
-    // Collect all meshes and fix materials for cloning
+    // Assign materials by node name and collect meshes
     const allMeshes = [];
     model.traverse(child => {
         if (child.isMesh) {
             child.castShadow = true;
             child.receiveShadow = true;
-            // Clone material so each seat can be colored independently
-            if (Array.isArray(child.material)) {
-                child.material = child.material.map(m => m.clone());
-                child.material.forEach(m => allMeshes.push({ mesh: child, mat: m }));
-            } else {
-                child.material = child.material.clone();
-                allMeshes.push({ mesh: child, mat: child.material });
-            }
+
+            // Determine material by node name (self or parent)
+            var nodeName = child.name || (child.parent && child.parent.name) || '';
+            var cfg = MAT_LEATHER;
+            if (FRAME_NODES.has(nodeName)) cfg = MAT_FRAME;
+            else if (ACCENT_NODES.has(nodeName)) cfg = MAT_ACCENT;
+
             // Dim unoccupied seats
+            var baseColor = new THREE.Color(cfg.color);
             if (!isOccupied) {
-                const mats = Array.isArray(child.material) ? child.material : [child.material];
-                mats.forEach(m => {
-                    if (m.color) {
-                        const c = m.color;
-                        m.color.setRGB(
-                            c.r * 0.7 + 0.3 * 0.5,
-                            c.g * 0.7 + 0.3 * 0.5,
-                            c.b * 0.7 + 0.3 * 0.5
-                        );
-                    }
-                });
+                baseColor.lerp(new THREE.Color(0x999999), 0.5);
             }
+
+            var newMat = new THREE.MeshStandardMaterial({
+                color: baseColor,
+                roughness: cfg.roughness,
+                metalness: cfg.metalness,
+                envMapIntensity: 1.5
+            });
+            child.material = newMat;
+            allMeshes.push({ mesh: child, mat: newMat });
         }
     });
 

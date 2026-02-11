@@ -1,0 +1,1106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KETI Smart Seat — Brown Leather</title>
+    <script src="libs/three.min.js"></script>
+    <script src="libs/OrbitControls.js"></script>
+    <script src="libs/GLTFLoader.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="icon" href="favicon.ico">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        *{margin:0;padding:0;box-sizing:border-box;}
+        body{font-family:'Inter',-apple-system,sans-serif;background:#f2f2f7;color:#1c1c1e;overflow:hidden;-webkit-font-smoothing:antialiased;}
+        :root{
+            --bg:#f2f2f7;--bg2:rgba(255,255,255,0.72);--bg3:#ffffff;
+            --border:rgba(0,0,0,0.04);--border2:rgba(0,0,0,0.08);
+            --text:#1c1c1e;--text2:#48484a;--text3:#8e8e93;--text4:#aeaeb2;
+            --accent:#8B6914;--accent-bg:rgba(139,105,20,0.08);
+            --ok:#4CAF50;--warn:#E9A23B;--danger:#D44638;
+            --card:0 0.5px 1px rgba(0,0,0,0.04);
+        }
+
+        /* ===== LAYOUT ===== */
+        .app{display:flex;flex-direction:column;height:100vh;}
+        .header{height:48px;background:var(--bg2);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-bottom:1px solid var(--border2);display:flex;align-items:center;justify-content:space-between;padding:0 20px;flex-shrink:0;z-index:20;}
+        .header-left{display:flex;align-items:center;gap:12px;}
+        .header-left img{height:24px;opacity:0.85;}
+        .header-left h1{font-size:14px;font-weight:600;letter-spacing:-0.2px;color:var(--text);}
+        .header-left .ver{font-size:9px;color:var(--text3);font-weight:500;background:rgba(0,0,0,0.04);padding:2px 6px;border-radius:4px;margin-left:4px;}
+        .header-center{display:flex;gap:6px;align-items:center;}
+        .status-pill{display:flex;align-items:center;gap:4px;padding:3px 10px;border-radius:100px;font-size:10px;font-weight:500;background:rgba(0,0,0,0.03);color:var(--text3);}
+        .status-dot{width:5px;height:5px;border-radius:50%;background:var(--ok);animation:pulse 2.5s ease-in-out infinite;}
+        @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
+        .header-right{display:flex;align-items:center;gap:8px;}
+        .clock{font-size:11px;color:var(--text3);font-weight:500;font-variant-numeric:tabular-nums;}
+
+        .btn{padding:5px 12px;border-radius:6px;border:1px solid var(--border2);background:transparent;color:var(--text2);font-size:11px;font-weight:500;font-family:inherit;cursor:pointer;display:inline-flex;align-items:center;gap:4px;transition:all .15s;}
+        .btn:hover{background:rgba(0,0,0,0.03);}
+        .btn:active{transform:scale(0.97);}
+        .btn i{font-size:10px;color:var(--text3);}
+
+        .content{flex:1;display:flex;overflow:hidden;}
+
+        /* ===== LEFT PANEL ===== */
+        .left-panel{width:280px;flex-shrink:0;background:rgba(255,255,255,0.55);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-right:1px solid var(--border);overflow-y:auto;display:flex;flex-direction:column;}
+        .panel-section{padding:14px 14px 10px;}
+        .panel-section+.panel-section{border-top:1px solid rgba(0,0,0,0.03);}
+        .section-title{font-size:10px;font-weight:600;color:var(--text4);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px;display:flex;align-items:center;gap:4px;}
+        .section-title i{font-size:9px;color:var(--text4);}
+
+        /* Seat selector */
+        .seat-selector{display:grid;grid-template-columns:repeat(4,1fr);gap:3px;margin-bottom:8px;}
+        .seat-sel-btn{padding:7px 3px;border-radius:6px;border:1px solid var(--border2);background:transparent;color:var(--text3);font-size:9px;font-weight:500;cursor:pointer;text-align:center;transition:all .15s;font-family:inherit;}
+        .seat-sel-btn:hover{background:rgba(0,0,0,0.02);}
+        .seat-sel-btn.active{background:#6B3A2A;border-color:#6B3A2A;color:white;}
+        .seat-sel-btn .occ-dot{display:block;width:5px;height:5px;border-radius:50%;margin:0 auto 3px;background:#c7c7cc;}
+        .seat-sel-btn.occupied .occ-dot{background:var(--ok);}
+
+        /* Level controls */
+        .level-control{display:flex;align-items:center;gap:5px;margin-bottom:8px;}
+        .level-label{font-size:11px;font-weight:500;width:60px;color:var(--text2);}
+        .level-btns{display:flex;gap:2px;flex:1;}
+        .level-btn{flex:1;padding:6px;border-radius:6px;border:1px solid var(--border2);background:transparent;color:var(--text3);font-size:10px;font-weight:500;cursor:pointer;text-align:center;transition:all .15s;font-family:inherit;}
+        .level-btn:hover{background:rgba(0,0,0,0.03);}
+        .level-btn.active{color:white;}
+        .level-btn.active.heat{background:#8B6050;border-color:#8B6050;}
+        .level-btn.active.cool{background:#5B7B9A;border-color:#5B7B9A;}
+        .level-btn.active.neutral{background:var(--text);border-color:var(--text);}
+
+        /* Massage */
+        .massage-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:3px;}
+        .massage-btn{padding:8px;border-radius:8px;border:1px solid var(--border2);background:transparent;color:var(--text3);font-size:10px;font-weight:500;cursor:pointer;text-align:center;transition:all .15s;font-family:inherit;}
+        .massage-btn:hover{background:rgba(0,0,0,0.02);}
+        .massage-btn.active{background:#6B3A2A;border-color:#6B3A2A;color:white;}
+        .massage-btn i{display:block;font-size:13px;margin-bottom:2px;}
+
+        /* Pneumatic */
+        .pneumatic-ch{display:flex;align-items:center;gap:5px;margin-bottom:5px;}
+        .pneumatic-ch label{font-size:10px;width:65px;color:var(--text3);}
+        .pneumatic-ch input[type=range]{flex:1;height:3px;-webkit-appearance:none;appearance:none;background:#d1d1d6;border-radius:2px;outline:none;cursor:pointer;}
+        .pneumatic-ch input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:white;cursor:pointer;box-shadow:0 0.5px 3px rgba(0,0,0,0.15),0 0 0 0.5px rgba(0,0,0,0.04);}
+        .pneumatic-ch .pn-val{font-size:10px;font-weight:500;width:22px;text-align:right;font-variant-numeric:tabular-nums;color:var(--text2);}
+
+        /* Drive mode */
+        .drive-modes{display:grid;grid-template-columns:repeat(4,1fr);gap:3px;}
+        .drive-btn{padding:8px 3px;border-radius:8px;border:1px solid var(--border2);background:transparent;color:var(--text3);font-size:9px;font-weight:500;cursor:pointer;text-align:center;transition:all .15s;font-family:inherit;}
+        .drive-btn:hover{background:rgba(0,0,0,0.02);}
+        .drive-btn.active{background:#6B3A2A;border-color:#6B3A2A;color:white;}
+        .drive-btn i{display:block;font-size:13px;margin-bottom:2px;}
+
+        /* Position */
+        .pos-ctrl{margin-bottom:8px;}
+        .pos-ctrl-label{display:flex;justify-content:space-between;font-size:11px;color:var(--text2);margin-bottom:3px;}
+        .pos-ctrl-label span:last-child{font-weight:600;color:var(--text);font-variant-numeric:tabular-nums;}
+        .pos-ctrl input[type=range]{width:100%;height:3px;-webkit-appearance:none;appearance:none;background:#d1d1d6;border-radius:2px;outline:none;cursor:pointer;}
+        .pos-ctrl input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:white;cursor:pointer;box-shadow:0 0.5px 3px rgba(0,0,0,0.15),0 0 0 0.5px rgba(0,0,0,0.04);}
+        .pos-ctrl input[type=range]:disabled{opacity:.3;cursor:not-allowed;}
+
+        /* Sim */
+        .sim-bar{display:flex;align-items:center;gap:5px;padding:8px 10px;background:white;border-radius:8px;border:1px solid var(--border);box-shadow:var(--card);margin-bottom:8px;}
+        .sim-dot{width:6px;height:6px;border-radius:50%;}
+        .sim-dot.on{background:var(--ok);animation:pulse 2s ease-in-out infinite;}
+        .sim-dot.off{background:var(--text4);}
+        .sim-label{flex:1;font-size:11px;font-weight:500;color:var(--text2);}
+
+        .safety-banner{display:none;padding:7px 8px;background:rgba(212,70,56,.06);border:1px solid rgba(212,70,56,.12);border-radius:6px;margin-bottom:8px;font-size:10px;color:var(--danger);align-items:center;gap:5px;}
+        .safety-banner.show{display:flex;}
+
+        /* ===== CENTER ===== */
+        .canvas-area{flex:1;position:relative;background:#ece8e2;}
+        #canvas3d{width:100%;height:100%;display:block;}
+
+        .multi-seat-bar{position:absolute;top:10px;left:50%;transform:translateX(-50%);display:flex;gap:6px;z-index:10;}
+        .mini-seat{background:rgba(255,255,255,0.8);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid rgba(0,0,0,0.05);border-radius:10px;padding:8px 12px;min-width:100px;text-align:center;cursor:pointer;transition:all .15s;box-shadow:0 1px 6px rgba(0,0,0,0.04);}
+        .mini-seat:hover{border-color:rgba(0,0,0,0.12);}
+        .mini-seat.active{border-color:var(--text);box-shadow:0 1px 6px rgba(0,0,0,0.08);}
+        .mini-seat .ms-icon{font-size:16px;margin-bottom:3px;color:var(--text3);}
+        .mini-seat.active .ms-icon{color:var(--text);}
+        .mini-seat .ms-name{font-size:9px;font-weight:600;color:var(--text2);margin-bottom:2px;}
+        .mini-seat .ms-state{font-size:8px;font-weight:500;padding:2px 5px;border-radius:3px;display:inline-block;background:rgba(0,0,0,0.04);color:var(--text3);}
+        .ms-state.occupied{background:rgba(76,175,80,.08);color:#4a8a4e;}
+        .ms-state.empty{background:rgba(0,0,0,0.04);color:var(--text4);}
+        .ms-state.child-badge{background:rgba(233,162,59,.08);color:#a07830;}
+
+        .legend{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);background:rgba(255,255,255,0.8);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid rgba(0,0,0,0.05);border-radius:10px;padding:8px 14px;display:flex;align-items:center;gap:8px;z-index:10;box-shadow:0 1px 6px rgba(0,0,0,0.04);}
+        .legend-title{font-size:10px;color:var(--text3);font-weight:500;white-space:nowrap;}
+        .legend canvas{border-radius:4px;}
+        .legend-labels{display:flex;justify-content:space-between;width:180px;font-size:8px;color:var(--text4);font-weight:500;}
+
+        /* Loading overlay */
+        .loading{position:absolute;inset:0;background:rgba(242,242,247,0.92);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:30;transition:opacity .5s;}
+        .loading.hidden{opacity:0;pointer-events:none;}
+        .spinner{width:32px;height:32px;border:2.5px solid rgba(0,0,0,0.08);border-top-color:var(--text3);border-radius:50%;animation:spin .7s linear infinite;}
+        @keyframes spin{to{transform:rotate(360deg);}}
+        .loading-text{margin-top:12px;font-size:12px;color:var(--text3);font-weight:500;}
+        .loading-bar{width:180px;height:3px;background:rgba(0,0,0,0.06);border-radius:2px;margin-top:8px;overflow:hidden;}
+        .loading-fill{height:100%;background:var(--text3);border-radius:2px;transition:width .2s;width:0%;}
+
+        /* ===== RIGHT PANEL ===== */
+        .right-panel{width:300px;flex-shrink:0;background:rgba(255,255,255,0.55);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-left:1px solid var(--border);overflow-y:auto;display:flex;flex-direction:column;}
+
+        .stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px;}
+        .stat-card{background:white;border-radius:10px;padding:12px;border:1px solid rgba(0,0,0,0.03);box-shadow:var(--card);}
+        .stat-card .value{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.5px;color:var(--text);}
+        .stat-card .label{font-size:9px;color:var(--text4);margin-top:2px;text-transform:uppercase;letter-spacing:.3px;font-weight:500;}
+
+        .mon-badge{display:inline-flex;align-items:center;gap:3px;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:600;background:rgba(0,0,0,0.04);color:var(--text2);}
+        .mon-badge.normal{background:rgba(76,175,80,.06);color:#4a8a4e;}
+        .mon-badge.drowsy{background:rgba(212,70,56,.06);color:var(--danger);}
+        .mon-badge.stressed{background:rgba(233,162,59,.06);color:#a07830;}
+        .mon-badge.fatigued{background:rgba(142,142,147,.08);color:var(--text3);}
+        .mon-badge.alert{background:rgba(233,162,59,.06);color:#a07830;}
+
+        .wave-canvas{width:100%;height:44px;border-radius:8px;background:#f5f5f7;border:1px solid rgba(0,0,0,0.03);}
+
+        .asym-bar{height:6px;background:#e5e5ea;border-radius:3px;position:relative;overflow:hidden;margin:5px 0;}
+        .asym-fill-l{position:absolute;right:50%;top:0;height:100%;background:#8e8e93;border-radius:3px 0 0 3px;transition:width .3s;}
+        .asym-fill-r{position:absolute;left:50%;top:0;height:100%;background:#aeaeb2;border-radius:0 3px 3px 0;transition:width .3s;}
+        .asym-center{position:absolute;left:50%;top:-1px;width:1.5px;height:8px;background:var(--text3);transform:translateX(-50%);}
+        .asym-labels{display:flex;justify-content:space-between;font-size:8px;color:var(--text4);}
+
+        .posture-gauge{position:relative;width:90px;height:90px;margin:0 auto;}
+        .posture-gauge canvas{width:100%;height:100%;}
+        .posture-val{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+        .posture-num{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--text);}
+        .posture-unit{font-size:7px;color:var(--text4);font-weight:600;letter-spacing:.3px;}
+
+        .risk-bar{height:4px;background:#e5e5ea;border-radius:2px;overflow:hidden;margin:3px 0;}
+        .risk-fill{height:100%;border-radius:2px;transition:width .3s,background .3s;}
+        .risk-labels{display:flex;justify-content:space-between;font-size:7px;color:var(--text4);}
+
+        .alert-item{display:flex;gap:5px;padding:8px 10px;border-radius:8px;margin-bottom:3px;font-size:10px;background:white;border:1px solid rgba(0,0,0,0.03);box-shadow:var(--card);}
+        .alert-item.warn{border-left:2px solid var(--warn);}
+        .alert-item.error{border-left:2px solid var(--danger);}
+        .alert-item.info{border-left:2px solid var(--text4);}
+        .alert-time{color:var(--text4);font-size:9px;white-space:nowrap;font-weight:500;}
+        .alert-msg{color:var(--text2);line-height:1.4;}
+
+        .preset-item{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-radius:8px;background:white;border:1px solid rgba(0,0,0,0.03);box-shadow:var(--card);margin-bottom:3px;cursor:pointer;transition:all .15s;}
+        .preset-item:hover{box-shadow:0 1px 4px rgba(0,0,0,0.06);}
+        .preset-name{font-size:11px;font-weight:500;color:var(--text);}
+        .preset-meta{font-size:9px;color:var(--text4);margin-top:1px;}
+        .preset-fav{color:var(--text4);font-size:9px;margin-right:3px;}
+
+        .rpanel-tabs{display:flex;gap:0;border-bottom:1px solid var(--border2);padding:0 14px;background:rgba(255,255,255,0.45);}
+        .rpanel-tab{padding:10px 10px;font-size:11px;font-weight:500;color:var(--text4);cursor:pointer;border-bottom:1.5px solid transparent;transition:all .15s;}
+        .rpanel-tab:hover{color:var(--text3);}
+        .rpanel-tab.active{color:var(--text);border-bottom-color:var(--text);}
+        .rpanel-page{display:none;flex:1;overflow-y:auto;}
+        .rpanel-page.active{display:block;}
+
+        .class-row{display:flex;gap:6px;margin-bottom:6px;}
+        .class-item{flex:1;text-align:center;padding:8px 3px;border-radius:8px;background:white;border:1px solid rgba(0,0,0,0.03);box-shadow:var(--card);transition:all .15s;}
+        .class-item.active{border-color:var(--text);box-shadow:0 0 0 1px var(--text);}
+        .class-item i{font-size:16px;display:block;margin-bottom:2px;color:var(--text3);}
+        .class-item.active i{color:var(--text);}
+        .class-item span{font-size:8px;font-weight:500;color:var(--text4);}
+        .class-item.active span{color:var(--text2);}
+
+        .toast{position:fixed;bottom:20px;right:20px;background:var(--text);border-radius:8px;padding:10px 18px;font-size:12px;color:white;font-weight:500;z-index:100;opacity:0;transform:translateY(8px);transition:all .25s;pointer-events:none;}
+        .toast.show{opacity:1;transform:translateY(0);}
+
+        ::-webkit-scrollbar{width:5px;}
+        ::-webkit-scrollbar-track{background:transparent;}
+        ::-webkit-scrollbar-thumb{background:rgba(0,0,0,0.08);border-radius:3px;}
+        ::-webkit-scrollbar-thumb:hover{background:rgba(0,0,0,0.15);}
+
+        .footer-credit{padding:10px 14px;text-align:center;font-size:9px;color:var(--text4);border-top:1px solid rgba(0,0,0,0.03);}
+
+        #miniHeatmap{width:100%;border-radius:8px;background:#f5f5f7;border:1px solid rgba(0,0,0,0.03);}
+    </style>
+</head>
+<body>
+
+<div class="app">
+    <div class="header">
+        <div class="header-left">
+            <img src="keti.png" alt="KETI">
+            <h1>Smart Seat System<span class="ver">BROWN</span></h1>
+        </div>
+        <div class="header-center">
+            <div class="status-pill"><div class="status-dot"></div>Online</div>
+            <div class="status-pill">4 Seats</div>
+        </div>
+        <div class="header-right">
+            <span class="clock" id="clock">00:00:00</span>
+            <button class="btn" onclick="exportData()"><i class="fas fa-download"></i> Export</button>
+        </div>
+    </div>
+
+    <div class="content">
+        <!-- LEFT PANEL -->
+        <div class="left-panel">
+            <div class="panel-section">
+                <div class="section-title"><i class="fas fa-chair"></i> Seat Selection</div>
+                <div class="seat-selector" id="seatSelector">
+                    <button class="seat-sel-btn active occupied" data-seat="driver" onclick="selectSeat('driver',this)"><span class="occ-dot"></span>Driver</button>
+                    <button class="seat-sel-btn occupied" data-seat="passenger" onclick="selectSeat('passenger',this)"><span class="occ-dot"></span>Passenger</button>
+                    <button class="seat-sel-btn" data-seat="rear_left" onclick="selectSeat('rear_left',this)"><span class="occ-dot"></span>Rear L</button>
+                    <button class="seat-sel-btn occupied" data-seat="rear_right" onclick="selectSeat('rear_right',this)"><span class="occ-dot"></span>Rear R</button>
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <div class="section-title"><i class="fas fa-fire"></i> Heating</div>
+                <div class="level-control">
+                    <span class="level-label">Level</span>
+                    <div class="level-btns">
+                        <button class="level-btn heat active" onclick="setHeating(0,this)">OFF</button>
+                        <button class="level-btn heat" onclick="setHeating(1,this)">1</button>
+                        <button class="level-btn heat" onclick="setHeating(2,this)">2</button>
+                        <button class="level-btn heat" onclick="setHeating(3,this)">3</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <div class="section-title"><i class="fas fa-snowflake"></i> Ventilation</div>
+                <div class="level-control">
+                    <span class="level-label">Level</span>
+                    <div class="level-btns">
+                        <button class="level-btn cool active" onclick="setVentilation(0,this)">OFF</button>
+                        <button class="level-btn cool" onclick="setVentilation(1,this)">1</button>
+                        <button class="level-btn cool" onclick="setVentilation(2,this)">2</button>
+                        <button class="level-btn cool" onclick="setVentilation(3,this)">3</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <div class="section-title"><i class="fas fa-hand-sparkles"></i> Massage</div>
+                <div class="massage-grid">
+                    <button class="massage-btn" onclick="setMassage('wave',this)"><i class="fas fa-water"></i>Wave</button>
+                    <button class="massage-btn" onclick="setMassage('pulse',this)"><i class="fas fa-heart-pulse"></i>Pulse</button>
+                    <button class="massage-btn" onclick="setMassage('stretch',this)"><i class="fas fa-expand"></i>Stretch</button>
+                    <button class="massage-btn" onclick="setMassage('pattern',this)"><i class="fas fa-bezier-curve"></i>Pattern</button>
+                </div>
+                <button class="btn" style="width:100%;justify-content:center;margin-top:5px;" onclick="stopMassage()"><i class="fas fa-stop"></i> Stop</button>
+            </div>
+
+            <div class="panel-section">
+                <div class="section-title"><i class="fas fa-wind"></i> Pneumatic (7ch)</div>
+                <div id="pneumaticControls">
+                    <div class="pneumatic-ch"><label>Lumbar L</label><input type="range" min="0" max="100" value="50" oninput="setPneumatic(0,this.value)"><span class="pn-val">50</span></div>
+                    <div class="pneumatic-ch"><label>Lumbar R</label><input type="range" min="0" max="100" value="50" oninput="setPneumatic(1,this.value)"><span class="pn-val">50</span></div>
+                    <div class="pneumatic-ch"><label>Bolster L</label><input type="range" min="0" max="100" value="30" oninput="setPneumatic(2,this.value)"><span class="pn-val">30</span></div>
+                    <div class="pneumatic-ch"><label>Bolster R</label><input type="range" min="0" max="100" value="30" oninput="setPneumatic(3,this.value)"><span class="pn-val">30</span></div>
+                    <div class="pneumatic-ch"><label>Cushion L</label><input type="range" min="0" max="100" value="40" oninput="setPneumatic(4,this.value)"><span class="pn-val">40</span></div>
+                    <div class="pneumatic-ch"><label>Cushion R</label><input type="range" min="0" max="100" value="40" oninput="setPneumatic(5,this.value)"><span class="pn-val">40</span></div>
+                    <div class="pneumatic-ch"><label>Thigh</label><input type="range" min="0" max="100" value="45" oninput="setPneumatic(6,this.value)"><span class="pn-val">45</span></div>
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <div class="section-title"><i class="fas fa-gauge-high"></i> Drive Mode</div>
+                <div class="drive-modes">
+                    <button class="drive-btn active" onclick="setDriveMode('comfort',this)"><i class="fas fa-couch"></i>Comfort</button>
+                    <button class="drive-btn" onclick="setDriveMode('sport',this)"><i class="fas fa-flag-checkered"></i>Sport</button>
+                    <button class="drive-btn" onclick="setDriveMode('eco',this)"><i class="fas fa-leaf"></i>Eco</button>
+                    <button class="drive-btn" onclick="setDriveMode('custom',this)"><i class="fas fa-sliders"></i>Custom</button>
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <div class="section-title"><i class="fas fa-arrows-alt"></i> Position</div>
+                <div class="safety-banner" id="safetyBanner"><i class="fas fa-triangle-exclamation"></i><span>Position locked — vehicle in motion</span></div>
+                <div class="pos-ctrl"><div class="pos-ctrl-label"><span>Fore / Aft</span><span id="posFA">0 mm</span></div><input type="range" min="-100" max="100" value="0" id="sliderFA" oninput="setPosition('fa',this.value)"></div>
+                <div class="pos-ctrl"><div class="pos-ctrl-label"><span>Height</span><span id="posH">0 mm</span></div><input type="range" min="-100" max="100" value="0" id="sliderH" oninput="setPosition('h',this.value)"></div>
+                <div class="pos-ctrl"><div class="pos-ctrl-label"><span>Recline</span><span id="posR">18&deg;</span></div><input type="range" min="5" max="50" value="18" id="sliderR" oninput="setPosition('r',this.value)"></div>
+                <div class="pos-ctrl"><div class="pos-ctrl-label"><span>Headrest</span><span id="posHR">0 mm</span></div><input type="range" min="0" max="100" value="0" id="sliderHR" oninput="setPosition('hr',this.value)"></div>
+                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:3px;margin-top:4px;">
+                    <button class="seat-sel-btn active" onclick="applyPosPreset('drive',this)">Drive</button>
+                    <button class="seat-sel-btn" onclick="applyPosPreset('sport',this)">Sport</button>
+                    <button class="seat-sel-btn" onclick="applyPosPreset('relax',this)">Relax</button>
+                    <button class="seat-sel-btn" onclick="applyPosPreset('entry',this)">Entry</button>
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <div class="section-title"><i class="fas fa-play-circle"></i> Simulation</div>
+                <div class="sim-bar">
+                    <div class="sim-dot on" id="simDot"></div>
+                    <span class="sim-label" id="simLabel">Running</span>
+                    <button class="btn" onclick="toggleSim()" id="simBtn" style="padding:3px 8px;font-size:10px;"><i class="fas fa-pause"></i></button>
+                </div>
+                <div class="pos-ctrl"><div class="pos-ctrl-label"><span>Weight</span><span id="weightVal">70 kg</span></div><input type="range" min="20" max="130" value="70" oninput="simState.weight=+this.value;document.getElementById('weightVal').textContent=this.value+' kg'"></div>
+                <div class="pos-ctrl"><div class="pos-ctrl-label"><span>Vehicle Speed</span><span id="speedVal">0 km/h</span></div><input type="range" min="0" max="200" value="0" id="speedSlider" oninput="setSpeed(+this.value)"></div>
+            </div>
+
+            <div class="footer-credit">KETI — Korea Electronics Technology Institute</div>
+        </div>
+
+        <!-- CENTER: 3D Canvas -->
+        <div class="canvas-area">
+            <div class="multi-seat-bar" id="multiSeatBar">
+                <div class="mini-seat active" data-seat="driver" onclick="selectSeatFromBar('driver',this)">
+                    <div class="ms-icon"><i class="fas fa-user-tie"></i></div>
+                    <div class="ms-name">Driver</div>
+                    <div class="ms-state occupied">Occupied</div>
+                </div>
+                <div class="mini-seat" data-seat="passenger" onclick="selectSeatFromBar('passenger',this)">
+                    <div class="ms-icon"><i class="fas fa-user"></i></div>
+                    <div class="ms-name">Passenger</div>
+                    <div class="ms-state occupied">Occupied</div>
+                </div>
+                <div class="mini-seat" data-seat="rear_left" onclick="selectSeatFromBar('rear_left',this)">
+                    <div class="ms-icon"><i class="fas fa-user"></i></div>
+                    <div class="ms-name">Rear Left</div>
+                    <div class="ms-state empty">Empty</div>
+                </div>
+                <div class="mini-seat" data-seat="rear_right" onclick="selectSeatFromBar('rear_right',this)">
+                    <div class="ms-icon"><i class="fas fa-child"></i></div>
+                    <div class="ms-name">Rear Right</div>
+                    <div class="ms-state child-badge">Child</div>
+                </div>
+            </div>
+
+            <div id="canvas3d"></div>
+
+            <!-- Loading overlay -->
+            <div class="loading" id="loadingOverlay">
+                <div class="spinner"></div>
+                <div class="loading-text" id="loadingText">Loading 3D models...</div>
+                <div class="loading-bar"><div class="loading-fill" id="loadingFill"></div></div>
+            </div>
+
+            <div class="legend" id="legend">
+                <span class="legend-title">Pressure (kPa)</span>
+                <div>
+                    <canvas id="legendBar" width="180" height="10" style="border-radius:4px;"></canvas>
+                    <div class="legend-labels"><span>0</span><span>25</span><span>50</span><span>75</span><span>100</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT PANEL -->
+        <div class="right-panel">
+            <div class="rpanel-tabs">
+                <div class="rpanel-tab active" data-tab="monitor" onclick="switchRTab('monitor',this)">Monitoring</div>
+                <div class="rpanel-tab" data-tab="presets" onclick="switchRTab('presets',this)">Presets</div>
+                <div class="rpanel-tab" data-tab="alerts" onclick="switchRTab('alerts',this)">Alerts <span id="alertBadge" style="font-size:8px;background:var(--danger);color:white;border-radius:6px;padding:1px 4px;margin-left:2px;display:none;">0</span></div>
+            </div>
+
+            <div class="rpanel-page active" id="rtab-monitor">
+                <div class="panel-section">
+                    <div class="section-title"><i class="fas fa-user-check"></i> Occupancy</div>
+                    <div class="stats-grid">
+                        <div class="stat-card"><div class="value" id="monOccStatus">Occupied</div><div class="label">Status</div></div>
+                        <div class="stat-card"><div class="value" id="monWeight">70</div><div class="label">Weight (kg)</div></div>
+                    </div>
+                </div>
+                <div class="panel-section">
+                    <div class="section-title"><i class="fas fa-users"></i> Classification</div>
+                    <div class="class-row" id="classRow">
+                        <div class="class-item active"><i class="fas fa-user-tie"></i><span>Adult</span></div>
+                        <div class="class-item"><i class="fas fa-child"></i><span>Child</span></div>
+                        <div class="class-item"><i class="fas fa-baby"></i><span>Infant</span></div>
+                        <div class="class-item"><i class="fas fa-chair"></i><span>Empty</span></div>
+                    </div>
+                </div>
+                <div class="panel-section">
+                    <div class="section-title"><i class="fas fa-person"></i> Posture Score</div>
+                    <div style="display:flex;align-items:center;gap:14px;">
+                        <div class="posture-gauge"><canvas id="postureGauge" width="200" height="200"></canvas><div class="posture-val"><div class="posture-num" id="postureScore">82</div><div class="posture-unit">SCORE</div></div></div>
+                        <div style="flex:1;"><div style="font-size:10px;color:var(--text4);margin-bottom:3px;">Assessment</div><div id="postureAssess" style="font-size:12px;font-weight:600;color:var(--text2);">Good</div><div style="font-size:9px;color:var(--text4);margin-top:6px;">Center of Gravity</div><div id="postureCOG" style="font-size:11px;font-weight:500;color:var(--text2);">Centered</div></div>
+                    </div>
+                </div>
+                <div class="panel-section">
+                    <div class="section-title"><i class="fas fa-scale-balanced"></i> Asymmetry</div>
+                    <div class="asym-labels"><span>Left</span><span id="asymVal">3.2%</span><span>Right</span></div>
+                    <div class="asym-bar"><div class="asym-fill-l" id="asymL" style="width:48%;"></div><div class="asym-fill-r" id="asymR" style="width:45%;"></div><div class="asym-center"></div></div>
+                </div>
+                <div class="panel-section">
+                    <div class="section-title"><i class="fas fa-heart-pulse"></i> Heart Rate</div>
+                    <div class="stats-grid"><div class="stat-card"><div class="value" id="hrBPM">72</div><div class="label">BPM</div></div><div class="stat-card"><div class="value" id="hrVar">Normal</div><div class="label">HRV Status</div></div></div>
+                    <canvas class="wave-canvas" id="hrWave" width="260" height="44"></canvas>
+                </div>
+                <div class="panel-section">
+                    <div class="section-title"><i class="fas fa-lungs"></i> Respiration</div>
+                    <div class="stats-grid"><div class="stat-card"><div class="value" id="rrRPM">16</div><div class="label">RPM</div></div><div class="stat-card"><div class="value" id="rrStatus">Regular</div><div class="label">Pattern</div></div></div>
+                    <canvas class="wave-canvas" id="rrWave" width="260" height="44"></canvas>
+                </div>
+                <div class="panel-section">
+                    <div class="section-title"><i class="fas fa-brain"></i> Driver State</div>
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                        <div id="driverStateBadge" class="mon-badge normal"><i class="fas fa-check-circle"></i> Normal</div>
+                        <div style="font-size:9px;color:var(--text4);">Confidence: <span id="stateConf">94%</span></div>
+                    </div>
+                    <div style="font-size:9px;color:var(--text4);margin-bottom:2px;">Drowsiness Risk</div>
+                    <div class="risk-bar"><div class="risk-fill" id="drowsyBar" style="width:12%;background:#8e8e93;"></div></div>
+                    <div class="risk-labels"><span>Low</span><span>Moderate</span><span>High</span></div>
+                    <div style="font-size:9px;color:var(--text4);margin-top:5px;margin-bottom:2px;">Stress Level</div>
+                    <div class="risk-bar"><div class="risk-fill" id="stressBar" style="width:25%;background:#8e8e93;"></div></div>
+                    <div class="risk-labels"><span>Relaxed</span><span>Normal</span><span>Stressed</span></div>
+                </div>
+                <div class="panel-section">
+                    <div class="section-title"><i class="fas fa-weight-hanging"></i> Pressure Distribution</div>
+                    <div class="stats-grid"><div class="stat-card"><div class="value" id="pressAvg">32.5</div><div class="label">Avg (kPa)</div></div><div class="stat-card"><div class="value" id="pressPeak">67.8</div><div class="label">Peak (kPa)</div></div></div>
+                    <canvas id="miniHeatmap" width="256" height="256" style="width:100%;border-radius:8px;background:#f5f5f7;border:1px solid rgba(0,0,0,0.03);margin-top:5px;"></canvas>
+                </div>
+            </div>
+
+            <div class="rpanel-page" id="rtab-presets">
+                <div class="panel-section">
+                    <div class="section-title"><i class="fas fa-bookmark"></i> Presets</div>
+                    <button class="btn" style="width:100%;justify-content:center;margin-bottom:10px;padding:8px 12px;" onclick="savePreset()"><i class="fas fa-plus"></i> Save Current as Preset</button>
+                    <div id="presetList"></div>
+                </div>
+                <div class="panel-section">
+                    <div class="section-title"><i class="fas fa-user-gear"></i> Profiles</div>
+                    <div id="profileList"></div>
+                </div>
+                <div class="panel-section">
+                    <div class="section-title"><i class="fas fa-car-side"></i> Vehicle</div>
+                    <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:white;border-radius:8px;border:1px solid rgba(0,0,0,0.03);box-shadow:var(--card);">
+                        <i class="fas fa-link" style="color:var(--text4);font-size:11px;"></i>
+                        <div><div style="font-size:11px;font-weight:500;">KETI Demo Vehicle</div><div style="font-size:9px;color:var(--text4);">VIN: KETI2024DEMO001</div></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="rpanel-page" id="rtab-alerts">
+                <div class="panel-section">
+                    <div class="section-title"><i class="fas fa-bell"></i> Alerts</div>
+                    <div id="alertList"><div style="font-size:11px;color:var(--text4);text-align:center;padding:20px;">No alerts</div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ==================== STATE ====================
+let currentSeat = 'driver', simRunning = true;
+const simState = { weight: 70, speed: 0 };
+const seatPos = { fa: 0, h: 0, r: 18, hr: 0 };
+const actuation = { heating: 0, ventilation: 0, massage: null, driveMode: 'comfort', pneumatic: [50,50,30,30,40,40,45] };
+const seats = {
+    driver:     { occupied: true, type: 'adult', weight: 70 },
+    passenger:  { occupied: true, type: 'adult', weight: 65 },
+    rear_left:  { occupied: false, type: 'empty', weight: 0 },
+    rear_right: { occupied: true, type: 'child', weight: 25 }
+};
+const bio = { hr:72, rr:16, postureScore:82, asymmetry:3.2, driverState:'normal', drowsyRisk:12, stressLevel:25, confidence:94 };
+const hrHistory=[], rrHistory=[];
+const WAVE_LEN=200;
+const alerts=[];
+let lastAlertTime=0;
+const pressureGrid = new Float32Array(16*16);
+const presets = [
+    {id:1,name:'Morning Commute',fav:true,heating:2,vent:0,massage:null,mode:'comfort'},
+    {id:2,name:'Sport Mode',fav:false,heating:0,vent:1,massage:null,mode:'sport'},
+    {id:3,name:'Relaxation',fav:true,heating:1,vent:0,massage:'wave',mode:'comfort'}
+];
+const profiles = [{id:1,name:'Commute Profile',mode:'comfort'},{id:2,name:'Sport Profile',mode:'sport'},{id:3,name:'Eco Profile',mode:'eco'}];
+const posPresets = {drive:{fa:0,h:0,r:18,hr:0},sport:{fa:30,h:-20,r:12,hr:30},relax:{fa:-50,h:30,r:38,hr:50},entry:{fa:-100,h:0,r:18,hr:0}};
+let animTarget = null;
+
+// ==================== THREE.JS — 4 GLB SEATS ====================
+let scene, camera, renderer, controls;
+const clock3 = new THREE.Clock();
+const seatObjs = {};
+const seatLayout = {
+    driver:     { x: -0.55, z: 0.30  },
+    passenger:  { x:  0.55, z: 0.30  },
+    rear_left:  { x: -0.55, z: -0.55 },
+    rear_right: { x:  0.55, z: -0.55 }
+};
+let pressCanvasCushion, pressCtxCushion, pressTexCushion, pressOverlayCushion;
+let pressCanvasBack, pressCtxBack, pressTexBack, pressOverlayBack;
+let activePressureSeat = 'driver';
+let modelTemplate = null;
+let modelScale = 1, modelYOffset = 0;
+
+function initScene() {
+    const container = document.getElementById('canvas3d');
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xece8e2);
+
+    camera = new THREE.PerspectiveCamera(40, container.clientWidth/container.clientHeight, 0.01, 100);
+    camera.position.set(0, 2.2, 3.0);
+
+    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.15;
+    renderer.outputEncoding = THREE.sRGBEncoding;
+    container.appendChild(renderer.domElement);
+
+    controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.07;
+    controls.target.set(0, 0.35, -0.1);
+    controls.minDistance = 0.8;
+    controls.maxDistance = 6;
+    controls.maxPolarAngle = Math.PI * 0.82;
+
+    // Studio lighting
+    scene.add(new THREE.AmbientLight(0xf5e8d8, 0.65));
+    const key = new THREE.DirectionalLight(0xfff8f0, 1.1);
+    key.position.set(2.5, 4, 3); key.castShadow = true;
+    key.shadow.mapSize.set(2048, 2048); key.shadow.bias = -0.0005;
+    key.shadow.camera.near = 0.5; key.shadow.camera.far = 12;
+    key.shadow.camera.left = -3; key.shadow.camera.right = 3;
+    key.shadow.camera.top = 3; key.shadow.camera.bottom = -3;
+    scene.add(key);
+    const fill = new THREE.DirectionalLight(0xe8eaf0, 0.45);
+    fill.position.set(-3, 2, -1); scene.add(fill);
+    const rim = new THREE.DirectionalLight(0xdde0f0, 0.3);
+    rim.position.set(0, 1, -4); scene.add(rim);
+    const bottom = new THREE.DirectionalLight(0xffffff, 0.12);
+    bottom.position.set(0, -1, 0); scene.add(bottom);
+
+    // Ground plane
+    const floor = new THREE.Mesh(
+        new THREE.CircleGeometry(4, 64),
+        new THREE.MeshStandardMaterial({ color: 0xddd5ca, roughness: 0.92, metalness: 0 })
+    );
+    floor.rotation.x = -Math.PI/2; floor.position.y = -0.005; floor.receiveShadow = true;
+    scene.add(floor);
+
+    // Car floor outline
+    const floorShape = new THREE.Shape();
+    const fw=1.5, fh=1.2, fr=0.12;
+    floorShape.moveTo(-fw/2+fr, -fh/2);
+    floorShape.lineTo(fw/2-fr, -fh/2);
+    floorShape.quadraticCurveTo(fw/2, -fh/2, fw/2, -fh/2+fr);
+    floorShape.lineTo(fw/2, fh/2-fr);
+    floorShape.quadraticCurveTo(fw/2, fh/2, fw/2-fr, fh/2);
+    floorShape.lineTo(-fw/2+fr, fh/2);
+    floorShape.quadraticCurveTo(-fw/2, fh/2, -fw/2, fh/2-fr);
+    floorShape.lineTo(-fw/2, -fh/2+fr);
+    floorShape.quadraticCurveTo(-fw/2, -fh/2, -fw/2+fr, -fh/2);
+    const carFloor = new THREE.Mesh(
+        new THREE.ShapeGeometry(floorShape),
+        new THREE.MeshStandardMaterial({ color: 0xc8bfb2, roughness: 0.85, metalness: 0, side: THREE.DoubleSide })
+    );
+    carFloor.rotation.x = -Math.PI/2;
+    carFloor.position.set(0, 0.001, -0.1);
+    scene.add(carFloor);
+
+    // Center console
+    const consoleMat = new THREE.MeshStandardMaterial({ color: 0x3A2820, roughness: 0.5, metalness: 0.3 });
+    const consoleGeo = new THREE.BoxGeometry(0.15, 0.08, 0.9);
+    const consoleMesh = new THREE.Mesh(consoleGeo, consoleMat);
+    consoleMesh.position.set(0, 0.04, -0.1);
+    consoleMesh.castShadow = true;
+    scene.add(consoleMesh);
+
+    // Load GLB model
+    loadGLBModel();
+
+    window.addEventListener('resize', () => {
+        camera.aspect = container.clientWidth/container.clientHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(container.clientWidth, container.clientHeight);
+    });
+}
+
+function loadGLBModel() {
+    const loader = new THREE.GLTFLoader();
+    const fillBar = document.getElementById('loadingFill');
+    const loadText = document.getElementById('loadingText');
+
+    loader.load('models/car-seat.glb',
+        (gltf) => {
+            modelTemplate = gltf.scene;
+
+            // Compute bounding box for auto-scaling
+            const box = new THREE.Box3().setFromObject(modelTemplate);
+            const size = box.getSize(new THREE.Vector3());
+            const center = box.getCenter(new THREE.Vector3());
+            const maxDim = Math.max(size.x, size.y, size.z);
+            modelScale = 0.8 / maxDim;
+            modelYOffset = -box.min.y * modelScale;
+
+            // Place 4 seats
+            for (const [seatId, pos] of Object.entries(seatLayout)) {
+                seatObjs[seatId] = placeSeat(seatId, pos.x, pos.z);
+            }
+
+            setupPressureOverlays('driver');
+            highlightSeat('driver');
+
+            // Hide loading
+            document.getElementById('loadingOverlay').classList.add('hidden');
+            showToast('4 seats loaded');
+        },
+        (progress) => {
+            if (progress.total > 0) {
+                const pct = Math.round(progress.loaded / progress.total * 100);
+                fillBar.style.width = pct + '%';
+                loadText.textContent = 'Loading... ' + pct + '%';
+            }
+        },
+        (error) => {
+            loadText.textContent = 'Failed to load model';
+            console.error(error);
+        }
+    );
+}
+
+// Material configs based on GLB node names
+const MAT_LEATHER = { color: 0x6B3A2A, roughness: 0.50, metalness: 0.0 };
+const MAT_FRAME   = { color: 0x5A4838, roughness: 0.25, metalness: 0.5 };
+const MAT_ACCENT  = { color: 0x8B5E3C, roughness: 0.45, metalness: 0.02 };
+const FRAME_NODES  = new Set(['01 Base', '02 Base rim', '03 Base controls']);
+const ACCENT_NODES = new Set(['05 Bottom sides', '07 Seat back sides']);
+
+function placeSeat(seatId, posX, posZ) {
+    const isOccupied = seats[seatId].occupied;
+
+    // Root group for world position
+    const root = new THREE.Group();
+    root.position.set(posX, 0, posZ);
+    scene.add(root);
+
+    // Base group (for height adjustment)
+    const base = new THREE.Group();
+    root.add(base);
+
+    // Clone model
+    const model = modelTemplate.clone();
+    model.scale.setScalar(modelScale);
+    model.position.set(0, modelYOffset, 0);
+
+    // Assign materials by node name and collect meshes
+    const allMeshes = [];
+    model.traverse(child => {
+        if (child.isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+
+            // Determine material by node name (self or parent)
+            var nodeName = child.name || (child.parent && child.parent.name) || '';
+            var cfg = MAT_LEATHER;
+            if (FRAME_NODES.has(nodeName)) cfg = MAT_FRAME;
+            else if (ACCENT_NODES.has(nodeName)) cfg = MAT_ACCENT;
+
+            // Dim unoccupied seats
+            var baseColor = new THREE.Color(cfg.color);
+            if (!isOccupied) {
+                baseColor.lerp(new THREE.Color(0x999999), 0.5);
+            }
+
+            var newMat = new THREE.MeshStandardMaterial({
+                color: baseColor,
+                roughness: cfg.roughness,
+                metalness: cfg.metalness,
+                envMapIntensity: 1.5
+            });
+            child.material = newMat;
+            allMeshes.push({ mesh: child, mat: newMat });
+        }
+    });
+
+    base.add(model);
+
+    // Occupancy indicator (floating dot above seat)
+    const indColor = isOccupied ? (seats[seatId].type === 'child' ? 0xc49a5b : 0x5ca06e) : 0xc7c7cc;
+    const indicator = new THREE.Mesh(
+        new THREE.SphereGeometry(0.018, 12, 12),
+        new THREE.MeshBasicMaterial({ color: indColor })
+    );
+    // Place indicator above the model
+    const seatBox = new THREE.Box3().setFromObject(model);
+    indicator.position.set(0, seatBox.max.y + 0.06, 0);
+    root.add(indicator);
+
+    return { root, base, model, allMeshes, indicator };
+}
+
+function highlightSeat(seatId) {
+    for (const [id, obj] of Object.entries(seatObjs)) {
+        obj.allMeshes.forEach(({ mat }) => {
+            mat.emissive = new THREE.Color(0);
+            mat.emissiveIntensity = 0;
+        });
+    }
+    const sel = seatObjs[seatId];
+    if (sel) {
+        sel.allMeshes.forEach(({ mat }) => {
+            mat.emissive = new THREE.Color(0x8B6914);
+            mat.emissiveIntensity = 0.15;
+        });
+    }
+}
+
+// ==================== PRESSURE OVERLAYS ====================
+function setupPressureOverlays(seatId) {
+    if (pressOverlayCushion && pressOverlayCushion.parent) pressOverlayCushion.parent.remove(pressOverlayCushion);
+    if (pressOverlayBack && pressOverlayBack.parent) pressOverlayBack.parent.remove(pressOverlayBack);
+
+    activePressureSeat = seatId;
+    const obj = seatObjs[seatId];
+    if (!obj) return;
+
+    // Compute seat dimensions from the model
+    const seatBox = new THREE.Box3().setFromObject(obj.model);
+    const seatSize = seatBox.getSize(new THREE.Vector3());
+    const seatCenter = seatBox.getCenter(new THREE.Vector3());
+
+    // Cushion overlay (horizontal plane on top of seat cushion area)
+    pressCanvasCushion = document.createElement('canvas');
+    pressCanvasCushion.width = 128; pressCanvasCushion.height = 128;
+    pressCtxCushion = pressCanvasCushion.getContext('2d');
+    pressTexCushion = new THREE.CanvasTexture(pressCanvasCushion);
+    pressTexCushion.minFilter = THREE.LinearFilter;
+    pressOverlayCushion = new THREE.Mesh(
+        new THREE.PlaneGeometry(seatSize.x * 0.7, seatSize.z * 0.45),
+        new THREE.MeshBasicMaterial({ map: pressTexCushion, transparent: true, opacity: 0.8, depthWrite: false, side: THREE.DoubleSide })
+    );
+    pressOverlayCushion.rotation.x = -Math.PI/2;
+    pressOverlayCushion.position.set(
+        seatCenter.x - obj.root.position.x,
+        seatBox.min.y + seatSize.y * 0.38,
+        seatCenter.z - obj.root.position.z + seatSize.z * 0.1
+    );
+    obj.base.add(pressOverlayCushion);
+
+    // Back overlay (vertical plane on backrest)
+    pressCanvasBack = document.createElement('canvas');
+    pressCanvasBack.width = 128; pressCanvasBack.height = 128;
+    pressCtxBack = pressCanvasBack.getContext('2d');
+    pressTexBack = new THREE.CanvasTexture(pressCanvasBack);
+    pressTexBack.minFilter = THREE.LinearFilter;
+    pressOverlayBack = new THREE.Mesh(
+        new THREE.PlaneGeometry(seatSize.x * 0.6, seatSize.y * 0.45),
+        new THREE.MeshBasicMaterial({ map: pressTexBack, transparent: true, opacity: 0.7, depthWrite: false, side: THREE.DoubleSide })
+    );
+    pressOverlayBack.position.set(
+        seatCenter.x - obj.root.position.x,
+        seatCenter.y + seatSize.y * 0.05,
+        seatBox.min.z - obj.root.position.z + seatSize.z * 0.08
+    );
+    obj.base.add(pressOverlayBack);
+}
+
+// ==================== COLORS ====================
+function pressureColor(t) {
+    t = Math.max(0, Math.min(1, t));
+    let r,g,b;
+    if (t<0.25){const f=t/0.25;r=Math.round(40+f*10);g=Math.round(80+f*140);b=Math.round(160+f*60);}
+    else if(t<0.5){const f=(t-0.25)/0.25;r=Math.round(50+f*100);g=Math.round(220-f*30);b=Math.round(220-f*160);}
+    else if(t<0.75){const f=(t-0.5)/0.25;r=Math.round(150+f*80);g=Math.round(190-f*90);b=Math.round(60-f*30);}
+    else{const f=(t-0.75)/0.25;r=Math.round(230);g=Math.round(100-f*50);b=Math.round(30);}
+    return 'rgba('+r+','+g+','+b+','+(0.45+t*0.5)+')';
+}
+function gaussian2D(x,y,sx,sy){return Math.exp(-(x*x)/(2*sx*sx)-(y*y)/(2*sy*sy));}
+
+// ==================== SIMULATION ====================
+function simulatePressure(time) {
+    const s = seats[currentSeat];
+    if (!s.occupied) { pressureGrid.fill(0); return; }
+    const wF = s.weight/80;
+    for (let y=0;y<16;y++) for (let x=0;x<16;x++) {
+        const nx=(x/15)*2-1, ny=(y/15)*2-1;
+        pressureGrid[y*16+x] = Math.max(0, Math.min(1,
+            (gaussian2D(nx+0.35,ny-0.1,0.28,0.32)+gaussian2D(nx-0.35,ny-0.1,0.28,0.32)+gaussian2D(nx+0.3,ny+0.25,0.22,0.4)*0.35+gaussian2D(nx-0.3,ny+0.25,0.22,0.4)*0.35)*wF + Math.sin(time*0.35)*0.015 + (Math.random()-0.5)*0.008
+        ));
+    }
+}
+
+function simulateBiometrics(time) {
+    bio.hr = 72+Math.sin(time*0.1)*5+Math.sin(time*0.03)*3+(Math.random()-0.5)*2;
+    if (bio.driverState==='stressed') bio.hr+=15;
+    if (bio.driverState==='drowsy') bio.hr-=8;
+    bio.hr = Math.max(55,Math.min(120,bio.hr));
+    bio.rr = 16+Math.sin(time*0.08)*2+(Math.random()-0.5);
+    if (bio.driverState==='drowsy') bio.rr-=4;
+    bio.rr = Math.max(8,Math.min(28,bio.rr));
+    const tMod = (time*5)%(Math.PI*2)-1;
+    hrHistory.push(Math.sin(time*5)*0.3 + Math.sin(time*10)*0.5*Math.exp(-(tMod*tMod)));
+    rrHistory.push(Math.sin(time*1.2)*0.7+Math.sin(time*2.4)*0.2);
+    if (hrHistory.length>WAVE_LEN) hrHistory.shift();
+    if (rrHistory.length>WAVE_LEN) rrHistory.shift();
+    bio.postureScore = 82+Math.sin(time*0.05)*8+(Math.random()-0.5)*2;
+    bio.postureScore = Math.max(40,Math.min(100,bio.postureScore));
+    bio.asymmetry = 3.2+Math.sin(time*0.07)*2+(Math.random()-0.5)*0.5;
+    bio.asymmetry = Math.max(0,Math.min(20,bio.asymmetry));
+    bio.drowsyRisk = 12+Math.sin(time*0.02)*10+simState.speed*0.05;
+    bio.stressLevel = 25+Math.sin(time*0.03)*15+simState.speed*0.1;
+    bio.drowsyRisk = Math.max(0,Math.min(100,bio.drowsyRisk));
+    bio.stressLevel = Math.max(0,Math.min(100,bio.stressLevel));
+    if (bio.drowsyRisk>60) bio.driverState='drowsy';
+    else if (bio.stressLevel>70) bio.driverState='stressed';
+    else if (bio.stressLevel>50) bio.driverState='alert';
+    else bio.driverState='normal';
+    bio.confidence = Math.max(70,Math.min(99, 94-Math.abs(bio.drowsyRisk-50)*0.1+(Math.random()-0.5)*3));
+}
+
+// ==================== CONTROLS ====================
+function selectSeat(seatId,btn) {
+    currentSeat=seatId;
+    document.querySelectorAll('.seat-sel-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.mini-seat').forEach(m=>m.classList.toggle('active',m.dataset.seat===seatId));
+    highlightSeat(seatId);
+    setupPressureOverlays(seatId);
+    updateMonitoringUI();
+}
+function selectSeatFromBar(seatId,el) {
+    currentSeat=seatId;
+    document.querySelectorAll('.mini-seat').forEach(m=>m.classList.remove('active'));
+    el.classList.add('active');
+    document.querySelectorAll('.seat-sel-btn').forEach(b=>b.classList.toggle('active',b.dataset.seat===seatId));
+    highlightSeat(seatId);
+    setupPressureOverlays(seatId);
+    updateMonitoringUI();
+}
+function setHeating(level,btn) {
+    actuation.heating=level;
+    btn.parentElement.querySelectorAll('.level-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    updateSeatColor();
+    showToast('Heating: '+(level===0?'OFF':'Level '+level));
+}
+function setVentilation(level,btn) {
+    actuation.ventilation=level;
+    btn.parentElement.querySelectorAll('.level-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    updateSeatColor();
+    showToast('Ventilation: '+(level===0?'OFF':'Level '+level));
+}
+function setMassage(program,btn) {
+    actuation.massage=program;
+    document.querySelectorAll('.massage-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    showToast('Massage: '+program);
+}
+function stopMassage() {
+    actuation.massage=null;
+    document.querySelectorAll('.massage-btn').forEach(b=>b.classList.remove('active'));
+    showToast('Massage stopped');
+}
+function setPneumatic(ch,val) {
+    actuation.pneumatic[ch]=+val;
+    document.querySelectorAll('.pneumatic-ch .pn-val')[ch].textContent=val;
+}
+function setDriveMode(mode,btn) {
+    actuation.driveMode=mode;
+    document.querySelectorAll('.drive-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    showToast('Drive Mode: '+mode.charAt(0).toUpperCase()+mode.slice(1));
+}
+function setPosition(axis,val) {
+    if (simState.speed>5) { showToast('Position locked'); document.getElementById('slider'+axis.toUpperCase()).value=seatPos[axis]; return; }
+    seatPos[axis]=+val;
+    var labels={fa:'posFA',h:'posH',r:'posR',hr:'posHR'}, units={fa:' mm',h:' mm',r:'\u00B0',hr:' mm'};
+    document.getElementById(labels[axis]).textContent=val+units[axis];
+}
+function applyPosPreset(name,btn) {
+    if (simState.speed>5) { showToast('Position locked'); return; }
+    btn.parentElement.querySelectorAll('.seat-sel-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    animTarget={...posPresets[name]};
+}
+function setSpeed(v) {
+    simState.speed=v;
+    document.getElementById('speedVal').textContent=v+' km/h';
+    var banner=document.getElementById('safetyBanner');
+    var ps=document.querySelectorAll('.pos-ctrl input[type=range]');
+    if (v>5) { banner.classList.add('show'); ps.forEach(function(s){s.disabled=true}); }
+    else { banner.classList.remove('show'); ps.forEach(function(s){s.disabled=false}); }
+}
+function toggleSim() {
+    simRunning=!simRunning;
+    document.getElementById('simDot').className='sim-dot '+(simRunning?'on':'off');
+    document.getElementById('simLabel').textContent=simRunning?'Running':'Paused';
+    document.getElementById('simBtn').innerHTML=simRunning?'<i class="fas fa-pause"></i>':'<i class="fas fa-play"></i>';
+}
+
+// ==================== SEAT VISUALS ====================
+function updateSeatColor() {
+    var obj = seatObjs[currentSeat];
+    if (!obj) return;
+    obj.allMeshes.forEach(function(entry) {
+        var m = entry.mat;
+        if (actuation.heating>0) { m.emissive=new THREE.Color(0x8B6050); m.emissiveIntensity=actuation.heating*0.1; }
+        else if (actuation.ventilation>0) { m.emissive=new THREE.Color(0x5B7B9A); m.emissiveIntensity=actuation.ventilation*0.1; }
+        else { m.emissive=new THREE.Color(0x5856D6); m.emissiveIntensity=0.12; }
+    });
+}
+
+function updateSeatPositionVisuals() {
+    var obj = seatObjs[currentSeat];
+    if (!obj) return;
+    // Fore/aft: move root Z (±0.3 range)
+    obj.root.position.z = seatLayout[currentSeat].z + seatPos.fa / 100 * 0.3;
+    // Height: move base Y (±0.15 range)
+    obj.base.position.y = seatPos.h / 100 * 0.15;
+    // Recline: rotate entire model around X (convert degrees to radians properly)
+    if (obj.model) {
+        var reclineRad = -THREE.MathUtils.degToRad(seatPos.r - 18) * 0.6;
+        obj.model.rotation.x = reclineRad;
+    }
+}
+
+function updateMassageVisuals(time) {
+    if (!actuation.massage) return;
+    var obj = seatObjs[currentSeat];
+    if (!obj) return;
+    var freq = actuation.massage==='pulse'?15:actuation.massage==='wave'?4:8;
+    obj.base.rotation.z = Math.sin(time*freq)*0.008;
+    obj.base.position.x = Math.sin(time*freq*0.7)*0.003;
+}
+
+// ==================== PRESSURE HEATMAPS ====================
+function updatePressureOverlayCushion() {
+    if (!pressCtxCushion) return;
+    var ctx=pressCtxCushion, w=128, h=128;
+    ctx.clearRect(0,0,w,h);
+    var cw=w/16, ch2=h/16;
+    for (var y=0;y<16;y++) for (var x=0;x<16;x++) {
+        var v=pressureGrid[y*16+x];
+        if (v>0.01) { ctx.fillStyle=pressureColor(v); ctx.beginPath(); ctx.arc(x*cw+cw/2,y*ch2+ch2/2,cw*0.6,0,Math.PI*2); ctx.fill(); }
+    }
+    pressTexCushion.needsUpdate=true;
+}
+
+function updatePressureOverlayBack() {
+    if (!pressCtxBack) return;
+    var ctx=pressCtxBack, w=128, h=128;
+    ctx.clearRect(0,0,w,h);
+    var s=seats[currentSeat];
+    if (!s.occupied) { pressTexBack.needsUpdate=true; return; }
+    var wF=s.weight/80*0.4, cw=w/12, ch2=h/16;
+    for (var y=0;y<16;y++) for (var x=0;x<12;x++) {
+        var nx=(x/11)*2-1, ny=(y/15)*2-1;
+        var v=(gaussian2D(nx+0.3,ny+0.1,0.4,0.35)+gaussian2D(nx-0.3,ny+0.1,0.4,0.35))*wF;
+        if (v>0.01) { ctx.fillStyle=pressureColor(v); ctx.beginPath(); ctx.arc(x*cw+cw/2,y*ch2+ch2/2,cw*0.6,0,Math.PI*2); ctx.fill(); }
+    }
+    pressTexBack.needsUpdate=true;
+}
+
+// ==================== UI UPDATES ====================
+let lastUI=0;
+function updateMonitoringUI() {
+    var s=seats[currentSeat];
+    document.getElementById('monOccStatus').textContent=s.occupied?'Occupied':'Empty';
+    document.getElementById('monWeight').textContent=s.weight||'0';
+    var types=['adult','child','infant','empty'];
+    document.querySelectorAll('#classRow .class-item').forEach(function(el,i){el.classList.toggle('active',types[i]===s.type)});
+    document.getElementById('postureScore').textContent=Math.round(bio.postureScore);
+    document.getElementById('postureAssess').textContent=bio.postureScore>70?'Good':bio.postureScore>50?'Fair':'Poor';
+    document.getElementById('postureCOG').textContent=bio.asymmetry<5?'Centered':bio.asymmetry<10?'Slightly Off':'Off Center';
+    drawPostureGauge(bio.postureScore);
+    document.getElementById('asymVal').textContent=bio.asymmetry.toFixed(1)+'%';
+    document.getElementById('asymL').style.width=Math.max(0,(50-bio.asymmetry/2))+'%';
+    document.getElementById('asymR').style.width=Math.max(0,(50-bio.asymmetry/2))+'%';
+    document.getElementById('hrBPM').textContent=Math.round(bio.hr);
+    document.getElementById('hrVar').textContent=bio.hr>90?'Elevated':bio.hr<60?'Low':'Normal';
+    document.getElementById('rrRPM').textContent=Math.round(bio.rr);
+    document.getElementById('rrStatus').textContent=bio.rr>20?'Rapid':bio.rr<12?'Slow':'Regular';
+    var badge=document.getElementById('driverStateBadge');
+    var stateIcons={normal:'fa-check-circle',drowsy:'fa-moon',stressed:'fa-bolt',alert:'fa-exclamation-triangle',fatigued:'fa-battery-quarter'};
+    badge.className='mon-badge '+bio.driverState;
+    badge.innerHTML='<i class="fas '+(stateIcons[bio.driverState]||'fa-check-circle')+'"></i> '+bio.driverState.charAt(0).toUpperCase()+bio.driverState.slice(1);
+    document.getElementById('stateConf').textContent=Math.round(bio.confidence)+'%';
+    var drowsyBar=document.getElementById('drowsyBar');
+    drowsyBar.style.width=bio.drowsyRisk+'%';
+    drowsyBar.style.background=bio.drowsyRisk>60?'#D44638':bio.drowsyRisk>30?'#c49a5b':'#8e8e93';
+    var stressBar=document.getElementById('stressBar');
+    stressBar.style.width=bio.stressLevel+'%';
+    stressBar.style.background=bio.stressLevel>70?'#D44638':bio.stressLevel>40?'#c49a5b':'#8e8e93';
+    var sum=0,max=0,cnt=0;
+    for (var i=0;i<pressureGrid.length;i++) if(pressureGrid[i]>0.01){sum+=pressureGrid[i];cnt++;max=Math.max(max,pressureGrid[i]);}
+    document.getElementById('pressAvg').textContent=cnt>0?(sum/cnt*100).toFixed(1):'0';
+    document.getElementById('pressPeak').textContent=(max*100).toFixed(1);
+    var mc=document.getElementById('miniHeatmap'), mctx=mc.getContext('2d');
+    mctx.clearRect(0,0,256,256);
+    for (var y=0;y<16;y++) for (var x=0;x<16;x++) { var v=pressureGrid[y*16+x]; if(v>0.01){mctx.fillStyle=pressureColor(v);mctx.fillRect(x*16,y*16,16,16);} }
+    if (bio.driverState==='drowsy') addAlert('error','Drowsiness detected');
+    if (bio.postureScore<50) addAlert('warn','Posture score low: '+Math.round(bio.postureScore)+'/100');
+}
+
+function drawWaveform(canvasId,data,color) {
+    var c=document.getElementById(canvasId);
+    if (!c||!data.length) return;
+    var ctx=c.getContext('2d'), W=c.width, H=c.height;
+    ctx.clearRect(0,0,W,H);
+    ctx.beginPath();ctx.moveTo(0,H/2);ctx.lineTo(W,H/2);ctx.strokeStyle='rgba(0,0,0,0.04)';ctx.lineWidth=1;ctx.stroke();
+    ctx.beginPath();ctx.strokeStyle=color;ctx.lineWidth=1.5;ctx.globalAlpha=0.6;
+    for (var i=0;i<data.length;i++) { var x=(i/WAVE_LEN)*W, y=H/2-data[i]*H*0.35; if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); }
+    ctx.stroke();ctx.globalAlpha=1;
+}
+
+function drawPostureGauge(score) {
+    var c=document.getElementById('postureGauge');if(!c) return;
+    var ctx=c.getContext('2d'), W=c.width, H=c.height, cx=W/2, cy=H/2, R=W*0.4;
+    ctx.clearRect(0,0,W,H);
+    ctx.beginPath();ctx.arc(cx,cy,R,0,Math.PI*2);ctx.lineWidth=8;ctx.strokeStyle='rgba(0,0,0,0.04)';ctx.stroke();
+    var pct=score/100, color=score>70?'#8e8e93':score>50?'#c49a5b':'#D44638';
+    ctx.beginPath();ctx.arc(cx,cy,R,-Math.PI/2,-Math.PI/2+Math.PI*2*pct);ctx.lineWidth=8;ctx.strokeStyle=color;ctx.lineCap='round';ctx.stroke();
+}
+
+// ==================== ALERTS ====================
+function addAlert(type,msg) {
+    var now=Date.now();
+    if(now-lastAlertTime<5000) return;
+    if(alerts.length>0&&alerts[0].msg===msg) return;
+    lastAlertTime=now;
+    alerts.unshift({type:type,msg:msg,time:new Date()});
+    if(alerts.length>30) alerts.pop();
+    renderAlerts();
+}
+function renderAlerts() {
+    var el=document.getElementById('alertList'), badge=document.getElementById('alertBadge');
+    if(alerts.length>0){badge.style.display='';badge.textContent=alerts.length;}
+    if(!alerts.length){el.innerHTML='<div style="font-size:11px;color:var(--text4);text-align:center;padding:20px;">No alerts</div>';return;}
+    el.innerHTML=alerts.slice(0,10).map(function(a){return '<div class="alert-item '+a.type+'"><span class="alert-time">'+a.time.toLocaleTimeString()+'</span><span class="alert-msg">'+a.msg+'</span></div>'}).join('');
+}
+
+// ==================== PRESETS / PROFILES ====================
+function renderPresets() {
+    document.getElementById('presetList').innerHTML=presets.map(function(p){return '<div class="preset-item" onclick="applyPresetById('+p.id+')"><div><div class="preset-name">'+(p.fav?'<span class="preset-fav"><i class="fas fa-star"></i></span>':'')+p.name+'</div><div class="preset-meta">Heat: '+p.heating+' | Vent: '+p.vent+' | '+p.mode+'</div></div><button class="btn" style="padding:2px 6px;font-size:9px;" onclick="event.stopPropagation();deletePreset('+p.id+')"><i class="fas fa-trash"></i></button></div>'}).join('');
+}
+function renderProfiles() {
+    document.getElementById('profileList').innerHTML=profiles.map(function(p){return '<div class="preset-item" onclick="showToast(\'Profile: '+p.name+'\')"><div><div class="preset-name"><i class="fas fa-user" style="color:var(--text4);margin-right:3px;font-size:9px;"></i>'+p.name+'</div><div class="preset-meta">'+p.mode+'</div></div></div>'}).join('');
+}
+function applyPresetById(id) { var p=presets.find(function(x){return x.id===id}); if(p){actuation.heating=p.heating;actuation.ventilation=p.vent;updateSeatColor();showToast('Applied: '+p.name);} }
+function savePreset() { var name=prompt('Preset name:'); if(!name) return; presets.push({id:Date.now(),name:name,fav:false,heating:actuation.heating,vent:actuation.ventilation,massage:actuation.massage,mode:actuation.driveMode}); renderPresets(); showToast('Preset saved'); }
+function deletePreset(id) { var idx=presets.findIndex(function(p){return p.id===id}); if(idx>=0){presets.splice(idx,1);renderPresets();showToast('Deleted');} }
+function switchRTab(tab,btn) { document.querySelectorAll('.rpanel-tab').forEach(function(t){t.classList.toggle('active',t.dataset.tab===tab)}); document.querySelectorAll('.rpanel-page').forEach(function(p){p.classList.toggle('active',p.id==='rtab-'+tab)}); }
+function exportData() {
+    var data={timestamp:new Date().toISOString(),system:'KETI Smart Seat System BROWN',seat:currentSeat,biometrics:Object.assign({},bio),actuation:Object.assign({},actuation),position:Object.assign({},seatPos),seats:Object.assign({},seats)};
+    var blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+    var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='smart-seat-'+Date.now()+'.json';a.click();showToast('Exported');
+}
+function drawLegendBar() { var ctx=document.getElementById('legendBar').getContext('2d'); for(var x=0;x<180;x++){ctx.fillStyle=pressureColor(x/180);ctx.fillRect(x,0,1,10);} }
+var toastTimer;
+function showToast(msg) { var t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(function(){t.classList.remove('show')},2000); }
+function updateClock() { document.getElementById('clock').textContent=new Date().toLocaleTimeString(); }
+
+// ==================== ANIMATION ====================
+function animate() {
+    requestAnimationFrame(animate);
+    var dt=Math.min(clock3.getDelta(),0.1), elapsed=clock3.getElapsedTime();
+    if (simRunning) { simulatePressure(elapsed); simulateBiometrics(elapsed); }
+    if (animTarget) {
+        var done=true;
+        ['fa','h','r','hr'].forEach(function(k){var diff=animTarget[k]-seatPos[k];if(Math.abs(diff)>0.5){seatPos[k]+=diff*dt*3;done=false;}else seatPos[k]=animTarget[k];});
+        document.getElementById('sliderFA').value=seatPos.fa;document.getElementById('sliderH').value=seatPos.h;document.getElementById('sliderR').value=seatPos.r;document.getElementById('sliderHR').value=seatPos.hr;
+        document.getElementById('posFA').textContent=Math.round(seatPos.fa)+' mm';document.getElementById('posH').textContent=Math.round(seatPos.h)+' mm';document.getElementById('posR').textContent=Math.round(seatPos.r)+'\u00B0';document.getElementById('posHR').textContent=Math.round(seatPos.hr)+' mm';
+        if(done) animTarget=null;
+    }
+    updatePressureOverlayCushion(); updatePressureOverlayBack();
+    updateSeatPositionVisuals(); updateMassageVisuals(elapsed);
+    if (elapsed-lastUI>0.15) { updateMonitoringUI(); drawWaveform('hrWave',hrHistory,'#8e8e93'); drawWaveform('rrWave',rrHistory,'#aeaeb2'); lastUI=elapsed; }
+    controls.update(); renderer.render(scene,camera);
+}
+
+// ==================== INIT ====================
+initScene(); drawLegendBar(); animate();
+renderPresets(); renderProfiles();
+setInterval(updateClock,1000); updateClock();
+</script>
+</body>
+</html>

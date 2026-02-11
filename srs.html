@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KETI — Smart Seat System Requirements Specification (SRS)</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap');
+
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #ffffff;
+            --bg2: #f5f5f7;
+            --bg3: #fafafa;
+            --text: #1d1d1f;
+            --text2: #424245;
+            --text3: #6e6e73;
+            --text4: #86868b;
+            --text5: #aeaeb2;
+            --accent: #007aff;
+            --accent2: #0071e3;
+            --red: #ff3b30;
+            --orange: #ff9f0a;
+            --green: #34c759;
+            --purple: #af52de;
+            --teal: #5ac8fa;
+            --indigo: #5856d6;
+            --border: rgba(0,0,0,0.06);
+            --border2: rgba(0,0,0,0.1);
+            --shadow: 0 1px 3px rgba(0,0,0,0.04);
+            --shadow2: 0 4px 12px rgba(0,0,0,0.06);
+            --shadow3: 0 8px 30px rgba(0,0,0,0.08);
+            --r: 12px;
+            --r2: 16px;
+        }
+
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Inter', 'Noto Sans KR', -apple-system, sans-serif;
+            background: var(--bg); color: var(--text);
+            -webkit-font-smoothing: antialiased; line-height: 1.7; font-size: 16px;
+        }
+
+        /* NAV */
+        .nav {
+            position: fixed; top: 0; left: 0; right: 0; z-index: 100; height: 52px;
+            background: rgba(255,255,255,0.72);
+            backdrop-filter: saturate(180%) blur(20px); -webkit-backdrop-filter: saturate(180%) blur(20px);
+            border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 max(24px, calc((100vw - 1060px) / 2));
+        }
+        .nav-left { display: flex; align-items: center; gap: 14px; }
+        .nav-left img { height: 26px; }
+        .nav-divider { width: 1px; height: 18px; background: var(--border2); }
+        .nav-title { font-size: 13px; font-weight: 600; letter-spacing: -0.2px; }
+        .nav-right { display: flex; align-items: center; gap: 16px; }
+        .nav-link { font-size: 12px; font-weight: 500; color: var(--text3); text-decoration: none; transition: color 0.2s; }
+        .nav-link:hover { color: var(--accent); }
+        .nav-btn {
+            font-size: 11px; font-weight: 600; color: white; background: var(--accent);
+            padding: 6px 14px; border-radius: 100px; border: none; cursor: pointer; text-decoration: none;
+        }
+
+        /* HERO */
+        .hero {
+            padding: 130px max(24px, calc((100vw - 1060px) / 2)) 70px;
+            text-align: center;
+            background: linear-gradient(180deg, #f0f0f5 0%, #ffffff 100%);
+        }
+        .hero-badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 5px 14px; border-radius: 100px;
+            background: rgba(0,122,255,0.08); color: var(--accent);
+            font-size: 12px; font-weight: 600; margin-bottom: 24px;
+        }
+        .hero h1 {
+            font-size: clamp(28px, 4.5vw, 46px); font-weight: 800;
+            letter-spacing: -1.2px; line-height: 1.15;
+            max-width: 820px; margin: 0 auto 18px;
+        }
+        .hero h1 span { background: linear-gradient(135deg, #007aff, #5856d6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .hero-sub {
+            font-size: clamp(15px, 1.8vw, 19px); font-weight: 400;
+            color: var(--text3); max-width: 660px; margin: 0 auto 36px; line-height: 1.65;
+        }
+        .hero-meta {
+            display: flex; justify-content: center; gap: 28px; flex-wrap: wrap;
+            font-size: 12px; color: var(--text4); font-weight: 500;
+        }
+        .hero-meta span { display: flex; align-items: center; gap: 6px; }
+        .hero-meta i { font-size: 11px; color: var(--text5); }
+
+        /* TOC */
+        .toc-wrap { padding: 0 max(24px, calc((100vw - 1060px) / 2)) 56px; }
+        .toc {
+            background: var(--bg2); border-radius: var(--r2); padding: 28px 36px;
+            border: 1px solid var(--border);
+        }
+        .toc h3 { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text4); margin-bottom: 14px; }
+        .toc-grid { list-style: none; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 36px; }
+        .toc-grid li a {
+            font-size: 13px; font-weight: 500; color: var(--text2);
+            text-decoration: none; display: flex; align-items: baseline; gap: 8px;
+            padding: 5px 0; transition: color 0.2s;
+        }
+        .toc-grid li a:hover { color: var(--accent); }
+        .toc-num { font-size: 10px; font-weight: 700; color: var(--accent); min-width: 18px; }
+        @media (max-width: 640px) { .toc-grid { grid-template-columns: 1fr; } }
+
+        /* ARTICLE */
+        .article { max-width: 820px; margin: 0 auto; padding: 0 24px 80px; }
+        .article h2 {
+            font-size: 26px; font-weight: 800; letter-spacing: -0.7px;
+            margin: 56px 0 8px; padding-top: 20px;
+        }
+        .article h2 .num { font-size: 13px; font-weight: 700; color: var(--accent); display: block; margin-bottom: 4px; letter-spacing: 0; }
+        .article h3 { font-size: 19px; font-weight: 700; letter-spacing: -0.3px; margin: 36px 0 10px; }
+        .article h4 { font-size: 15px; font-weight: 700; color: var(--text2); margin: 24px 0 8px; }
+        .article p { font-size: 15px; color: var(--text2); margin-bottom: 16px; line-height: 1.75; }
+        .article strong { color: var(--text); font-weight: 600; }
+        .article ul, .article ol { margin: 0 0 18px 0; padding-left: 22px; }
+        .article li { font-size: 14px; color: var(--text2); margin-bottom: 7px; line-height: 1.7; }
+        .article li strong { color: var(--text); }
+
+        /* CALLOUT */
+        .callout {
+            background: var(--bg2); border-radius: var(--r); padding: 20px 24px;
+            margin: 20px 0; border-left: 4px solid var(--accent);
+        }
+        .callout.warn { border-left-color: var(--orange); background: rgba(255,159,10,0.04); }
+        .callout.danger { border-left-color: var(--red); background: rgba(255,59,48,0.04); }
+        .callout.success { border-left-color: var(--green); background: rgba(52,199,89,0.04); }
+        .callout.purple { border-left-color: var(--purple); background: rgba(175,82,222,0.04); }
+        .callout-title { font-size: 13px; font-weight: 700; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+        .callout p { font-size: 14px; margin-bottom: 8px; }
+        .callout p:last-child { margin-bottom: 0; }
+
+        /* TABLES */
+        .req-table-wrap { overflow-x: auto; margin: 16px 0 24px; border-radius: var(--r); border: 1px solid var(--border); }
+        .req-table {
+            width: 100%; border-collapse: collapse; font-size: 13px;
+        }
+        .req-table thead { background: var(--bg2); }
+        .req-table th {
+            padding: 10px 14px; text-align: left; font-weight: 700; font-size: 11px;
+            text-transform: uppercase; letter-spacing: 0.5px; color: var(--text4);
+            border-bottom: 1px solid var(--border);
+        }
+        .req-table td {
+            padding: 10px 14px; border-bottom: 1px solid var(--border);
+            color: var(--text2); line-height: 1.6; vertical-align: top;
+        }
+        .req-table tr:last-child td { border-bottom: none; }
+        .req-table tr:hover td { background: rgba(0,122,255,0.02); }
+        .req-id {
+            font-family: 'SF Mono', 'Menlo', monospace; font-weight: 700;
+            font-size: 12px; color: var(--accent); white-space: nowrap;
+        }
+        .req-opt { font-size: 9px; font-weight: 700; color: var(--purple); background: rgba(175,82,222,0.1); padding: 2px 6px; border-radius: 4px; margin-left: 4px; }
+
+        /* USE CASE CARDS */
+        .uc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 18px 0 28px; }
+        @media (max-width: 640px) { .uc-grid { grid-template-columns: 1fr; } }
+        .uc-card {
+            background: var(--bg2); border-radius: var(--r); padding: 20px;
+            border: 1px solid var(--border); transition: box-shadow 0.2s;
+        }
+        .uc-card:hover { box-shadow: var(--shadow2); }
+        .uc-card-id { font-size: 11px; font-weight: 700; color: var(--accent); margin-bottom: 4px; }
+        .uc-card-title { font-size: 15px; font-weight: 700; margin-bottom: 8px; }
+        .uc-card p { font-size: 13px; color: var(--text3); line-height: 1.65; margin: 0; }
+
+        /* ARCH DIAGRAM */
+        .arch-diagram {
+            background: var(--bg2); border-radius: var(--r2); padding: 28px;
+            margin: 20px 0 28px; border: 1px solid var(--border); text-align: center;
+        }
+        .arch-row { display: flex; justify-content: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+        .arch-box {
+            padding: 10px 18px; border-radius: var(--r); font-size: 12px; font-weight: 600;
+            border: 1px solid var(--border); min-width: 100px; text-align: center;
+        }
+        .arch-box.blue { background: rgba(0,122,255,0.08); color: var(--accent); border-color: rgba(0,122,255,0.2); }
+        .arch-box.green { background: rgba(52,199,89,0.08); color: #248a3d; border-color: rgba(52,199,89,0.2); }
+        .arch-box.purple { background: rgba(175,82,222,0.08); color: #8944ab; border-color: rgba(175,82,222,0.2); }
+        .arch-box.orange { background: rgba(255,159,10,0.08); color: #c77600; border-color: rgba(255,159,10,0.2); }
+        .arch-box.red { background: rgba(255,59,48,0.08); color: #d70015; border-color: rgba(255,59,48,0.2); }
+        .arch-arrow { font-size: 16px; color: var(--text5); margin: 4px 0; }
+        .arch-label { font-size: 10px; color: var(--text4); font-weight: 600; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+        /* NFR CARDS */
+        .nfr-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin: 16px 0 24px; }
+        @media (max-width: 720px) { .nfr-grid { grid-template-columns: 1fr; } }
+        .nfr-card {
+            background: var(--bg2); border-radius: var(--r); padding: 18px;
+            border: 1px solid var(--border);
+        }
+        .nfr-card-id { font-size: 10px; font-weight: 700; color: var(--accent); margin-bottom: 3px; font-family: monospace; }
+        .nfr-card-title { font-size: 13px; font-weight: 700; margin-bottom: 6px; }
+        .nfr-card p { font-size: 12px; color: var(--text3); line-height: 1.6; margin: 0; }
+
+        /* ROADMAP */
+        .roadmap { margin: 20px 0 28px; }
+        .roadmap-phase {
+            display: flex; gap: 16px; margin-bottom: 16px; align-items: flex-start;
+        }
+        .phase-badge {
+            padding: 6px 14px; border-radius: 100px; font-size: 12px; font-weight: 700;
+            white-space: nowrap; flex-shrink: 0; min-width: 80px; text-align: center;
+        }
+        .phase-badge.v1 { background: rgba(0,122,255,0.1); color: var(--accent); }
+        .phase-badge.v2 { background: rgba(175,82,222,0.1); color: var(--purple); }
+        .phase-badge.v3 { background: rgba(52,199,89,0.1); color: #248a3d; }
+        .phase-content { flex: 1; }
+        .phase-title { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+        .phase-desc { font-size: 13px; color: var(--text3); line-height: 1.6; }
+
+        /* TEST CARDS */
+        .tc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 14px 0 24px; }
+        @media (max-width: 640px) { .tc-grid { grid-template-columns: 1fr; } }
+        .tc-card {
+            background: var(--bg2); border-radius: var(--r); padding: 14px 16px;
+            border: 1px solid var(--border); font-size: 12px;
+        }
+        .tc-card-id { font-family: monospace; font-weight: 700; color: var(--accent); font-size: 11px; }
+        .tc-card-desc { color: var(--text2); margin-top: 4px; line-height: 1.6; }
+
+        /* FOOTER */
+        .footer {
+            text-align: center; padding: 40px 24px; border-top: 1px solid var(--border);
+            font-size: 12px; color: var(--text5);
+        }
+        .footer a { color: var(--accent); text-decoration: none; }
+
+        /* PRINT */
+        @media print {
+            .nav { display: none; }
+            .hero { padding-top: 40px; }
+            .article { max-width: 100%; }
+        }
+
+        /* GLOSSARY */
+        .glossary-grid { display: grid; grid-template-columns: 100px 1fr; gap: 4px 16px; font-size: 13px; margin: 10px 0 20px; }
+        .glossary-term { font-weight: 700; color: var(--accent); font-family: monospace; font-size: 12px; }
+        .glossary-def { color: var(--text2); }
+
+        /* SECTION DIVIDER */
+        .section-divider { border: none; border-top: 1px solid var(--border); margin: 48px 0 0; }
+
+        /* SCOPE TAGS */
+        .scope-tag {
+            display: inline-flex; align-items: center; gap: 4px;
+            padding: 3px 10px; border-radius: 100px; font-size: 10px; font-weight: 600;
+            margin-right: 4px; margin-bottom: 4px;
+        }
+        .scope-tag.in { background: rgba(52,199,89,0.1); color: #248a3d; }
+        .scope-tag.out { background: rgba(255,59,48,0.1); color: #d70015; }
+    </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="nav">
+    <div class="nav-left">
+        <img src="keti.png" alt="KETI">
+        <div class="nav-divider"></div>
+        <span class="nav-title">Smart Seat SRS v1.0</span>
+    </div>
+    <div class="nav-right">
+        <a href="index.html" class="nav-link">Desktop Demo</a>
+        <a href="mobile.html" class="nav-link">Mobile</a>
+        <a href="report.html" class="nav-link">Tech Report</a>
+        <a href="#toc" class="nav-btn"><i class="fas fa-list"></i> TOC</a>
+    </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+    <div class="hero-badge"><i class="fas fa-file-lines"></i> System Requirements Specification</div>
+    <h1>Smart Seat <span>Monitoring &amp; App Control</span> System</h1>
+    <h1 style="font-size:clamp(18px,2.5vw,26px);font-weight:600;letter-spacing:-0.5px;color:var(--text3);margin-top:-8px;">시스템 기술명세서 (SRS)</h1>
+    <p class="hero-sub">
+        차량 내 스마트 시트 모니터링(생체/자세/점유)과 모바일 앱 기반 제어(원격/프리셋/프로필)를
+        실제 구현하기 위한 기능·성능·인터페이스·보안·시험 요구사항 정의
+    </p>
+    <div class="hero-meta">
+        <span><i class="fas fa-building"></i> KETI 한국전자기술연구원</span>
+        <span><i class="fas fa-calendar"></i> 2025.02</span>
+        <span><i class="fas fa-tag"></i> Version 1.0</span>
+        <span><i class="fas fa-lock"></i> Confidential</span>
+    </div>
+</section>
+
+<!-- TOC -->
+<section class="toc-wrap" id="toc">
+    <div class="toc">
+        <h3><i class="fas fa-list" style="margin-right:4px;"></i> Table of Contents</h3>
+        <ul class="toc-grid">
+            <li><a href="#s1"><span class="toc-num">01</span> 문서 개요 (Document Overview)</a></li>
+            <li><a href="#s2"><span class="toc-num">02</span> 상위 사용자 시나리오 (Use Cases)</a></li>
+            <li><a href="#s3"><span class="toc-num">03</span> 시스템 아키텍처 (Architecture)</a></li>
+            <li><a href="#s4"><span class="toc-num">04</span> 기능 요구사항 (Functional)</a></li>
+            <li><a href="#s5"><span class="toc-num">05</span> 비기능 요구사항 (Non-Functional)</a></li>
+            <li><a href="#s6"><span class="toc-num">06</span> 인터페이스 요구사항 (Interface)</a></li>
+            <li><a href="#s7"><span class="toc-num">07</span> 보안/개인정보 (Security &amp; Privacy)</a></li>
+            <li><a href="#s8"><span class="toc-num">08</span> 시험 및 검증 (Verification)</a></li>
+            <li><a href="#s9"><span class="toc-num">09</span> 버전 로드맵 (Roadmap)</a></li>
+            <li><a href="#s10"><span class="toc-num">10</span> 부록 (Appendix)</a></li>
+        </ul>
+    </div>
+</section>
+
+<!-- ARTICLE -->
+<article class="article">
+
+    <!-- ========== 1. 문서 개요 ========== -->
+    <hr class="section-divider">
+    <h2 id="s1"><span class="num">Section 01</span>문서 개요</h2>
+
+    <h3>1.1 목적</h3>
+    <p>본 문서는 차량 내 <strong>스마트 시트 모니터링(생체/자세/점유) 기능</strong>과 <strong>모바일 앱 기반 제어(원격/프리셋/프로필)</strong>를 실제 구현하기 위한 <strong>요구사항(기능/성능/인터페이스/보안/시험)</strong>을 정의한다.</p>
+
+    <div class="callout">
+        <div class="callout-title"><i class="fas fa-bullseye" style="color:var(--accent);"></i> 문서 활용 목적</div>
+        <p>이 문서에 정의된 요구사항은 하드웨어(센서/ECU/액추에이터), 임베디드 소프트웨어, 클라우드 플랫폼, 모바일 앱 개발팀이 <strong>바로 개발 착수 가능한 수준</strong>의 기술 규격으로 활용된다.</p>
+    </div>
+
+    <h3>1.2 범위</h3>
+    <h4>대상 기능</h4>
+    <p>
+        <span class="scope-tag in"><i class="fas fa-check"></i> In-scope</span>
+    </p>
+    <ul>
+        <li><strong>모니터링</strong>: 점유/승객 분류(OCS), 체압/자세, 생체(심박/호흡/HRV 등) — <em>가능 범위에서 단계적 적용</em></li>
+        <li><strong>제어</strong>: 열선/통풍, 마사지/공압(에어포켓), 볼스터, 포지션 메모리(가능 시)</li>
+        <li><strong>앱</strong>: 원격 프리셋(공조+시트), 상태 조회(정책 허용 범위), 알림, 사용자 프로필/로밍</li>
+    </ul>
+
+    <p>
+        <span class="scope-tag out"><i class="fas fa-xmark"></i> Out-of-scope (초기 버전)</span>
+    </p>
+    <ul>
+        <li>의료 진단 목적 (의료기기 등급 요구되는 기능)</li>
+        <li>주행 중 앱을 통한 실시간 포지션 변경 (안전 정책상 제한)</li>
+    </ul>
+
+    <h3>1.3 시스템 경계</h3>
+    <div class="arch-diagram">
+        <div class="arch-label">System Boundary</div>
+        <div class="arch-row">
+            <div class="arch-box purple"><i class="fas fa-mobile-alt"></i><br>Mobile App<br><span style="font-size:10px;font-weight:400;">iOS / Android</span></div>
+            <div class="arch-box blue"><i class="fas fa-cloud"></i><br>Cloud<br><span style="font-size:10px;font-weight:400;">프로필/로그/OTA</span></div>
+        </div>
+        <div class="arch-arrow"><i class="fas fa-arrows-up-down"></i></div>
+        <div class="arch-row">
+            <div class="arch-box orange"><i class="fas fa-car"></i><br>TCU / Gateway<br><span style="font-size:10px;font-weight:400;">BCM / IVI</span></div>
+        </div>
+        <div class="arch-arrow"><i class="fas fa-arrows-up-down"></i> CAN / LIN / Ethernet</div>
+        <div class="arch-row">
+            <div class="arch-box green"><i class="fas fa-microchip"></i><br>Seat ECU<br><span style="font-size:10px;font-weight:400;">제어/추론</span></div>
+            <div class="arch-box red"><i class="fas fa-grip"></i><br>센서<br><span style="font-size:10px;font-weight:400;">Pressure/Cap/IMU</span></div>
+            <div class="arch-box green"><i class="fas fa-gears"></i><br>액추에이터<br><span style="font-size:10px;font-weight:400;">모터/공압/열선</span></div>
+        </div>
+    </div>
+
+    <h3>1.4 용어 / 약어</h3>
+    <div class="glossary-grid">
+        <span class="glossary-term">ECU</span><span class="glossary-def">Electronic Control Unit — 전자제어장치</span>
+        <span class="glossary-term">TCU/TMU</span><span class="glossary-def">Telematics Control Unit — 텔레매틱스 제어장치</span>
+        <span class="glossary-term">IVI</span><span class="glossary-def">In-Vehicle Infotainment — 차량 인포테인먼트</span>
+        <span class="glossary-term">OCS</span><span class="glossary-def">Occupant Classification System — 승객 분류 시스템</span>
+        <span class="glossary-term">OMS</span><span class="glossary-def">Occupant Monitoring System — 승객 모니터링 시스템</span>
+        <span class="glossary-term">HR/HRV</span><span class="glossary-def">Heart Rate / Heart Rate Variability — 심박 / 심박변이도</span>
+        <span class="glossary-term">ECG/BCG</span><span class="glossary-def">Electrocardiogram / Ballistocardiogram — 심전도 / 심탄도</span>
+        <span class="glossary-term">CRS</span><span class="glossary-def">Child Restraint System — 유아용 카시트</span>
+        <span class="glossary-term">PCP</span><span class="glossary-def">Pre-Conditioning Protocol — 프리컨디셔닝 프로토콜</span>
+        <span class="glossary-term">MFA</span><span class="glossary-def">Multi-Factor Authentication — 다중 인증</span>
+    </div>
+
+    <!-- ========== 2. 사용자 시나리오 ========== -->
+    <hr class="section-divider">
+    <h2 id="s2"><span class="num">Section 02</span>상위 사용자 시나리오 (Use Cases)</h2>
+
+    <div class="uc-grid">
+        <div class="uc-card">
+            <div class="uc-card-id">UC-01</div>
+            <div class="uc-card-title">탑승 전 원격 프리컨디셔닝</div>
+            <p>앱에서 <strong>"겨울 프리셋(22°C + 열선 2단 + 핸들열선)"</strong> 선택 → 차량 원격 시동/공조/시트 설정 자동 적용. 탑승 시 이미 최적 온도 달성.</p>
+        </div>
+        <div class="uc-card">
+            <div class="uc-card-id">UC-02</div>
+            <div class="uc-card-title">주행 중 운전자 피로/자세 모니터링</div>
+            <p>자세 비대칭/피로 징후 탐지 → IVI에 알림 표시 + (정책 허용 시) <strong>미세 공압 스트레칭 동작</strong> 자동 실행으로 피로 완화.</p>
+        </div>
+        <div class="uc-card">
+            <div class="uc-card-id">UC-03</div>
+            <div class="uc-card-title">정차/충전 중 릴렉션/마사지</div>
+            <p>정차 조건 만족 시 앱 또는 IVI에서 <strong>릴렉션 포즈/마사지 프로그램</strong> 실행. 충전 중 최적 휴식 환경 제공.</p>
+        </div>
+        <div class="uc-card">
+            <div class="uc-card-id">UC-04</div>
+            <div class="uc-card-title">뒷좌석 탑승자 방치/안전 알림</div>
+            <p>점유/분류 결과 기반, <strong>하차 후 뒷좌석 점유 탐지 시 앱 푸시 알림</strong>. 어린이/반려동물 방치 사고 예방.</p>
+        </div>
+    </div>
+
+    <!-- ========== 3. 시스템 아키텍처 ========== -->
+    <hr class="section-divider">
+    <h2 id="s3"><span class="num">Section 03</span>시스템 아키텍처 요구사항</h2>
+
+    <h3>3.1 논리 구성요소</h3>
+    <ul>
+        <li><strong>Seat Sensor Layer</strong>: Pressure map, capacitive electrode(옵션), piezo film/loadcell(옵션), IMU(옵션)</li>
+        <li><strong>Seat ECU</strong>: 전처리/특징추출/추론(옵션)/액추에이터 제어</li>
+        <li><strong>Vehicle Integration</strong>: Gateway/BCM/IVI/TCU, CAN/LIN/Ethernet 네트워크</li>
+        <li><strong>Cloud Platform</strong>: 계정/프로필/로그/리포트/OTA(옵션)</li>
+        <li><strong>Mobile App</strong>: 인증/프리셋/원격제어/알림/리포트</li>
+    </ul>
+
+    <h3>3.2 데이터/제어 흐름 요구사항</h3>
+    <div class="callout">
+        <div class="callout-title"><i class="fas fa-route" style="color:var(--accent);"></i> 데이터 흐름 원칙</div>
+        <p>모니터링 데이터는 <strong>로컬(Seat ECU 또는 IVI)에서 1차 처리 후</strong>, 정책에 따라 요약값만 외부 전송한다.</p>
+        <p>원격 제어 명령은 <strong>Cloud 인증/권한검증 → TCU → 차량 네트워크 → Seat ECU</strong> 경로로만 수행된다.</p>
+    </div>
+
+    <h4>3.2.1 모니터링 데이터 흐름</h4>
+    <ol>
+        <li>센서 레이어 → Seat ECU: Raw 데이터 (10~100Hz 샘플링)</li>
+        <li>Seat ECU 로컬 처리: 특징 추출, 점유/자세/상태 추론</li>
+        <li>Seat ECU → IVI/Gateway: 요약 이벤트 (CAN/LIN 신호)</li>
+        <li>TCU → Cloud: 정책 허용 시 요약값 업링크 (최소 필드만)</li>
+        <li>Cloud → App: 이벤트 알림, 상태 조회 응답</li>
+    </ol>
+
+    <h4>3.2.2 제어 명령 흐름</h4>
+    <ol>
+        <li>사용자 → App: 프리셋 선택 또는 개별 제어 요청</li>
+        <li>App → Cloud: 인증된 명령 (서명 + TTL + nonce)</li>
+        <li>Cloud → TCU: 권한 검증 후 명령 전달</li>
+        <li>TCU → Seat ECU: 차량 네트워크를 통한 제어 신호</li>
+        <li>Seat ECU → 액추에이터: 물리 동작 실행</li>
+        <li>응답 역순 전파: 실행 결과 → Cloud → App</li>
+    </ol>
+
+    <!-- ========== 4. 기능 요구사항 ========== -->
+    <hr class="section-divider">
+    <h2 id="s4"><span class="num">Section 04</span>기능 요구사항 (Functional Requirements)</h2>
+
+    <h3>4.1 모니터링 (Seat Monitoring)</h3>
+    <div class="req-table-wrap">
+        <table class="req-table">
+            <thead>
+                <tr><th style="width:80px;">ID</th><th style="width:100px;">항목</th><th>요구사항 (Shall)</th><th style="width:130px;">검증</th></tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><span class="req-id">MON-01</span></td>
+                    <td>점유 감지</td>
+                    <td>시스템은 좌석 점유 여부를 <strong>1초 이내 업데이트 주기</strong>로 산출해야 한다. 운전석 및 조수석을 기본으로 하며, 뒷좌석은 옵션으로 지원한다.</td>
+                    <td>실차 착좌/이탈 반복시험</td>
+                </tr>
+                <tr>
+                    <td><span class="req-id">MON-02</span></td>
+                    <td>승객 분류</td>
+                    <td>시스템은 <strong>성인/어린이/CRS(카시트)/물체(가방 등)</strong> 구분을 지원해야 한다. 초기 버전은 <strong>성인/비성인 2단계</strong> 허용.</td>
+                    <td>라벨 데이터셋 정확도 ≥90%</td>
+                </tr>
+                <tr>
+                    <td><span class="req-id">MON-03</span></td>
+                    <td>체압/자세 점수</td>
+                    <td>시스템은 16×16 이상 체압 분포 기반으로 <strong>자세 점수(posture_score, 0-100)</strong>를 실시간 산출해야 한다.</td>
+                    <td>기준자세 대비 오차 ±10점</td>
+                </tr>
+                <tr>
+                    <td><span class="req-id">MON-04</span></td>
+                    <td>비대칭 탐지</td>
+                    <td>시스템은 좌우 체압 <strong>비대칭 임계치(기본 20%) 초과 30초 지속 시</strong> 이벤트를 생성해야 한다.</td>
+                    <td>시나리오 테스트</td>
+                </tr>
+                <tr>
+                    <td><span class="req-id">MON-05</span></td>
+                    <td>심박 <span class="req-opt">옵션</span></td>
+                    <td>시스템은 무구속 방식(capacitive/BCG)으로 <strong>심박(HR) 추정치를 BPM 단위</strong>로 제공해야 한다. 정확도: 기준 ECG 대비 ±5 BPM (안정 시).</td>
+                    <td>기준 ECG 비교시험</td>
+                </tr>
+                <tr>
+                    <td><span class="req-id">MON-06</span></td>
+                    <td>호흡 <span class="req-opt">옵션</span></td>
+                    <td>시스템은 <strong>호흡수(RR, 분당 호흡수)</strong>를 추정해야 한다. 정확도: ±2 RPM (안정 시).</td>
+                    <td>기준 센서 비교시험</td>
+                </tr>
+                <tr>
+                    <td><span class="req-id">MON-07</span></td>
+                    <td>상태 추론</td>
+                    <td>시스템은 <strong>졸음/피로/스트레스 상태</strong>를 신뢰도(confidence, 0-1)와 함께 산출해야 한다. 최소 3개 상태 구분.</td>
+                    <td>모델 F1-Score ≥0.75</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <h3>4.2 제어 (Seat Actuation)</h3>
+    <div class="req-table-wrap">
+        <table class="req-table">
+            <thead>
+                <tr><th style="width:80px;">ID</th><th style="width:110px;">항목</th><th>요구사항 (Shall)</th><th style="width:130px;">검증</th></tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><span class="req-id">ACT-01</span></td>
+                    <td>열선 제어</td>
+                    <td>시스템은 열선 <strong>0~3단(OFF/Low/Medium/High)</strong>을 제어할 수 있어야 한다. 각 단계의 목표 온도: Low 30°C, Med 35°C, High 40°C (±2°C).</td>
+                    <td>기능시험 + 온도추종시험</td>
+                </tr>
+                <tr>
+                    <td><span class="req-id">ACT-02</span></td>
+                    <td>통풍 제어</td>
+                    <td>시스템은 통풍 <strong>0~3단(OFF/Low/Medium/High)</strong>을 제어할 수 있어야 한다. 풍량 단계별 차이 체감 가능.</td>
+                    <td>기능시험 + 풍량측정</td>
+                </tr>
+                <tr>
+                    <td><span class="req-id">ACT-03</span></td>
+                    <td>공압 채널</td>
+                    <td>시스템은 공압(에어포켓) <strong>7채널(lumbar upper/lower/left/right, side left/right, cushion)</strong>을 <strong>0-100% 독립 제어</strong>해야 한다.</td>
+                    <td>압력추종시험 (목표 대비 ±5%)</td>
+                </tr>
+                <tr>
+                    <td><span class="req-id">ACT-04</span></td>
+                    <td>마사지 프로그램</td>
+                    <td>시스템은 최소 <strong>4개 마사지 패턴(Wave/Pulse/Stretch/Knead)</strong>을 제공하며, 각 패턴은 <strong>3단계 강도 조절</strong>을 지원해야 한다.</td>
+                    <td>시나리오시험 (패턴/강도별)</td>
+                </tr>
+                <tr>
+                    <td><span class="req-id">ACT-05</span></td>
+                    <td>주행모드 연동</td>
+                    <td><strong>Comfort/Sport/Eco/Custom</strong> 주행모드 전환 시, 볼스터 지지·포지션·공압이 <strong>모드별 프리셋으로 자동 전환</strong>되어야 한다.</td>
+                    <td>CAN 입력 연동시험</td>
+                </tr>
+                <tr>
+                    <td><span class="req-id">ACT-06</span></td>
+                    <td>안전 제약</td>
+                    <td>주행 중(차속 &gt; 5km/h) <strong>포지션(전후/높이/틸트) 변경은 차단</strong>, 리클라인은 25° 제한. 주행 중 stretch 강도 3은 금지.</td>
+                    <td>정책시험 (차속별 동작확인)</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <h3>4.3 앱/커넥티드 (Mobile App)</h3>
+    <div class="req-table-wrap">
+        <table class="req-table">
+            <thead>
+                <tr><th style="width:80px;">ID</th><th style="width:110px;">항목</th><th>요구사항 (Shall)</th><th style="width:120px;">검증</th></tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><span class="req-id">APP-01</span></td>
+                    <td>계정/차량 페어링</td>
+                    <td>앱은 사용자 계정과 차량을 <strong>소유권 기반(VIN 검증)</strong>으로 페어링해야 한다. 1계정 다차량 지원.</td>
+                    <td>계정/권한시험</td>
+                </tr>
+                <tr>
+                    <td><span class="req-id">APP-02</span></td>
+                    <td>원격 프리셋</td>
+                    <td>앱은 <strong>공조+시트 설정을 프리셋으로 저장/호출</strong>해야 한다. 프리셋 생성은 <strong>3단계 이하</strong>(선택→강도→저장).</td>
+                    <td>E2E시험</td>
+                </tr>
+                <tr>
+                    <td><span class="req-id">APP-03</span></td>
+                    <td>원격 시동 연동</td>
+                    <td>원격 프리셋은 <strong>원격 시동/공조 실행과 결합</strong>될 수 있어야 한다. 프리컨디셔닝 목표 온도 도달 예상시간(ETA) 표시.</td>
+                    <td>E2E시험</td>
+                </tr>
+                <tr>
+                    <td><span class="req-id">APP-04</span></td>
+                    <td>상태 조회</td>
+                    <td>앱은 <strong>좌석 점유/시트 모드/열선·통풍 상태</strong>를 조회할 수 있어야 한다. 조회 결과는 <strong>10초 이내 갱신</strong>.</td>
+                    <td>API시험</td>
+                </tr>
+                <tr>
+                    <td><span class="req-id">APP-05</span></td>
+                    <td>알림</td>
+                    <td>시스템은 이벤트(뒷좌석 점유, 자세 경고, 온도 이상 등)를 <strong>앱 푸시 알림</strong>으로 통지해야 한다. 알림에는 원인/추천조치/차량상태링크 포함.</td>
+                    <td>이벤트 주입시험</td>
+                </tr>
+                <tr>
+                    <td><span class="req-id">APP-06</span></td>
+                    <td>프로필 로밍</td>
+                    <td>사용자 프로필(시트 포지션/공압/마사지/기후 설정)은 <strong>서버에 저장되어 재로그인 시 복원</strong>되어야 한다. 다른 차량에서도 적용 가능.</td>
+                    <td>서버 연동시험</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="callout success">
+        <div class="callout-title"><i class="fas fa-check-circle" style="color:var(--green);"></i> 요구사항 집계</div>
+        <p><strong>모니터링 7개</strong> (MON-01~07, 옵션 2개 포함) + <strong>제어 6개</strong> (ACT-01~06) + <strong>앱 6개</strong> (APP-01~06) = <strong>총 19개 기능 요구사항</strong></p>
+    </div>
+
+    <!-- ========== 5. 비기능 요구사항 ========== -->
+    <hr class="section-divider">
+    <h2 id="s5"><span class="num">Section 05</span>비기능 요구사항 (Non-Functional)</h2>
+
+    <h3>5.1 성능 (Performance KPI)</h3>
+    <div class="nfr-grid">
+        <div class="nfr-card">
+            <div class="nfr-card-id">NFR-PERF-01</div>
+            <div class="nfr-card-title">원격 명령 응답</div>
+            <p>원격 명령 요청 → 적용 결과 회신까지 <strong>p95 ≤ 5초</strong> (네트워크 상황에 따라 조정 가능)</p>
+        </div>
+        <div class="nfr-card">
+            <div class="nfr-card-id">NFR-PERF-02</div>
+            <div class="nfr-card-title">이벤트 탐지 지연</div>
+            <p>점유/자세 이벤트 탐지 지연 <strong>≤ 1초</strong> (로컬 Seat ECU 기준)</p>
+        </div>
+        <div class="nfr-card">
+            <div class="nfr-card-id">NFR-PERF-03</div>
+            <div class="nfr-card-title">자동 복구</div>
+            <p>센서/네트워크 일시 오류 시 <strong>자동 재시도/페일세이프</strong> 복구 (30초 이내)</p>
+        </div>
+    </div>
+
+    <h3>5.2 신뢰성 / 내구성</h3>
+    <div class="nfr-grid">
+        <div class="nfr-card">
+            <div class="nfr-card-id">NFR-REL-01</div>
+            <div class="nfr-card-title">캘리브레이션</div>
+            <p>차량 진동/온도/습도 환경에서 센서 드리프트를 고려한 <strong>자동 캘리브레이션 절차</strong> 제공</p>
+        </div>
+        <div class="nfr-card">
+            <div class="nfr-card-id">NFR-REL-02</div>
+            <div class="nfr-card-title">페일세이프</div>
+            <p>ECU 결함 시 시트를 <strong>안전 상태로 복귀</strong> (열선 차단, 펌프 정지, 포지션 동결)</p>
+        </div>
+        <div class="nfr-card">
+            <div class="nfr-card-id">NFR-REL-03</div>
+            <div class="nfr-card-title">내구 수명</div>
+            <p>센서 매트릭스 <strong>10만 회 이상</strong> 착좌/이탈 사이클에서 특성 유지</p>
+        </div>
+    </div>
+
+    <h3>5.3 사용성 (UX)</h3>
+    <div class="nfr-grid">
+        <div class="nfr-card">
+            <div class="nfr-card-id">NFR-UX-01</div>
+            <div class="nfr-card-title">프리셋 생성</div>
+            <p>프리셋 생성은 <strong>3단계 이하</strong> (선택 → 강도 → 저장)</p>
+        </div>
+        <div class="nfr-card">
+            <div class="nfr-card-id">NFR-UX-02</div>
+            <div class="nfr-card-title">안전 UI</div>
+            <p>주행 중 위험 동작은 <strong>UI에서 비활성 표시 + 경고 메시지</strong> 처리</p>
+        </div>
+        <div class="nfr-card">
+            <div class="nfr-card-id">NFR-UX-03</div>
+            <div class="nfr-card-title">반응 시간</div>
+            <p>앱 내 UI 조작(탭/전환) 반응시간 <strong>≤ 200ms</strong></p>
+        </div>
+    </div>
+
+    <!-- ========== 6. 인터페이스 요구사항 ========== -->
+    <hr class="section-divider">
+    <h2 id="s6"><span class="num">Section 06</span>인터페이스 요구사항 (Interface)</h2>
+
+    <h3>6.1 차량 네트워크</h3>
+    <div class="req-table-wrap">
+        <table class="req-table">
+            <thead><tr><th style="width:100px;">ID</th><th>요구사항</th></tr></thead>
+            <tbody>
+                <tr><td><span class="req-id">IF-VNET-01</span></td><td>Seat ECU ↔ Gateway/BCM 간 제어 메시지는 <strong>CAN/LIN 신호로 정의</strong>되어야 한다 (신호명/주기/스케일/오프셋 포함).</td></tr>
+                <tr><td><span class="req-id">IF-VNET-02</span></td><td>주행모드/차속/기어/도어 상태 등 <strong>안전 정책 판단 신호</strong>를 수신해야 한다.</td></tr>
+                <tr><td><span class="req-id">IF-VNET-03</span></td><td>시트 상태(열선/통풍/포지션)는 <strong>100ms 주기 이하</strong>로 차량 네트워크에 publish되어야 한다.</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <h3>6.2 클라우드 API</h3>
+    <div class="req-table-wrap">
+        <table class="req-table">
+            <thead><tr><th style="width:100px;">ID</th><th>요구사항</th></tr></thead>
+            <tbody>
+                <tr><td><span class="req-id">IF-API-01</span></td><td>원격 제어 API는 <strong>명령 ID, 요청시간, 유효기간(TTL), 사용자/차량 식별자, 디지털 서명</strong>을 포함해야 한다.</td></tr>
+                <tr><td><span class="req-id">IF-API-02</span></td><td>이벤트 업링크는 <strong>최소 필드(시간, 차량ID, 좌석, 이벤트타입, 심각도, 요약값)</strong>만 전송해야 한다.</td></tr>
+                <tr><td><span class="req-id">IF-API-03</span></td><td>API 인증은 <strong>JWT(Access + Refresh Token)</strong> 방식을 사용하며, Access Token TTL은 60분 이하.</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <h3>6.3 모바일 앱</h3>
+    <div class="req-table-wrap">
+        <table class="req-table">
+            <thead><tr><th style="width:100px;">ID</th><th>요구사항</th></tr></thead>
+            <tbody>
+                <tr><td><span class="req-id">IF-APP-01</span></td><td>푸시 알림에는 <strong>"원인 / 추천 조치 / 차량 상태 링크"</strong>가 포함되어야 한다.</td></tr>
+                <tr><td><span class="req-id">IF-APP-02</span></td><td>앱은 <strong>iOS 15+ / Android 12+</strong>를 지원해야 하며, 태블릿 레이아웃도 지원해야 한다.</td></tr>
+                <tr><td><span class="req-id">IF-APP-03</span></td><td>앱은 <strong>오프라인 모드에서 캐시된 프리셋/프로필 목록을 표시</strong>할 수 있어야 한다 (PWA 지원).</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- ========== 7. 보안/개인정보 ========== -->
+    <hr class="section-divider">
+    <h2 id="s7"><span class="num">Section 07</span>보안 / 개인정보 요구사항</h2>
+
+    <div class="callout danger">
+        <div class="callout-title"><i class="fas fa-shield-halved" style="color:var(--red);"></i> Security by Design</div>
+        <p>원격 제어 기능은 차량 안전과 직결되므로, 설계 단계부터 보안을 내재화해야 한다.</p>
+    </div>
+
+    <div class="req-table-wrap">
+        <table class="req-table">
+            <thead><tr><th style="width:80px;">ID</th><th style="width:130px;">항목</th><th>요구사항 (Shall)</th></tr></thead>
+            <tbody>
+                <tr>
+                    <td><span class="req-id">SEC-01</span></td>
+                    <td>강한 인증</td>
+                    <td>원격 제어는 <strong>강한 사용자 인증(MFA 또는 디바이스 바인딩 등 OEM 정책)</strong> 후 허용되어야 한다.</td>
+                </tr>
+                <tr>
+                    <td><span class="req-id">SEC-02</span></td>
+                    <td>명령 무결성</td>
+                    <td>명령 메시지는 <strong>서명/무결성 검증</strong>을 거쳐야 한다. 리플레이 방지: <strong>nonce + TTL(최대 5분)</strong> 적용.</td>
+                </tr>
+                <tr>
+                    <td><span class="req-id">SEC-03</span></td>
+                    <td>생체 데이터 보호</td>
+                    <td>생체 관련 데이터는 기본적으로 <strong>로컬 처리 우선</strong>. 서버 전송 시 <strong>명시적 동의 + 최소수집 원칙</strong> 적용.</td>
+                </tr>
+                <tr>
+                    <td><span class="req-id">SEC-04</span></td>
+                    <td>동의 철회</td>
+                    <td>사용자 동의 철회 시 <strong>데이터 삭제/수집 중지 정책</strong>을 제공해야 한다 (GDPR/PIPA 준수).</td>
+                </tr>
+                <tr>
+                    <td><span class="req-id">SEC-05</span></td>
+                    <td>전송 암호화</td>
+                    <td>Cloud-App 간 통신은 <strong>TLS 1.2 이상</strong>을 사용해야 한다.</td>
+                </tr>
+                <tr>
+                    <td><span class="req-id">SEC-06</span></td>
+                    <td>접근 제어</td>
+                    <td>관리자/운전자/동승자 <strong>역할 기반 접근 제어(RBAC)</strong>를 적용해야 한다.</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- ========== 8. 시험 및 검증 ========== -->
+    <hr class="section-divider">
+    <h2 id="s8"><span class="num">Section 08</span>시험 및 검증 계획 (Verification)</h2>
+
+    <h3>8.1 시험 분류</h3>
+    <div class="req-table-wrap">
+        <table class="req-table">
+            <thead><tr><th style="width:90px;">ID</th><th style="width:120px;">분류</th><th>설명</th></tr></thead>
+            <tbody>
+                <tr><td><span class="req-id">V&V-01</span></td><td>기능시험</td><td>각 MON/ACT/APP 항목별 개별 기능 동작 확인</td></tr>
+                <tr><td><span class="req-id">V&V-02</span></td><td>환경시험</td><td>진동/노면/온도/습도/의복 두께/체형 다양성 조건에서 성능 검증</td></tr>
+                <tr><td><span class="req-id">V&V-03</span></td><td>보안시험</td><td>권한 우회/리플레이/중간자 공격 시나리오 (테스트 환경)</td></tr>
+                <tr><td><span class="req-id">V&V-04</span></td><td>E2E 시나리오</td><td>UC-01~UC-04 전체 흐름 End-to-End 검증</td></tr>
+                <tr><td><span class="req-id">V&V-05</span></td><td>성능시험</td><td>NFR-PERF-01~03 지표 달성 확인 (부하/지연 측정)</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <h3>8.2 대표 시험 케이스</h3>
+    <div class="tc-grid">
+        <div class="tc-card">
+            <div class="tc-card-id">TC-UC01-01</div>
+            <div class="tc-card-desc">겨울 프리셋 실행 시 <strong>열선 2단 + 핸들열선 적용</strong> 확인. 5분 내 목표 온도 도달.</div>
+        </div>
+        <div class="tc-card">
+            <div class="tc-card-id">TC-MON04-01</div>
+            <div class="tc-card-desc">좌우 비대칭 자세 <strong>30초 지속 시</strong> 경고 이벤트 정확히 1회 발생.</div>
+        </div>
+        <div class="tc-card">
+            <div class="tc-card-id">TC-ACT06-01</div>
+            <div class="tc-card-desc">차속 60km/h에서 포지션 fore_aft 변경 요청 시 <strong>차단 + 사유 메시지</strong> 반환.</div>
+        </div>
+        <div class="tc-card">
+            <div class="tc-card-id">TC-SEC02-01</div>
+            <div class="tc-card-desc"><strong>TTL 만료 명령</strong>은 차량에서 거부. 응답 코드 403.</div>
+        </div>
+        <div class="tc-card">
+            <div class="tc-card-id">TC-APP02-01</div>
+            <div class="tc-card-desc">프리셋 생성 → 저장 → 호출 → 적용까지 <strong>3단계 이하, 15초 이내</strong> 완료.</div>
+        </div>
+        <div class="tc-card">
+            <div class="tc-card-id">TC-UC04-01</div>
+            <div class="tc-card-desc">운전자 하차 후 뒷좌석 점유 지속 시 <strong>60초 내 앱 푸시 알림</strong> 수신.</div>
+        </div>
+        <div class="tc-card">
+            <div class="tc-card-id">TC-MON07-01</div>
+            <div class="tc-card-desc">졸음 상태 시뮬레이션(HR↓, RR↓) 시 <strong>"drowsy" 상태 + confidence ≥ 0.7</strong> 산출.</div>
+        </div>
+        <div class="tc-card">
+            <div class="tc-card-id">TC-APP06-01</div>
+            <div class="tc-card-desc">프로필 저장 후 다른 차량에 로그인 시 <strong>프로필 자동 복원</strong> 확인.</div>
+        </div>
+    </div>
+
+    <!-- ========== 9. 로드맵 ========== -->
+    <hr class="section-divider">
+    <h2 id="s9"><span class="num">Section 09</span>버전 / 단계 로드맵</h2>
+
+    <div class="roadmap">
+        <div class="roadmap-phase">
+            <span class="phase-badge v1">MVP (v1)</span>
+            <div class="phase-content">
+                <div class="phase-title">기본 점유/제어 + 원격 프리셋</div>
+                <div class="phase-desc">
+                    점유/기본 자세(MON-01~04) + 열선/통풍(ACT-01~02) + 원격 프리셋/알림(APP-01~05) + 기본 보안(SEC-01~02). 센서: 16×16 압력 매트릭스. 대상: 1열(운전석+조수석).
+                </div>
+            </div>
+        </div>
+        <div class="roadmap-phase">
+            <span class="phase-badge v2">V2</span>
+            <div class="phase-content">
+                <div class="phase-title">공압/마사지 + 프로필 로밍</div>
+                <div class="phase-desc">
+                    체압 고도화 + 공압 7채널 마사지/스트레칭(ACT-03~04) + 주행모드 연동(ACT-05) + 프로필 로밍(APP-06) + 안전 정책 고도화(ACT-06). 대상: 전좌석.
+                </div>
+            </div>
+        </div>
+        <div class="roadmap-phase">
+            <span class="phase-badge v3">V3</span>
+            <div class="phase-content">
+                <div class="phase-title">생체 모니터링 + AI 추론</div>
+                <div class="phase-desc">
+                    생체(ECG/BCG/HRV)(MON-05~06) + 졸음/스트레스 AI 추론(MON-07) + 리포트/데이터 서비스 + OTA 업데이트. 의복/체형/노면 보정 자동화.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== 10. 부록 ========== -->
+    <hr class="section-divider">
+    <h2 id="s10"><span class="num">Section 10</span>부록 (Appendix)</h2>
+
+    <h3>A. 이벤트/로그 스키마 (JSON 예시)</h3>
+    <div class="callout" style="font-family:'SF Mono','Menlo',monospace;font-size:12px;line-height:1.8;overflow-x:auto;">
+        <pre style="margin:0;">{
+  "event_id": "evt_20250210_143022_001",
+  "timestamp": "2025-02-10T14:30:22.456Z",
+  "vehicle_id": "KETI2025SMARTSEAT",
+  "seat_id": "driver",
+  "event_type": "posture_asymmetry",
+  "severity": "warning",
+  "data": {
+    "posture_score": 45,
+    "asymmetry_pct": 28.5,
+    "duration_sec": 35,
+    "heart_rate": 72,
+    "driver_state": "normal"
+  },
+  "action_recommended": "자세 교정 알림 표시"
+}</pre>
+    </div>
+
+    <h3>B. CAN/LIN 신호 정의서 템플릿</h3>
+    <div class="req-table-wrap">
+        <table class="req-table">
+            <thead><tr><th>Signal Name</th><th>Message ID</th><th>Start Bit</th><th>Length</th><th>Scale</th><th>Unit</th><th>Cycle (ms)</th></tr></thead>
+            <tbody>
+                <tr><td>SeatOccupancy_FL</td><td>0x310</td><td>0</td><td>2</td><td>1</td><td>enum</td><td>100</td></tr>
+                <tr><td>SeatHeating_FL</td><td>0x310</td><td>2</td><td>2</td><td>1</td><td>level</td><td>100</td></tr>
+                <tr><td>SeatVent_FL</td><td>0x310</td><td>4</td><td>2</td><td>1</td><td>level</td><td>100</td></tr>
+                <tr><td>PostureScore_FL</td><td>0x311</td><td>0</td><td>8</td><td>1</td><td>score</td><td>500</td></tr>
+                <tr><td>HeartRate_FL</td><td>0x311</td><td>8</td><td>8</td><td>1</td><td>BPM</td><td>1000</td></tr>
+                <tr><td>DriverState_FL</td><td>0x311</td><td>16</td><td>3</td><td>1</td><td>enum</td><td>500</td></tr>
+                <tr><td>VehicleSpeed</td><td>0x100</td><td>0</td><td>16</td><td>0.01</td><td>km/h</td><td>20</td></tr>
+                <tr><td>DriveMode</td><td>0x102</td><td>0</td><td>3</td><td>1</td><td>enum</td><td>200</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <h3>C. 요구사항 추적 매트릭스 (RTM) 요약</h3>
+    <div class="req-table-wrap">
+        <table class="req-table">
+            <thead><tr><th>요구사항 ID</th><th>Use Case</th><th>설계 컴포넌트</th><th>시험 케이스</th><th>로드맵</th></tr></thead>
+            <tbody>
+                <tr><td><span class="req-id">MON-01</span></td><td>UC-04</td><td>Seat ECU → Pressure Sensor</td><td>V&V-01, TC-UC04-01</td><td>MVP</td></tr>
+                <tr><td><span class="req-id">MON-03</span></td><td>UC-02</td><td>Seat ECU → Posture Algorithm</td><td>V&V-01, V&V-02</td><td>MVP</td></tr>
+                <tr><td><span class="req-id">MON-07</span></td><td>UC-02</td><td>Seat ECU → AI Inference</td><td>V&V-01, TC-MON07-01</td><td>V3</td></tr>
+                <tr><td><span class="req-id">ACT-01</span></td><td>UC-01, UC-03</td><td>Seat ECU → Heater Driver</td><td>V&V-01, TC-UC01-01</td><td>MVP</td></tr>
+                <tr><td><span class="req-id">ACT-06</span></td><td>UC-02</td><td>Seat ECU → Safety Logic</td><td>V&V-01, TC-ACT06-01</td><td>V2</td></tr>
+                <tr><td><span class="req-id">APP-02</span></td><td>UC-01</td><td>App → Cloud → TCU</td><td>V&V-04, TC-APP02-01</td><td>MVP</td></tr>
+                <tr><td><span class="req-id">APP-06</span></td><td>—</td><td>App → Cloud Profile DB</td><td>V&V-01, TC-APP06-01</td><td>V2</td></tr>
+                <tr><td><span class="req-id">SEC-02</span></td><td>All</td><td>Cloud → Signature/Nonce</td><td>V&V-03, TC-SEC02-01</td><td>MVP</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <h3>D. 설계 가정 (Assumptions)</h3>
+    <ul>
+        <li><strong>대상 좌석</strong>: 1열(운전석+조수석) 기본, 2열(뒷좌석) 옵션. MVP는 운전석 단독 시작.</li>
+        <li><strong>액추에이터 범위</strong>: 열선/통풍(MVP) + 공압 7채널(V2부터). 포지션 메모리는 차량 사양에 따라 결정.</li>
+        <li><strong>원격 제어 허용 범위</strong>: 탑승 전 프리컨디셔닝 + 정차/충전 시만 허용. 주행 중 원격 포지션 변경 불가.</li>
+        <li><strong>생체 센서</strong>: V3 단계에서 capacitive electrode 방식 적용. MVP/V2에서는 체압 기반 간접 추정.</li>
+        <li><strong>통신 환경</strong>: LTE/5G 기반 TCU 통신. 터널/지하주차장 등 음영 지역에서는 명령 큐잉 후 재전송.</li>
+    </ul>
+
+</article>
+
+<!-- FOOTER -->
+<footer class="footer">
+    <p><strong>KETI</strong> — Korea Electronics Technology Institute</p>
+    <p style="margin-top:6px;">Smart Seat System Requirements Specification v1.0 · February 2025</p>
+    <p style="margin-top:10px;">
+        <a href="index.html">Desktop Demo</a> · <a href="mobile.html">Mobile</a> · <a href="tablet.html">Tablet</a> ·
+        <a href="cockpit.html">Cockpit</a> · <a href="tesla.html">Tesla</a> · <a href="report.html">Tech Report</a>
+    </p>
+</footer>
+
+</body>
+</html>

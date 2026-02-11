@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>Bone Test</title>
+<script src="libs/three.min.js"></script>
+<script src="libs/OrbitControls.js"></script>
+<script src="libs/GLTFLoader.js"></script>
+<style>body{margin:0;background:#222;color:#fff;font-family:monospace;} #info{position:fixed;top:10px;left:10px;z-index:10;font-size:13px;line-height:1.8;background:rgba(0,0,0,0.7);padding:15px;border-radius:8px;} button{margin:3px;padding:6px 12px;cursor:pointer;border:none;border-radius:4px;background:#007aff;color:#fff;font-size:13px;} button:hover{background:#0055cc;} #log{position:fixed;bottom:10px;left:10px;right:10px;height:150px;background:rgba(0,0,0,0.8);padding:10px;overflow-y:auto;font-size:11px;border-radius:8px;}</style>
+</head><body>
+<div id="info">
+    <div id="status">Loading...</div>
+    <div style="margin-top:10px;">
+        <button onclick="testRecline()">Recline 30°</button>
+        <button onclick="testHeadrest()">Headrest Up</button>
+        <button onclick="testSlide()">Slide Forward</button>
+        <button onclick="testHeight()">Height Up</button>
+        <button onclick="resetAll()">Reset All</button>
+    </div>
+</div>
+<div id="log"></div>
+<script>
+const logEl = document.getElementById('log');
+function log(msg) { logEl.innerHTML += msg + '<br>'; logEl.scrollTop = logEl.scrollHeight; console.log(msg); }
+
+let scene, camera, renderer, controls;
+const bones = {};
+
+scene = new THREE.Scene();
+scene.background = new THREE.Color(0x333333);
+camera = new THREE.PerspectiveCamera(45, innerWidth/innerHeight, 0.01, 100);
+camera.position.set(2, 2, 3);
+renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth, innerHeight);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.8;
+document.body.appendChild(renderer.domElement);
+controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.target.set(0, 0.5, 0);
+
+scene.add(new THREE.AmbientLight(0xffffff, 1.2));
+const dl = new THREE.DirectionalLight(0xffffff, 2.0);
+dl.position.set(3, 6, 4); scene.add(dl);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x888888, 0.5));
+scene.add(new THREE.GridHelper(4, 20, 0x555555, 0x444444));
+
+const loader = new THREE.GLTFLoader();
+loader.load('models/car-seat-rigged.glb', (gltf) => {
+    const model = gltf.scene;
+
+    // Fit model
+    const box = new THREE.Box3().setFromObject(model);
+    const size = box.getSize(new THREE.Vector3());
+    const center = box.getCenter(new THREE.Vector3());
+    const s = 1.5 / Math.max(size.x, size.y, size.z);
+    model.scale.setScalar(s);
+    model.position.set(-center.x*s, -box.min.y*s, -center.z*s);
+
+    scene.add(model);
+
+    log('=== Model loaded ===');
+    log('Animations: ' + gltf.animations.map(a => a.name).join(', '));
+
+    // Traverse and find all bones and skinned meshes
+    let skinnedCount = 0;
+    model.traverse(c => {
+        if (c.isBone) {
+            log('BONE found: "' + c.name + '" (isBone=true)');
+            bones[c.name] = c;
+        }
+        if (c.isSkinnedMesh) {
+            skinnedCount++;
+            log('SKINNED_MESH: "' + c.name + '" skeleton.bones=' +
+                (c.skeleton ? c.skeleton.bones.map(b=>b.name).join(',') : 'NONE'));
+        }
+        if (c.isMesh && !c.isSkinnedMesh) {
+            log('MESH (not skinned): "' + c.name + '"');
+        }
+    });
+
+    log('');
+    log('Total bones found: ' + Object.keys(bones).length);
+    log('Total skinned meshes: ' + skinnedCount);
+    log('Bone names: ' + Object.keys(bones).join(', '));
+
+    if (Object.keys(bones).length === 0) {
+        log('');
+        log('!! NO BONES FOUND - checking all object types:');
+        model.traverse(c => {
+            log('  ' + c.type + ': "' + c.name + '"');
+        });
+    }
+
+    document.getElementById('status').textContent =
+        'Bones: ' + Object.keys(bones).join(', ') + ' | Skinned: ' + skinnedCount;
+
+}, undefined, (err) => { log('ERROR: ' + err.message); });
+
+function testRecline() {
+    if (!bones.Backrest) { log('No Backrest bone!'); return; }
+    log('Recline: rotating Backrest.rotation.x = 0.52 (30°)');
+    bones.Backrest.rotation.x = 0.52;
+}
+function testHeadrest() {
+    if (!bones.Headrest) { log('No Headrest bone!'); return; }
+    log('Headrest: position.y = 0.4');
+    bones.Headrest.position.y = 0.4;
+}
+function testSlide() {
+    if (!bones.Slide) { log('No Slide bone!'); return; }
+    log('Slide: trying all axes...');
+    log('  position before: ' + JSON.stringify({x:bones.Slide.position.x.toFixed(3), y:bones.Slide.position.y.toFixed(3), z:bones.Slide.position.z.toFixed(3)}));
+    bones.Slide.position.z = -0.3;
+    log('  set position.z = -0.3');
+}
+function testHeight() {
+    if (!bones.Cushion) { log('No Cushion bone!'); return; }
+    log('Height: Cushion.position.y = 0.15');
+    bones.Cushion.position.y = 0.15;
+}
+function resetAll() {
+    log('Reset all bones');
+    for (const b of Object.values(bones)) {
+        b.position.set(0,0,0);
+        b.rotation.set(0,0,0);
+    }
+}
+
+function animate() {
+    requestAnimationFrame(animate);
+    controls.update();
+    renderer.render(scene, camera);
+}
+animate();
+
+window.addEventListener('resize', () => {
+    camera.aspect = innerWidth/innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(innerWidth, innerHeight);
+});
+</script></body></html>

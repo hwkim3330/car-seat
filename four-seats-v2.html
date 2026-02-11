@@ -1,0 +1,1161 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KETI — 4-Seat Smart Monitoring v2</title>
+    <script src="libs/three.min.js"></script>
+    <script src="libs/OrbitControls.js"></script>
+    <script src="libs/GLTFLoader.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg: #0c0c10; --surface: rgba(255,255,255,0.04); --surface-hover: rgba(255,255,255,0.07);
+            --border: rgba(255,255,255,0.06); --border-active: rgba(255,255,255,0.12);
+            --text: #e8e8ed; --text2: #6e6e73; --text3: #48484a;
+            --accent: #0a84ff; --accent-dim: rgba(10,132,255,0.15);
+            --green: #30d158; --yellow: #ffd60a; --red: #ff453a; --orange: #ff9f0a;
+            --purple: #bf5af2; --cyan: #64d2ff;
+            --radius: 12px; --radius-sm: 8px;
+        }
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--bg); color: var(--text);
+            overflow: hidden; -webkit-font-smoothing: antialiased;
+        }
+        .app { display: flex; flex-direction: column; height: 100vh; }
+
+        /* ─── Header ─── */
+        .header {
+            height: 48px; flex-shrink: 0; z-index: 20;
+            background: rgba(12,12,16,0.85); backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 20px;
+        }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .header-left img { height: 24px; opacity: 0.85; filter: brightness(1.2); }
+        .header-divider { width: 1px; height: 18px; background: var(--border); }
+        .header-left h1 { font-size: 14px; font-weight: 600; letter-spacing: -0.3px; color: var(--text); }
+        .header-left .tag {
+            font-size: 9px; font-weight: 600; color: var(--accent);
+            background: var(--accent-dim); padding: 2px 7px; border-radius: 4px;
+            letter-spacing: 0.5px;
+        }
+        .header-center { display: flex; align-items: center; gap: 10px; }
+        .pill {
+            display: flex; align-items: center; gap: 5px;
+            padding: 3px 10px; border-radius: 100px; font-size: 10px; font-weight: 500;
+        }
+        .pill.ok { background: rgba(48,209,88,0.1); color: var(--green); }
+        .pill-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; animation: blink 2s ease-in-out infinite; }
+        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+        .header-right { display: flex; align-items: center; gap: 6px; }
+        .clock { font-size: 11px; color: var(--text2); font-weight: 500; font-variant-numeric: tabular-nums; margin-right: 6px; }
+
+        .btn {
+            padding: 5px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border);
+            background: var(--surface); color: var(--text2); font-size: 11px; font-weight: 500;
+            font-family: inherit; cursor: pointer;
+            display: inline-flex; align-items: center; gap: 5px; transition: all 0.15s;
+        }
+        .btn:hover { background: var(--surface-hover); color: var(--text); border-color: var(--border-active); }
+        .btn:active { transform: scale(0.97); }
+        .btn-accent { background: var(--accent-dim); border-color: rgba(10,132,255,0.3); color: var(--accent); }
+        .btn-accent:hover { background: rgba(10,132,255,0.25); }
+
+        /* ─── Content ─── */
+        .content { flex: 1; display: flex; overflow: hidden; }
+
+        /* ─── Panels ─── */
+        .panel {
+            flex-shrink: 0; overflow-y: auto;
+            background: rgba(12,12,16,0.65); backdrop-filter: blur(20px);
+        }
+        .panel::-webkit-scrollbar { width: 4px; }
+        .panel::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 2px; }
+        .left-panel { width: 268px; border-right: 1px solid var(--border); }
+        .right-panel { width: 280px; border-left: 1px solid var(--border); }
+
+        .section { padding: 14px; }
+        .section + .section { border-top: 1px solid var(--border); }
+        .section-title {
+            font-size: 10px; font-weight: 600; color: var(--text3);
+            text-transform: uppercase; letter-spacing: 0.6px;
+            margin-bottom: 10px; display: flex; align-items: center; gap: 5px;
+        }
+        .section-title i { font-size: 9px; }
+
+        /* ─── Car Top View ─── */
+        .car-topview {
+            position: relative; width: 210px; height: 160px; margin: 0 auto 8px;
+            background: rgba(255,255,255,0.02); border-radius: 14px;
+            border: 1px solid var(--border);
+        }
+        .car-outline-svg { position: absolute; inset: 0; }
+        .car-dot {
+            position: absolute; width: 42px; height: 42px; border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 10px; font-weight: 700; cursor: pointer;
+            transition: all 0.2s; border: 2px solid transparent;
+        }
+        .car-dot:hover { transform: scale(1.08); }
+        .car-dot.occ { background: rgba(48,209,88,0.25); color: var(--green); }
+        .car-dot.empty { background: rgba(255,255,255,0.04); color: var(--text3); }
+        .car-dot.sel { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
+        .car-front-label {
+            position: absolute; top: 6px; left: 50%; transform: translateX(-50%);
+            font-size: 8px; font-weight: 600; color: var(--text3); letter-spacing: 1px;
+        }
+
+        /* ─── Seat Cards ─── */
+        .seat-card {
+            padding: 9px 11px; border-radius: 10px; cursor: pointer;
+            background: var(--surface); border: 1.5px solid transparent;
+            margin-bottom: 5px; display: flex; align-items: center; gap: 9px;
+            transition: all 0.15s;
+        }
+        .seat-card:hover { background: var(--surface-hover); }
+        .seat-card.sel { border-color: var(--accent); background: var(--accent-dim); }
+        .seat-icon {
+            width: 32px; height: 32px; border-radius: 8px;
+            display: flex; align-items: center; justify-content: center; font-size: 14px;
+        }
+        .seat-details { flex: 1; }
+        .seat-name { font-size: 12px; font-weight: 600; }
+        .seat-sub { font-size: 10px; color: var(--text2); margin-top: 1px; }
+        .seat-temp { font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+        /* ─── Controls ─── */
+        .ctrl { margin-bottom: 10px; }
+        .ctrl-head { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 3px; }
+        .ctrl-head span:first-child { color: var(--text2); font-weight: 500; }
+        .ctrl-val { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+        input[type="range"] {
+            width: 100%; height: 3px; appearance: none; -webkit-appearance: none;
+            background: rgba(255,255,255,0.08); border-radius: 2px; outline: none; cursor: pointer;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%;
+            background: var(--text); cursor: pointer;
+            box-shadow: 0 0 6px rgba(0,0,0,0.5);
+        }
+        .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+        .grid4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 5px; }
+        .pbtn {
+            padding: 7px 4px; border-radius: var(--radius-sm); border: 1px solid var(--border);
+            background: var(--surface); color: var(--text2); font-size: 10px; font-weight: 600;
+            cursor: pointer; text-align: center; transition: all 0.15s; font-family: inherit;
+        }
+        .pbtn:hover { background: var(--surface-hover); color: var(--text); }
+        .pbtn.on { background: var(--accent-dim); border-color: rgba(10,132,255,0.3); color: var(--accent); }
+        .sim-bar {
+            display: flex; align-items: center; gap: 7px;
+            padding: 8px 10px; background: var(--surface); border-radius: 10px;
+            border: 1px solid var(--border); margin-bottom: 10px;
+        }
+        .sim-dot { width: 7px; height: 7px; border-radius: 50%; }
+        .sim-dot.go { background: var(--green); animation: blink 1.5s ease-in-out infinite; }
+        .sim-dot.stop { background: var(--orange); }
+
+        /* ─── Canvas ─── */
+        .canvas-wrap { flex: 1; position: relative; background: var(--bg); }
+        #c3d { width: 100%; height: 100%; display: block; }
+        .legend-bar {
+            position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
+            background: rgba(12,12,16,0.8); backdrop-filter: blur(16px);
+            border: 1px solid var(--border); border-radius: 10px;
+            padding: 8px 14px; display: flex; align-items: center; gap: 10px; z-index: 10;
+        }
+        .legend-bar .lt { font-size: 10px; color: var(--text2); font-weight: 600; white-space: nowrap; }
+        .legend-bar .ll { display: flex; justify-content: space-between; width: 180px; font-size: 8px; color: var(--text3); font-weight: 500; }
+
+        .view-hint {
+            position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+            font-size: 10px; color: var(--text3); font-weight: 500;
+            background: rgba(12,12,16,0.6); padding: 4px 12px; border-radius: 6px;
+            pointer-events: none; opacity: 0.7;
+        }
+
+        /* ─── Right Panel ─── */
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+        .stat {
+            background: var(--surface); border-radius: 10px; padding: 12px;
+            border: 1px solid var(--border);
+        }
+        .stat .v { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.5px; }
+        .stat .l { font-size: 9px; color: var(--text3); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.3px; font-weight: 600; }
+        .stat.blue .v { color: var(--accent); }
+        .stat.green .v { color: var(--green); }
+        .stat.orange .v { color: var(--orange); }
+        .stat.red .v { color: var(--red); }
+
+        #miniHeatmap { width: 100%; border-radius: 10px; background: rgba(255,255,255,0.02); border: 1px solid var(--border); }
+
+        .tz {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 8px 10px; border-radius: 8px; margin-bottom: 3px;
+            background: var(--surface); border: 1px solid var(--border);
+        }
+        .tz-info { display: flex; align-items: center; gap: 7px; }
+        .tz-dot { width: 8px; height: 8px; border-radius: 3px; }
+        .tz-name { font-size: 11px; font-weight: 500; }
+        .tz-val { font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+        .tz-btn {
+            width: 26px; height: 26px; border-radius: 6px;
+            border: 1px solid var(--border); background: var(--surface);
+            color: var(--text3); font-size: 10px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; transition: all 0.15s;
+        }
+        .tz-btn.heat { background: rgba(255,69,58,0.2); border-color: rgba(255,69,58,0.3); color: var(--red); }
+        .tz-btn.cool { background: rgba(10,132,255,0.2); border-color: rgba(10,132,255,0.3); color: var(--accent); }
+
+        .alert-item {
+            display: flex; align-items: flex-start; gap: 7px;
+            padding: 8px 10px; border-radius: 8px; margin-bottom: 3px;
+            background: var(--surface); font-size: 10px; border: 1px solid var(--border);
+        }
+        .alert-item.warn { border-left: 3px solid var(--orange); }
+        .alert-item.error { border-left: 3px solid var(--red); }
+        .alert-item.info { border-left: 3px solid var(--accent); }
+        .alert-time { color: var(--text3); font-size: 9px; white-space: nowrap; font-weight: 500; }
+        .alert-msg { color: var(--text2); line-height: 1.4; }
+
+        .summary-row {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 7px 9px; border-radius: 8px; margin-bottom: 3px;
+            background: var(--surface); border: 1px solid var(--border);
+            cursor: pointer; transition: all 0.15s;
+        }
+        .summary-row:hover { background: var(--surface-hover); }
+        .summary-row.sel { border-color: rgba(10,132,255,0.3); background: var(--accent-dim); }
+
+        .footer { padding: 10px 14px; text-align: center; font-size: 9px; color: var(--text3); border-top: 1px solid var(--border); }
+
+        /* ─── Loading ─── */
+        .loading {
+            position: fixed; inset: 0; background: var(--bg);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 300; transition: opacity 0.5s;
+        }
+        .loading.done { opacity: 0; pointer-events: none; }
+        .spinner { width: 36px; height: 36px; border: 2.5px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loading-msg { margin-top: 14px; font-size: 13px; color: var(--text2); font-weight: 500; }
+
+        .toast {
+            position: fixed; bottom: 20px; right: 20px;
+            background: rgba(30,30,35,0.9); backdrop-filter: blur(16px);
+            border: 1px solid var(--border); border-radius: 10px;
+            padding: 10px 18px; font-size: 12px; color: var(--text); font-weight: 500;
+            z-index: 100; opacity: 0; transform: translateY(8px);
+            transition: all 0.25s; pointer-events: none;
+        }
+        .toast.show { opacity: 1; transform: translateY(0); }
+    </style>
+</head>
+<body>
+<div class="app">
+    <!-- Header -->
+    <div class="header">
+        <div class="header-left">
+            <img src="keti.png" alt="KETI">
+            <div class="header-divider"></div>
+            <h1>4-Seat Smart Monitor</h1>
+            <span class="tag">V2</span>
+        </div>
+        <div class="header-center">
+            <div class="pill ok"><div class="pill-dot"></div>Systems OK</div>
+            <div class="pill ok"><div class="pill-dot"></div>4 Seats Active</div>
+        </div>
+        <div class="header-right">
+            <span class="clock" id="clock">00:00:00</span>
+            <button class="btn" onclick="exportJSON()"><i class="fas fa-download"></i> JSON</button>
+            <button class="btn" onclick="captureScreenshot()"><i class="fas fa-camera"></i></button>
+        </div>
+    </div>
+
+    <div class="content">
+        <!-- Left Panel -->
+        <div class="panel left-panel">
+            <!-- Car Top View -->
+            <div class="section">
+                <div class="section-title"><i class="fas fa-car"></i> Vehicle Layout</div>
+                <div class="car-topview">
+                    <svg class="car-outline-svg" viewBox="0 0 210 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="30" y="18" width="150" height="124" rx="28" stroke="rgba(255,255,255,0.06)" stroke-width="1.5"/>
+                        <!-- Front indicator -->
+                        <path d="M95 12 L105 4 L115 12" stroke="rgba(255,255,255,0.15)" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                        <!-- Steering wheel -->
+                        <circle cx="72" cy="48" r="9" stroke="rgba(255,255,255,0.1)" stroke-width="1.2" fill="none"/>
+                    </svg>
+                    <div class="car-front-label">FRONT ▲</div>
+                    <!-- Front row (top = front of car) -->
+                    <div class="car-dot occ sel" id="dot-0" style="top:28px; left:48px;" onclick="selectSeat(0)">FL</div>
+                    <div class="car-dot occ"     id="dot-1" style="top:28px; right:36px;" onclick="selectSeat(1)">FR</div>
+                    <!-- Rear row (bottom = rear) -->
+                    <div class="car-dot occ"     id="dot-2" style="bottom:18px; left:48px;" onclick="selectSeat(2)">RL</div>
+                    <div class="car-dot occ"     id="dot-3" style="bottom:18px; right:36px;" onclick="selectSeat(3)">RR</div>
+                </div>
+            </div>
+
+            <!-- Seat Cards -->
+            <div class="section">
+                <div class="section-title"><i class="fas fa-chair"></i> Seats</div>
+                <div id="seatCardList"></div>
+            </div>
+
+            <!-- Simulation -->
+            <div class="section">
+                <div class="section-title"><i class="fas fa-play"></i> Simulation</div>
+                <div class="sim-bar">
+                    <div class="sim-dot go" id="simDot"></div>
+                    <span style="flex:1;font-size:11px;font-weight:500;color:var(--text2)" id="simLabel">Running</span>
+                    <button class="btn" id="simBtn" onclick="toggleSim()" style="padding:3px 8px;font-size:10px;"><i class="fas fa-pause"></i></button>
+                </div>
+                <div class="ctrl">
+                    <div class="ctrl-head"><span>Speed</span><span class="ctrl-val" id="speedVal">60 km/h</span></div>
+                    <input type="range" min="0" max="200" value="60" id="speedSlider" oninput="vehicleSpeed=+this.value;document.getElementById('speedVal').textContent=this.value+' km/h'">
+                </div>
+                <div class="ctrl">
+                    <div class="section-title" style="margin-bottom:6px">Road Surface</div>
+                    <div class="grid4">
+                        <button class="pbtn" onclick="setRoad('smooth',this)">Smooth</button>
+                        <button class="pbtn on" onclick="setRoad('normal',this)">Normal</button>
+                        <button class="pbtn" onclick="setRoad('rough',this)">Rough</button>
+                        <button class="pbtn" onclick="setRoad('cobble',this)">Cobble</button>
+                    </div>
+                </div>
+                <div class="ctrl">
+                    <div class="section-title" style="margin-bottom:6px">Occupancy</div>
+                    <div class="grid2">
+                        <button class="pbtn on" onclick="setOccupancy('all',this)">All</button>
+                        <button class="pbtn" onclick="setOccupancy('front',this)">Front</button>
+                        <button class="pbtn" onclick="setOccupancy('driver',this)">Driver</button>
+                        <button class="pbtn" onclick="setOccupancy('empty',this)">Empty</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Seat Position -->
+            <div class="section">
+                <div class="section-title"><i class="fas fa-sliders-h"></i> Position — <span id="posLabel">FL</span></div>
+                <div class="ctrl">
+                    <div class="ctrl-head"><span>Recline</span><span class="ctrl-val" id="recVal">0°</span></div>
+                    <input type="range" min="0" max="40" value="0" id="recSlider" oninput="setPose('recline',this.value)">
+                </div>
+                <div class="ctrl">
+                    <div class="ctrl-head"><span>Headrest</span><span class="ctrl-val" id="hrVal">0</span></div>
+                    <input type="range" min="0" max="100" value="0" id="hrSlider" oninput="setPose('headrest',this.value)">
+                </div>
+                <div class="ctrl">
+                    <div class="ctrl-head"><span>Fore / Aft</span><span class="ctrl-val" id="slideVal">0</span></div>
+                    <input type="range" min="-100" max="100" value="0" id="slideSlider" oninput="setPose('slide',this.value)">
+                </div>
+                <div class="ctrl">
+                    <div class="ctrl-head"><span>Height</span><span class="ctrl-val" id="heightVal">0</span></div>
+                    <input type="range" min="0" max="100" value="0" id="heightSlider" oninput="setPose('height',this.value)">
+                </div>
+                <div class="section-title" style="margin-bottom:6px">Presets</div>
+                <div class="grid4">
+                    <button class="pbtn on" onclick="applyPreset('drive',this)">Drive</button>
+                    <button class="pbtn" onclick="applyPreset('sport',this)">Sport</button>
+                    <button class="pbtn" onclick="applyPreset('relax',this)">Relax</button>
+                    <button class="pbtn" onclick="applyPreset('entry',this)">Entry</button>
+                </div>
+            </div>
+
+            <!-- Camera -->
+            <div class="section">
+                <div class="section-title"><i class="fas fa-video"></i> Camera</div>
+                <div class="grid4">
+                    <button class="pbtn" onclick="camView('top')">Top</button>
+                    <button class="pbtn" onclick="camView('front')">Front</button>
+                    <button class="pbtn" onclick="camView('side')">Side</button>
+                    <button class="pbtn on" onclick="camView('default')">3/4</button>
+                </div>
+            </div>
+
+            <div class="footer">KETI — Korea Electronics Technology Institute</div>
+        </div>
+
+        <!-- 3D Canvas -->
+        <div class="canvas-wrap">
+            <div id="c3d"></div>
+            <div class="view-hint"><i class="fas fa-arrows-alt"></i> Drag to orbit · Scroll to zoom</div>
+            <div class="legend-bar">
+                <span class="lt">Pressure (kPa)</span>
+                <div>
+                    <canvas id="legendCanvas" width="180" height="10" style="border-radius:5px;display:block;"></canvas>
+                    <div class="ll"><span>0</span><span>25</span><span>50</span><span>75</span><span>100</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Panel -->
+        <div class="panel right-panel">
+            <div class="section">
+                <div class="section-title"><i class="fas fa-chart-bar"></i> <span id="overviewName">Driver (FL)</span></div>
+                <div class="stats-grid">
+                    <div class="stat blue"><div class="v" id="rWeight">75</div><div class="l">Load (kg)</div></div>
+                    <div class="stat green"><div class="v" id="rStatus">Occupied</div><div class="l">Status</div></div>
+                    <div class="stat"><div class="v" id="rAvg">0</div><div class="l">Avg Press</div></div>
+                    <div class="stat orange"><div class="v" id="rPeak">0</div><div class="l">Peak kPa</div></div>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-title"><i class="fas fa-th"></i> Pressure Map</div>
+                <canvas id="miniHeatmap" width="160" height="160"></canvas>
+            </div>
+
+            <div class="section">
+                <div class="section-title"><i class="fas fa-thermometer-half"></i> Temperature</div>
+                <div id="tempList"></div>
+            </div>
+
+            <div class="section">
+                <div class="section-title"><i class="fas fa-list"></i> All Seats</div>
+                <div id="summaryList"></div>
+            </div>
+
+            <div class="section">
+                <div class="section-title"><i class="fas fa-bell"></i> Alerts <span style="color:var(--text3);font-weight:400" id="alertCnt">(0)</span></div>
+                <div id="alertList"><div style="font-size:11px;color:var(--text3);text-align:center;padding:20px;">No alerts</div></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="loading" id="loader">
+    <div class="spinner"></div>
+    <div class="loading-msg" id="loaderMsg">Loading 3D Models...</div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════════
+//  CONFIG
+// ══════════════════════════════════════════════════
+//
+//  ** KEY FIX: Front seats at -Z (far from camera = car front)
+//  **          Rear seats at +Z (close to camera = car rear)
+//
+//  Camera at +Z looking toward -Z → you see the car from behind.
+//  Seat models face -Z after GLTF export (front of seat toward car front).
+//
+const SEAT_CFG = [
+    { id:0, name:'Driver',     label:'FL', pos:[-0.45, 0, -0.38], weight:75, occupied:true },
+    { id:1, name:'Passenger',  label:'FR', pos:[ 0.45, 0, -0.38], weight:65, occupied:true },
+    { id:2, name:'Rear Left',  label:'RL', pos:[-0.45, 0,  0.38], weight:55, occupied:true },
+    { id:3, name:'Rear Right', label:'RR', pos:[ 0.45, 0,  0.38], weight:80, occupied:true },
+];
+const COLORS = ['#0a84ff','#30d158','#ff9f0a','#bf5af2'];
+
+const seats = SEAT_CFG.map((cfg, i) => ({
+    ...cfg,
+    temperature: [
+        { name:'Cushion L', temp:22, target:28, heating:false, cooling:false },
+        { name:'Cushion R', temp:22, target:28, heating:false, cooling:false },
+        { name:'Back L',    temp:22, target:30, heating:false, cooling:false },
+        { name:'Back R',    temp:22, target:30, heating:false, cooling:false },
+    ],
+    pressureGrid: new Float32Array(256),
+    avgPressure:0, peakPressure:0,
+    model:null, highlight:null,
+    bones:{}, boneRest:{},
+    pose:{ recline:0, headrest:0, slide:0, height:0 },
+    poseTarget:null,
+    heatmapCushion:null, heatmapBack:null,
+}));
+
+let selected = 0;
+let simRunning = true;
+let vehicleSpeed = 60;
+let roadType = 'normal';
+const ROADS = { smooth:{r:0.15}, normal:{r:1.0}, rough:{r:2.8}, cobble:{r:5.0} };
+const PRESETS = {
+    drive:  { recline:8,  headrest:30, slide:0,   height:20 },
+    sport:  { recline:3,  headrest:50, slide:30,  height:0  },
+    relax:  { recline:35, headrest:60, slide:-40, height:40 },
+    entry:  { recline:0,  headrest:0,  slide:-80, height:0  },
+};
+const alerts = [];
+
+// ══════════════════════════════════════════════════
+//  THREE.JS SCENE
+// ══════════════════════════════════════════════════
+let scene, camera, renderer, controls;
+const clock = new THREE.Clock();
+
+function initScene() {
+    const el = document.getElementById('c3d');
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0c0c10);
+
+    camera = new THREE.PerspectiveCamera(42, el.clientWidth / el.clientHeight, 0.01, 100);
+    camera.position.set(1.8, 2.8, 3.0);
+
+    renderer = new THREE.WebGLRenderer({ antialias:true, preserveDrawingBuffer:true });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    renderer.setSize(el.clientWidth, el.clientHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.4;
+    el.appendChild(renderer.domElement);
+
+    controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
+    controls.target.set(0, 0.25, 0);
+    controls.minDistance = 0.5;
+    controls.maxDistance = 10;
+    controls.maxPolarAngle = Math.PI * 0.85;
+
+    // ── Lighting ──
+    scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+    const key = new THREE.DirectionalLight(0xffffff, 2.2);
+    key.position.set(2, 8, 3); key.castShadow = true;
+    key.shadow.mapSize.set(2048, 2048);
+    key.shadow.camera.near = 0.1; key.shadow.camera.far = 20;
+    key.shadow.camera.left = -3; key.shadow.camera.right = 3;
+    key.shadow.camera.top = 3; key.shadow.camera.bottom = -3;
+    key.shadow.bias = -0.001;
+    scene.add(key);
+    const fill = new THREE.DirectionalLight(0xc8d0ff, 0.8);
+    fill.position.set(-4, 5, -2); scene.add(fill);
+    const rim = new THREE.DirectionalLight(0xffffff, 0.5);
+    rim.position.set(0, 2, -6); scene.add(rim);
+    const top = new THREE.DirectionalLight(0xffffff, 0.6);
+    top.position.set(0, 10, 0); scene.add(top);
+    scene.add(new THREE.HemisphereLight(0x1a1a3e, 0x0a0a0f, 0.4));
+
+    // ── Floor ──
+    const grid = new THREE.GridHelper(5, 24, 0x1a1a20, 0x151518);
+    grid.material.opacity = 0.6; grid.material.transparent = true;
+    scene.add(grid);
+    const floor = new THREE.Mesh(
+        new THREE.PlaneGeometry(10, 10),
+        new THREE.MeshStandardMaterial({ color:0x0e0e12, roughness:0.9, metalness:0.05 })
+    );
+    floor.rotation.x = -Math.PI/2; floor.position.y = -0.005;
+    floor.receiveShadow = true; scene.add(floor);
+
+    // ── Car body outline (transparent) ──
+    buildCarBody();
+
+    // ── Load seats ──
+    loadSeats();
+
+    // ── Resize ──
+    window.addEventListener('resize', () => {
+        camera.aspect = el.clientWidth / el.clientHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(el.clientWidth, el.clientHeight);
+    });
+
+    // ── Raycaster for click ──
+    const rc = new THREE.Raycaster();
+    const m2 = new THREE.Vector2();
+    renderer.domElement.addEventListener('click', e => {
+        const r = renderer.domElement.getBoundingClientRect();
+        m2.x = ((e.clientX - r.left) / r.width) * 2 - 1;
+        m2.y = -((e.clientY - r.top) / r.height) * 2 + 1;
+        rc.setFromCamera(m2, camera);
+        for (let i = 0; i < seats.length; i++) {
+            if (seats[i].model && rc.intersectObject(seats[i].model, true).length > 0) {
+                selectSeat(i); break;
+            }
+        }
+    });
+}
+
+function buildCarBody() {
+    // Transparent car floor plate — front at -Z, rear at +Z
+    const shape = new THREE.Shape();
+    const W = 0.75, FL = -0.75, RL = 0.7, R = 0.2;
+    shape.moveTo(-W + R, FL);
+    shape.lineTo(W - R, FL);
+    shape.quadraticCurveTo(W, FL, W, FL + R);
+    shape.lineTo(W, RL - R);
+    shape.quadraticCurveTo(W, RL, W - R, RL);
+    shape.lineTo(-W + R, RL);
+    shape.quadraticCurveTo(-W, RL, -W, RL - R);
+    shape.lineTo(-W, FL + R);
+    shape.quadraticCurveTo(-W, FL, -W + R, FL);
+
+    const geo = new THREE.ShapeGeometry(shape);
+    const mat = new THREE.MeshStandardMaterial({
+        color: 0x1a1a2e, transparent: true, opacity: 0.35,
+        roughness: 0.8, metalness: 0.1, side: THREE.DoubleSide
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.rotation.x = -Math.PI / 2;
+    mesh.position.y = 0.002;
+    mesh.receiveShadow = true;
+    scene.add(mesh);
+
+    // Front direction arrow
+    const arrowShape = new THREE.Shape();
+    arrowShape.moveTo(-0.12, -0.82);
+    arrowShape.lineTo(0, -0.95);
+    arrowShape.lineTo(0.12, -0.82);
+    const arrowGeo = new THREE.ShapeGeometry(arrowShape);
+    const arrowMat = new THREE.MeshBasicMaterial({ color: 0x0a84ff, transparent: true, opacity: 0.4, side: THREE.DoubleSide });
+    const arrow = new THREE.Mesh(arrowGeo, arrowMat);
+    arrow.rotation.x = -Math.PI / 2;
+    arrow.position.y = 0.005;
+    scene.add(arrow);
+
+    // "FRONT" text indicator — small floating plane
+    const canvas = document.createElement('canvas');
+    canvas.width = 128; canvas.height = 32;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = 'rgba(10,132,255,0.6)';
+    ctx.font = 'bold 16px Inter, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('FRONT', 64, 20);
+    const tex = new THREE.CanvasTexture(canvas);
+    const labelGeo = new THREE.PlaneGeometry(0.4, 0.1);
+    const labelMat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide });
+    const label = new THREE.Mesh(labelGeo, labelMat);
+    label.rotation.x = -Math.PI / 2;
+    label.position.set(0, 0.008, -0.88);
+    scene.add(label);
+}
+
+// ══════════════════════════════════════════════════
+//  SEAT LOADING
+// ══════════════════════════════════════════════════
+function loadSeats() {
+    const loader = new THREE.GLTFLoader();
+    let cnt = 0;
+
+    seats.forEach((seat, i) => {
+        loader.load('models/car-seat-rigged.glb', gltf => {
+            const model = gltf.scene;
+            const box = new THREE.Box3().setFromObject(model);
+            const size = box.getSize(new THREE.Vector3());
+            const center = box.getCenter(new THREE.Vector3());
+            const scale = 0.8 / Math.max(size.x, size.y, size.z);
+
+            model.scale.setScalar(scale);
+            model.position.set(
+                seat.pos[0] - center.x * scale,
+                seat.pos[1] - box.min.y * scale,
+                seat.pos[2] - center.z * scale
+            );
+
+            // Material setup
+            const frameParts = new Set(['01 Base','02 Base rim','03 Base controls']);
+            const accentParts = new Set(['05 Bottom sides','07 Seat back sides']);
+
+            model.traverse(c => {
+                if (c.isMesh) {
+                    c.castShadow = true; c.receiveShadow = true;
+                    const n = c.name || (c.parent && c.parent.name) || '';
+                    let col = 0x2a2a2e, rough = 0.55, metal = 0.04;
+                    if (frameParts.has(n)) { col = 0x18181c; rough = 0.25; metal = 0.65; }
+                    else if (accentParts.has(n)) { col = 0x353538; rough = 0.48; metal = 0.05; }
+                    if (c.material) {
+                        c.material.color.setHex(col);
+                        c.material.roughness = rough;
+                        c.material.metalness = metal;
+                        c.material.needsUpdate = true;
+                    }
+                    if (c.isSkinnedMesh && c.skeleton) {
+                        c.skeleton.bones.forEach(b => { if (!seat.bones[b.name]) seat.bones[b.name] = b; });
+                    }
+                }
+                if (c.isBone && !seat.bones[c.name]) seat.bones[c.name] = c;
+            });
+
+            // Save rest poses
+            seat.boneRest = {};
+            Object.entries(seat.bones).forEach(([name, bone]) => {
+                seat.boneRest[name] = {
+                    px:bone.position.x, py:bone.position.y, pz:bone.position.z,
+                    rx:bone.rotation.x, ry:bone.rotation.y, rz:bone.rotation.z,
+                };
+            });
+
+            scene.add(model);
+            seat.model = model;
+
+            // Highlight ring
+            const ring = new THREE.Mesh(
+                new THREE.RingGeometry(0.28, 0.31, 32),
+                new THREE.MeshBasicMaterial({ color: new THREE.Color(COLORS[i]), transparent:true, opacity:0, side:THREE.DoubleSide })
+            );
+            ring.rotation.x = -Math.PI / 2;
+            ring.position.set(seat.pos[0], 0.008, seat.pos[2]);
+            scene.add(ring);
+            seat.highlight = ring;
+
+            // 3D Heatmap overlay — cushion
+            seat.heatmapCushion = createHeatmapOverlay(seat, 'cushion');
+            // 3D Heatmap overlay — backrest
+            seat.heatmapBack = createHeatmapOverlay(seat, 'back');
+
+            cnt++;
+            document.getElementById('loaderMsg').textContent = `Loading seats... ${cnt}/4`;
+            if (cnt === 4) {
+                updateHighlights();
+                document.getElementById('loader').classList.add('done');
+            }
+        }, undefined, err => {
+            console.error('Load error:', err);
+            document.getElementById('loaderMsg').textContent = 'Failed to load model';
+        });
+    });
+}
+
+function createHeatmapOverlay(seat, type) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 64; canvas.height = 64;
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.minFilter = THREE.LinearFilter;
+
+    const w = 0.28, h = type === 'cushion' ? 0.22 : 0.32;
+    const geo = new THREE.PlaneGeometry(w, h);
+    const mat = new THREE.MeshBasicMaterial({ map:tex, transparent:true, opacity:0.7, side:THREE.DoubleSide, depthWrite:false });
+    const mesh = new THREE.Mesh(geo, mat);
+
+    if (type === 'cushion') {
+        mesh.rotation.x = -Math.PI / 2;
+        mesh.position.set(seat.pos[0], 0.38, seat.pos[2] + 0.06);
+    } else {
+        // Backrest — vertical, slightly in front of backrest
+        mesh.position.set(seat.pos[0], 0.62, seat.pos[2] + 0.20);
+        mesh.rotation.x = -0.15;
+    }
+    scene.add(mesh);
+    return { canvas, tex, mesh };
+}
+
+function updateHeatmapOverlay(seat, type) {
+    const overlay = type === 'cushion' ? seat.heatmapCushion : seat.heatmapBack;
+    if (!overlay) return;
+    const ctx = overlay.canvas.getContext('2d');
+    const s = 64;
+    ctx.clearRect(0, 0, s, s);
+    if (!seat.occupied) { overlay.tex.needsUpdate = true; return; }
+
+    const startRow = type === 'cushion' ? 0 : 0;
+    const endRow = 16;
+    for (let y = startRow; y < endRow; y++) {
+        for (let x = 0; x < 16; x++) {
+            const v = seat.pressureGrid[y * 16 + x];
+            if (v > 0.02) {
+                ctx.fillStyle = pressureColorRGBA(v);
+                ctx.fillRect(x * 4, y * 4, 4, 4);
+            }
+        }
+    }
+    overlay.tex.needsUpdate = true;
+}
+
+function updateHighlights() {
+    seats.forEach((s, i) => {
+        const isSel = i === selected;
+        if (s.highlight) s.highlight.material.opacity = isSel ? 0.7 : 0.12;
+        if (s.model) {
+            s.model.traverse(c => {
+                if (c.isMesh && c.material) {
+                    if (isSel) {
+                        c.material.emissive = new THREE.Color(COLORS[i]);
+                        c.material.emissiveIntensity = 0.18;
+                    } else {
+                        c.material.emissive = new THREE.Color(0x000000);
+                        c.material.emissiveIntensity = 0;
+                    }
+                }
+            });
+        }
+    });
+}
+
+// ══════════════════════════════════════════════════
+//  SIMULATION
+// ══════════════════════════════════════════════════
+function gaussian2D(x, y, sx, sy) { return Math.exp(-(x*x)/(2*sx*sx) - (y*y)/(2*sy*sy)); }
+
+function simPressure(seat, t) {
+    if (!seat.occupied) { seat.pressureGrid.fill(0); seat.avgPressure = 0; seat.peakPressure = 0; return; }
+    const wF = seat.weight / 80;
+    const off = seat.id * 1.7;
+    let sum = 0, mx = 0, cnt = 0;
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+        const nx = (x/15)*2-1, ny = (y/15)*2-1;
+        const lp = gaussian2D(nx+0.35, ny-0.1, 0.28, 0.32);
+        const rp = gaussian2D(nx-0.35, ny-0.1, 0.28, 0.32);
+        const lt = gaussian2D(nx+0.3, ny+0.25, 0.22, 0.4) * 0.35;
+        const rt = gaussian2D(nx-0.3, ny+0.25, 0.22, 0.4) * 0.35;
+        const v = Math.max(0, Math.min(1,
+            (lp+rp+lt+rt)*wF + Math.sin((t+off)*0.35)*0.015 + (Math.random()-0.5)*0.008));
+        seat.pressureGrid[y*16+x] = v;
+        if (v > 0.01) { sum += v; cnt++; mx = Math.max(mx, v); }
+    }
+    seat.avgPressure = cnt > 0 ? (sum/cnt*100) : 0;
+    seat.peakPressure = mx * 100;
+}
+
+function simTemp(seat, dt) {
+    seat.temperature.forEach(z => {
+        if (z.heating) z.temp += (z.target - z.temp) * dt * 0.04;
+        else if (z.cooling) z.temp += (18 - z.temp) * dt * 0.03;
+        else z.temp += (22 - z.temp) * dt * 0.005;
+        z.temp = Math.max(5, Math.min(50, z.temp + (Math.random()-0.5)*0.05));
+    });
+}
+
+// ══════════════════════════════════════════════════
+//  COLORS
+// ══════════════════════════════════════════════════
+function pressureColorRGBA(t) {
+    t = Math.max(0, Math.min(1, t));
+    let r, g, b;
+    if (t < 0.25)      { const f=t/0.25;       r=0;              g=Math.round(f*255); b=255; }
+    else if (t < 0.5)  { const f=(t-0.25)/0.25; r=0;              g=255; b=Math.round(255*(1-f)); }
+    else if (t < 0.75) { const f=(t-0.5)/0.25;  r=Math.round(255*f); g=255; b=0; }
+    else               { const f=(t-0.75)/0.25;  r=255; g=Math.round(255*(1-f)); b=0; }
+    return `rgba(${r},${g},${b},${0.3+t*0.7})`;
+}
+
+function tempColor(temp) {
+    const t = Math.max(0, Math.min(1, (temp-15)/25));
+    if (t < 0.3) return 'var(--accent)';
+    if (t < 0.6) return 'var(--text2)';
+    if (t < 0.8) return 'var(--orange)';
+    return 'var(--red)';
+}
+
+// ══════════════════════════════════════════════════
+//  UI UPDATES
+// ══════════════════════════════════════════════════
+function selectSeat(idx) {
+    selected = idx;
+    updateHighlights();
+    document.querySelectorAll('.car-dot').forEach((d, i) => { d.classList.toggle('sel', i === idx); });
+    document.querySelectorAll('.seat-card').forEach((c, i) => c.classList.toggle('sel', i === idx));
+    document.getElementById('overviewName').textContent = seats[idx].name + ' (' + seats[idx].label + ')';
+    syncSliders();
+    updateRight();
+}
+
+function renderCards() {
+    document.getElementById('seatCardList').innerHTML = seats.map((s, i) => `
+        <div class="seat-card ${i===selected?'sel':''}" onclick="selectSeat(${i})">
+            <div class="seat-icon" style="background:${COLORS[i]}18;color:${COLORS[i]}">
+                <i class="fas fa-${s.occupied?'user':'user-slash'}"></i>
+            </div>
+            <div class="seat-details">
+                <div class="seat-name">${s.name} (${s.label})</div>
+                <div class="seat-sub">${s.occupied ? s.weight+' kg' : 'Empty'}</div>
+            </div>
+            <div class="seat-temp" style="color:${tempColor(s.temperature[0].temp)}">${s.temperature[0].temp.toFixed(1)}°</div>
+        </div>
+    `).join('');
+}
+
+function updateRight() {
+    const s = seats[selected];
+    document.getElementById('rWeight').textContent = s.occupied ? s.weight : '0';
+    document.getElementById('rStatus').textContent = s.occupied ? 'Occupied' : 'Empty';
+    document.getElementById('rAvg').textContent = s.avgPressure.toFixed(1);
+    document.getElementById('rPeak').textContent = s.peakPressure.toFixed(1);
+
+    // Mini heatmap
+    const mc = document.getElementById('miniHeatmap');
+    const ctx = mc.getContext('2d');
+    ctx.clearRect(0, 0, 160, 160);
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+        const v = s.pressureGrid[y*16+x];
+        if (v > 0.01) { ctx.fillStyle = pressureColorRGBA(v); ctx.fillRect(x*10, y*10, 10, 10); }
+    }
+
+    // Temp zones
+    document.getElementById('tempList').innerHTML = s.temperature.map((z, zi) => `
+        <div class="tz">
+            <div class="tz-info">
+                <div class="tz-dot" style="background:${tempColor(z.temp)}"></div>
+                <div class="tz-name">${z.name}</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:5px">
+                <span class="tz-val" style="color:${tempColor(z.temp)}">${z.temp.toFixed(1)}°</span>
+                <button class="tz-btn ${z.heating?'heat':''}" onclick="toggleHeat(${selected},${zi})"><i class="fas fa-fire"></i></button>
+                <button class="tz-btn ${z.cooling?'cool':''}" onclick="toggleCool(${selected},${zi})"><i class="fas fa-snowflake"></i></button>
+            </div>
+        </div>
+    `).join('');
+}
+
+function updateSummary() {
+    document.getElementById('summaryList').innerHTML = seats.map((s, i) => `
+        <div class="summary-row ${i===selected?'sel':''}" onclick="selectSeat(${i})">
+            <div style="display:flex;align-items:center;gap:7px">
+                <div style="width:7px;height:7px;border-radius:50%;background:${s.occupied?'var(--green)':'var(--text3)'}"></div>
+                <span style="font-size:11px;font-weight:600">${s.label}</span>
+            </div>
+            <div style="display:flex;gap:10px;font-size:10px;font-variant-numeric:tabular-nums">
+                <span style="color:var(--text2)">${s.occupied?s.weight+'kg':'—'}</span>
+                <span style="color:${tempColor(s.temperature[0].temp)}">${s.temperature[0].temp.toFixed(1)}°</span>
+                <span style="color:var(--orange)">${s.peakPressure.toFixed(0)} kPa</span>
+            </div>
+        </div>
+    `).join('');
+}
+
+function updateDots() {
+    seats.forEach((s, i) => {
+        const d = document.getElementById('dot-' + i);
+        d.className = 'car-dot ' + (s.occupied?'occ':'empty') + (i===selected?' sel':'');
+    });
+}
+
+// ══════════════════════════════════════════════════
+//  CONTROLS
+// ══════════════════════════════════════════════════
+function toggleSim() {
+    simRunning = !simRunning;
+    document.getElementById('simDot').className = 'sim-dot ' + (simRunning?'go':'stop');
+    document.getElementById('simLabel').textContent = simRunning ? 'Running' : 'Paused';
+    document.getElementById('simBtn').innerHTML = simRunning ? '<i class="fas fa-pause"></i>' : '<i class="fas fa-play"></i>';
+}
+
+function setRoad(type, btn) {
+    roadType = type;
+    btn.parentElement.querySelectorAll('.pbtn').forEach(b => b.classList.remove('on'));
+    btn.classList.add('on');
+}
+
+function setOccupancy(mode, btn) {
+    btn.parentElement.querySelectorAll('.pbtn').forEach(b => b.classList.remove('on'));
+    btn.classList.add('on');
+    seats[0].occupied = mode !== 'empty';
+    seats[1].occupied = mode === 'all' || mode === 'front';
+    seats[2].occupied = mode === 'all';
+    seats[3].occupied = mode === 'all';
+    updateDots(); renderCards();
+}
+
+function toggleHeat(si, zi) {
+    seats[si].temperature[zi].heating = !seats[si].temperature[zi].heating;
+    if (seats[si].temperature[zi].heating) seats[si].temperature[zi].cooling = false;
+}
+function toggleCool(si, zi) {
+    seats[si].temperature[zi].cooling = !seats[si].temperature[zi].cooling;
+    if (seats[si].temperature[zi].cooling) seats[si].temperature[zi].heating = false;
+}
+
+// ── Bone Pose ──
+function setPose(axis, val) {
+    const s = seats[selected];
+    val = +val;
+    s.pose[axis] = val;
+    applyBone(s, axis, val);
+}
+
+function applyBone(s, axis, val) {
+    const rest = s.boneRest || {};
+    switch(axis) {
+        case 'recline':
+            document.getElementById('recVal').textContent = Math.round(val) + '°';
+            if (s.bones.Backrest && rest.Backrest)
+                s.bones.Backrest.rotation.x = rest.Backrest.rx + THREE.MathUtils.degToRad(val);
+            break;
+        case 'headrest':
+            document.getElementById('hrVal').textContent = Math.round(val);
+            if (s.bones.Headrest && rest.Headrest)
+                s.bones.Headrest.position.y = rest.Headrest.py + (val/100) * 0.5;
+            break;
+        case 'slide':
+            document.getElementById('slideVal').textContent = Math.round(val);
+            if (s.bones.Slide && rest.Slide)
+                s.bones.Slide.position.z = rest.Slide.pz - (val/100) * 0.5;
+            break;
+        case 'height':
+            document.getElementById('heightVal').textContent = Math.round(val);
+            if (s.bones.Cushion && rest.Cushion)
+                s.bones.Cushion.position.y = rest.Cushion.py + (val/100) * 0.3;
+            break;
+    }
+}
+
+function applyPreset(name, btn) {
+    btn.parentElement.querySelectorAll('.pbtn').forEach(b => b.classList.remove('on'));
+    btn.classList.add('on');
+    seats[selected].poseTarget = { ...PRESETS[name] };
+}
+
+function syncSliders() {
+    const s = seats[selected];
+    document.getElementById('recSlider').value = s.pose.recline;
+    document.getElementById('recVal').textContent = Math.round(s.pose.recline) + '°';
+    document.getElementById('hrSlider').value = s.pose.headrest;
+    document.getElementById('hrVal').textContent = Math.round(s.pose.headrest);
+    document.getElementById('slideSlider').value = s.pose.slide;
+    document.getElementById('slideVal').textContent = Math.round(s.pose.slide);
+    document.getElementById('heightSlider').value = s.pose.height;
+    document.getElementById('heightVal').textContent = Math.round(s.pose.height);
+    document.getElementById('posLabel').textContent = s.label;
+}
+
+function animPoses(dt) {
+    seats.forEach(s => {
+        if (!s.poseTarget) return;
+        let done = true;
+        ['recline','headrest','slide','height'].forEach(k => {
+            const diff = s.poseTarget[k] - s.pose[k];
+            if (Math.abs(diff) > 0.5) {
+                s.pose[k] += diff * dt * 4;
+                done = false;
+            } else {
+                s.pose[k] = s.poseTarget[k];
+            }
+            applyBone(s, k, s.pose[k]);
+        });
+        if (done) s.poseTarget = null;
+    });
+}
+
+// ── Camera (GSAP smooth) ──
+function camView(view) {
+    let pos, target;
+    switch(view) {
+        case 'top':     pos = {x:0, y:4.5, z:0.01};   target = {x:0, y:0, z:0}; break;
+        case 'front':   pos = {x:0, y:1.2, z:-3.5};    target = {x:0, y:0.3, z:0}; break;
+        case 'side':    pos = {x:3.5, y:1.5, z:0};     target = {x:0, y:0.3, z:0}; break;
+        default:        pos = {x:1.8, y:2.8, z:3.0};   target = {x:0, y:0.25, z:0}; break;
+    }
+    gsap.to(camera.position, { ...pos, duration:0.8, ease:'power2.inOut' });
+    gsap.to(controls.target, { ...target, duration:0.8, ease:'power2.inOut' });
+    // Update active button
+    document.querySelectorAll('.section:last-of-type .pbtn').forEach(b => b.classList.remove('on'));
+    event.target.closest('.pbtn').classList.add('on');
+}
+
+// ── Alerts ──
+let lastAlert = 0;
+function addAlert(type, msg) {
+    const now = Date.now();
+    if (now - lastAlert < 5000) return;
+    if (alerts.length > 0 && alerts[0].msg === msg) return;
+    lastAlert = now;
+    alerts.unshift({ type, msg, time: new Date() });
+    if (alerts.length > 15) alerts.pop();
+    document.getElementById('alertCnt').textContent = '(' + alerts.length + ')';
+    document.getElementById('alertList').innerHTML = alerts.slice(0, 5).map(a => `
+        <div class="alert-item ${a.type}">
+            <span class="alert-time">${a.time.toLocaleTimeString()}</span>
+            <span class="alert-msg">${a.msg}</span>
+        </div>
+    `).join('');
+}
+
+// ── Export ──
+function exportJSON() {
+    const data = {
+        timestamp: new Date().toISOString(), system: 'KETI 4-Seat v2',
+        vehicleSpeed, roadType,
+        seats: seats.map(s => ({
+            id:s.id, name:s.name, occupied:s.occupied, weight:s.weight,
+            avgPressure:s.avgPressure, peakPressure:s.peakPressure,
+            temperature: s.temperature.map(z => ({ name:z.name, temp:z.temp, heating:z.heating, cooling:z.cooling }))
+        }))
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type:'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = 'seats-v2-' + Date.now() + '.json'; a.click();
+    toast('JSON exported');
+}
+
+function captureScreenshot() {
+    renderer.render(scene, camera);
+    const a = document.createElement('a');
+    a.download = 'seats-v2-' + Date.now() + '.png';
+    a.href = renderer.domElement.toDataURL('image/png'); a.click();
+    toast('Screenshot saved');
+}
+
+// ── Utils ──
+let toastTmr;
+function toast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.classList.add('show');
+    clearTimeout(toastTmr);
+    toastTmr = setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+function drawLegend() {
+    const ctx = document.getElementById('legendCanvas').getContext('2d');
+    for (let x = 0; x < 180; x++) { ctx.fillStyle = pressureColorRGBA(x/180); ctx.fillRect(x, 0, 1, 10); }
+}
+
+// ══════════════════════════════════════════════════
+//  ANIMATION LOOP
+// ══════════════════════════════════════════════════
+let lastUI = 0;
+
+function animate() {
+    requestAnimationFrame(animate);
+    const dt = Math.min(clock.getDelta(), 0.1);
+    const t = clock.getElapsedTime();
+
+    if (simRunning) {
+        seats.forEach(s => { simPressure(s, t); simTemp(s, dt); });
+    }
+
+    animPoses(dt);
+    if (seats[selected].poseTarget) syncSliders();
+
+    // Update 3D heatmap overlays
+    seats.forEach(s => {
+        updateHeatmapOverlay(s, 'cushion');
+        updateHeatmapOverlay(s, 'back');
+        // Vibration
+        if (s.model && s.occupied) {
+            const rf = ROADS[roadType].r;
+            const amp = vehicleSpeed * 0.00003 * rf;
+            const off = s.id * 2.1;
+            const baseY = -new THREE.Box3().setFromObject(s.model).min.y;
+            s.model.position.y = baseY + Math.sin((t + off) * 30) * amp;
+        }
+    });
+
+    // UI updates at ~7Hz
+    if (t - lastUI > 0.15) {
+        updateRight();
+        renderCards();
+        updateSummary();
+
+        seats.forEach(s => {
+            if (s.peakPressure > 85) addAlert('warn', `${s.label} peak ${s.peakPressure.toFixed(0)} kPa`);
+            s.temperature.forEach(z => {
+                if (z.temp > 40) addAlert('error', `${s.label} ${z.name} overheat: ${z.temp.toFixed(1)}°C`);
+            });
+        });
+
+        lastUI = t;
+    }
+
+    controls.update();
+    renderer.render(scene, camera);
+}
+
+// ══════════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════════
+initScene();
+drawLegend();
+renderCards();
+updateSummary();
+setInterval(() => { document.getElementById('clock').textContent = new Date().toLocaleTimeString(); }, 1000);
+animate();
+</script>
+</body>
+</html>
