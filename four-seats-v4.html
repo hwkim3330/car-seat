@@ -236,7 +236,7 @@ const seats=SEATS.map(s=>({
     ...s, model:null, hl:null, bones:{}, rest:{},
     p:{...ZERO}, target:null,
     grid:new Float32Array(256), avg:0, peak:0,
-    hmC:null, hmB:null,
+
 }));
 
 let cur=0;
@@ -350,9 +350,6 @@ function loadGLB(){
             ring.rotation.x=-Math.PI/2;ring.position.set(seat.pos[0],.008,seat.pos[2]);
             scene.add(ring);seat.hl=ring;
 
-            seat.hmC=mkOv(model,.22,.18,{rx:-Math.PI/2,y:1.15,z:-.45});
-            seat.hmB=mkOv(model,.18,.26,{rx:-1.1,y:2.3,z:-1.35});
-
             cnt++;
             document.getElementById('lmsg').textContent='Loading... '+cnt+'/4';
             if(cnt===4){
@@ -365,16 +362,6 @@ function loadGLB(){
             }
         });
     });
-}
-
-function mkOv(parent,w,h,p){
-    const cv=document.createElement('canvas');cv.width=64;cv.height=64;
-    const tex=new THREE.CanvasTexture(cv);tex.minFilter=THREE.LinearFilter;
-    const mesh=new THREE.Mesh(new THREE.PlaneGeometry(w,h),
-        new THREE.MeshBasicMaterial({map:tex,transparent:true,opacity:.6,side:THREE.DoubleSide,depthWrite:false}));
-    mesh.rotation.x=p.rx||0;mesh.position.set(p.x||0,p.y||0,p.z||0);
-    parent.add(mesh);
-    return{cv,tex};
 }
 
 function hilite(){
@@ -405,19 +392,6 @@ function simPress(s,t){
         if(v>.01){sum+=v;cnt++;mx=Math.max(mx,v)}
     }
     s.avg=cnt>0?(sum/cnt*100):0;s.peak=mx*100;
-}
-
-function updOv(s){
-    [s.hmC,s.hmB].forEach(ov=>{
-        if(!ov)return;
-        const ctx=ov.cv.getContext('2d');ctx.clearRect(0,0,64,64);
-        if(s.weight<1){ov.tex.needsUpdate=true;return}
-        for(let y=0;y<16;y++)for(let x=0;x<16;x++){
-            const v=s.grid[y*16+x];
-            if(v>.02){ctx.fillStyle=pRGBA(v);ctx.fillRect(x*4,y*4,4,4)}
-        }
-        ov.tex.needsUpdate=true;
-    });
 }
 
 /* ═══════════════════════════════════════════
@@ -708,7 +682,7 @@ function animate(){
     requestAnimationFrame(animate);
     const dt=Math.min(clock.getDelta(),.1),t=clock.getElapsedTime();
 
-    seats.forEach(s=>{simPress(s,t);updOv(s)});
+    seats.forEach(s=>{simPress(s,t)});
     animTargets(dt);
     if(seats[cur].target)syncSliders();
 
