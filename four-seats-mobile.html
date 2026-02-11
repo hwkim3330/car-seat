@@ -2,8 +2,8 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>KETI — Smart Seat Final</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>KETI — Smart Seat Mobile</title>
 <script src="libs/three.min.js"></script>
 <script src="libs/OrbitControls.js"></script>
 <script src="libs/GLTFLoader.js"></script>
@@ -15,165 +15,258 @@
     --bg:#f5f5f7;--surface:rgba(255,255,255,.82);--card:#fff;
     --border:rgba(0,0,0,.06);--text:#1d1d1f;--text2:#6e6e73;--text3:#aeaeb2;
     --accent:#007aff;--dim:rgba(0,122,255,.1);
-    --green:#34c759;--red:#ff3b30;--orange:#ff9f0a;--purple:#af52de;--cyan:#64d2ff;--pink:#ff6482;--teal:#30b0c7;
     --scene:#f0f0f2;
+    --thumb-size:24px;
+    --green:#34c759;--red:#ff3b30;--orange:#ff9f0a;--purple:#af52de;--cyan:#64d2ff;--pink:#ff6482;--teal:#30b0c7;
+    --sai-top:env(safe-area-inset-top, 0px);
+    --sai-bottom:env(safe-area-inset-bottom, 0px);
+    --sai-left:env(safe-area-inset-left, 0px);
+    --sai-right:env(safe-area-inset-right, 0px);
 }
-body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var(--text);overflow:hidden;-webkit-font-smoothing:antialiased}
-.app{display:flex;flex-direction:column;height:100vh}
+html{height:100%;overflow:hidden}
+body{
+    font-family:'Inter',-apple-system,sans-serif;
+    background:var(--bg);color:var(--text);
+    -webkit-font-smoothing:antialiased;
+    touch-action:manipulation;
+    position:fixed;width:100%;height:100dvh;
+    overflow:hidden;
+    padding-top:var(--sai-top);
+    padding-left:var(--sai-left);
+    padding-right:var(--sai-right);
+}
 
-/* ── HEADER ── */
-.hdr{height:44px;flex-shrink:0;background:var(--card);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;z-index:10}
-.hdr img{height:22px;opacity:.85}
-.hdr h1{font-size:13px;font-weight:600;letter-spacing:-.3px;margin-left:10px}
-.tag{font-size:8px;font-weight:700;color:var(--accent);background:var(--dim);padding:2px 6px;border-radius:4px;letter-spacing:.5px;margin-left:8px}
+/* ── TOP BAR (44px) ── */
+.top-bar{
+    height:44px;flex-shrink:0;
+    background:var(--card);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+    border-bottom:1px solid var(--border);
+    display:flex;align-items:center;
+    padding:0 12px;z-index:20;position:relative;
+}
+.top-bar img{height:20px;opacity:.85}
+.top-bar h1{font-size:14px;font-weight:600;letter-spacing:-.3px;margin-left:8px}
 
-/* ── CONTENT ── */
-.content{flex:1;display:flex;overflow:hidden}
+/* ── 3D CANVAS AREA ── */
+.canvas-area{
+    position:relative;flex:1 1 55%;min-height:0;
+    background:var(--scene);
+}
+#c3d{width:100%;height:100%}
 
-/* ── LEFT PANEL ── */
-.panel{flex-shrink:0;overflow-y:auto;background:var(--surface);backdrop-filter:blur(20px)}
-.panel::-webkit-scrollbar{width:3px}.panel::-webkit-scrollbar-thumb{background:rgba(0,0,0,.08);border-radius:2px}
-.lp{width:220px;border-right:1px solid var(--border)}
-.rp{width:300px;border-left:1px solid var(--border)}
+/* ── SEAT PILLS (floating overlay) ── */
+.seat-pills-wrap{
+    position:absolute;top:8px;left:50%;transform:translateX(-50%);
+    z-index:10;
+    background:rgba(255,255,255,.65);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+    border-radius:12px;padding:3px;
+    display:flex;gap:0;
+    overflow-x:auto;-webkit-overflow-scrolling:touch;
+    max-width:calc(100% - 24px);
+}
+.seat-pill{
+    padding:7px 14px;border-radius:9px;border:none;
+    background:transparent;color:rgba(0,0,0,.45);
+    font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;
+    transition:all .2s;display:flex;align-items:center;gap:5px;
+    white-space:nowrap;min-height:44px;
+}
+.seat-pill:hover{color:var(--text)}
+.seat-pill.sel{background:rgba(255,255,255,.85);color:#1d1d1f;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.seat-pill .dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
 
-.sec{padding:12px 14px}.sec+.sec{border-top:1px solid var(--border)}
-.sec-t{font-size:9px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px;display:flex;align-items:center;gap:5px}
+/* ── PRESSURE LEGEND (floating bottom-left of canvas) ── */
+.legend{
+    position:absolute;bottom:12px;left:12px;
+    background:rgba(255,255,255,.7);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+    border-radius:10px;padding:5px 10px;
+    display:flex;align-items:center;gap:6px;z-index:10;
+}
+.legend .lt{font-size:8px;color:var(--text2);font-weight:600}
+.legend .ll{display:flex;justify-content:space-between;width:100px;font-size:6px;color:var(--text3);font-weight:500}
+
+/* ── BOTTOM SHEET ── */
+.bottom-sheet{
+    position:relative;flex-shrink:0;
+    background:var(--bg);
+    border-top:1px solid var(--border);
+    border-radius:16px 16px 0 0;
+    z-index:15;
+    display:flex;flex-direction:column;
+    transition:height .35s cubic-bezier(.32,.72,0,1);
+    will-change:height;
+    padding-bottom:var(--sai-bottom);
+}
+.bottom-sheet.collapsed{height:56px !important;overflow:hidden}
+.drag-handle{
+    width:100%;padding:8px 0 4px;display:flex;flex-direction:column;align-items:center;
+    cursor:grab;flex-shrink:0;min-height:44px;justify-content:flex-start;
+}
+.drag-bar{width:36px;height:4px;border-radius:2px;background:rgba(0,0,0,.12)}
+.drag-label{
+    font-size:11px;font-weight:600;color:var(--text2);margin-top:4px;
+    display:flex;align-items:center;gap:6px;
+}
+.drag-label .dot{width:7px;height:7px;border-radius:50%}
+
+.sheet-scroll{
+    flex:1;overflow-y:auto;overflow-x:hidden;
+    -webkit-overflow-scrolling:touch;
+    padding:0 14px 16px;
+}
+.sheet-scroll::-webkit-scrollbar{width:2px}
+.sheet-scroll::-webkit-scrollbar-thumb{background:rgba(0,0,0,.06);border-radius:1px}
+
+/* ── SECTIONS ── */
+.sec{margin-bottom:12px}
+.sec-t{
+    font-size:9px;font-weight:600;color:var(--text3);text-transform:uppercase;
+    letter-spacing:.8px;margin-bottom:8px;display:flex;align-items:center;gap:5px;
+}
 .sec-t i{font-size:8px}
+.sec-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
 
-/* Car top-view */
-.car-tv{position:relative;width:180px;height:130px;margin:0 auto 4px;background:rgba(0,0,0,.015);border-radius:12px;border:1px solid var(--border)}
-.car-fl{position:absolute;top:5px;left:50%;transform:translateX(-50%);font-size:7px;font-weight:700;color:var(--text3);letter-spacing:1px}
-.cdot{position:absolute;width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;cursor:pointer;transition:all .2s;border:2px solid transparent;background:rgba(52,199,89,.12);color:#248a3d}
-.cdot:hover{transform:scale(1.06)}.cdot.sel{border-color:var(--accent);box-shadow:0 0 0 3px var(--dim)}
+/* Slider group card */
+.slider-group{
+    background:var(--card);border-radius:12px;border:1px solid var(--border);
+    padding:10px 12px;margin-bottom:6px;
+}
+.slider-group:last-child{margin-bottom:0}
+.sg-title{font-size:8px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px}
 
-/* Seat cards */
-.sc{padding:7px 10px;border-radius:10px;cursor:pointer;background:var(--card);border:1.5px solid transparent;margin-bottom:3px;display:flex;align-items:center;gap:8px;transition:all .15s}
-.sc:hover{box-shadow:0 1px 6px rgba(0,0,0,.05)}.sc.sel{border-color:var(--accent)}
-.sc-ico{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:11px}
-.sc-name{font-size:11px;font-weight:600}.sc-sub{font-size:9px;color:var(--text2);margin-top:1px}
+.ctrl{margin-bottom:8px}
+.ctrl:last-child{margin-bottom:0}
+.ctrl-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+.ctrl-label{font-size:11px;color:var(--text2);font-weight:500;display:flex;align-items:center;gap:6px}
+.ctrl-label i{width:14px;text-align:center;font-size:11px}
+.ctrl-val{font-size:11px;font-weight:700;font-variant-numeric:tabular-nums;min-width:36px;text-align:right}
 
-/* Presets & buttons */
-.g6{display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
-.pb{padding:6px 4px;border-radius:8px;border:none;background:rgba(0,0,0,.03);color:#3a3a3c;font-size:9px;font-weight:600;cursor:pointer;text-align:center;transition:all .15s;font-family:inherit}
+/* Styled range slider — large mobile thumbs */
+input[type=range]{
+    width:100%;height:6px;appearance:none;-webkit-appearance:none;
+    background:#e5e5ea;border-radius:3px;outline:none;cursor:pointer;
+}
+input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;width:var(--thumb-size);height:var(--thumb-size);
+    border-radius:50%;background:white;cursor:pointer;
+    box-shadow:0 1px 6px rgba(0,0,0,.25),0 0 0 1px rgba(0,0,0,.06);
+}
+input[type=range]::-moz-range-thumb{
+    width:var(--thumb-size);height:var(--thumb-size);border-radius:50%;
+    background:white;cursor:pointer;border:none;
+    box-shadow:0 1px 6px rgba(0,0,0,.25),0 0 0 1px rgba(0,0,0,.06);
+}
+
+/* Preset + Weight row */
+.preset-weight{display:flex;gap:8px;align-items:flex-start}
+.preset-col{flex:1}
+.weight-col{width:80px;flex-shrink:0}
+.g6{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}
+.pb{
+    padding:8px 4px;border-radius:10px;border:none;
+    background:rgba(0,0,0,.03);color:#3a3a3c;
+    font-size:10px;font-weight:600;cursor:pointer;text-align:center;
+    transition:all .15s;font-family:inherit;
+    min-height:44px;display:flex;align-items:center;justify-content:center;
+}
 .pb:hover{opacity:.8}.pb.on{background:var(--accent);color:white}
 
-/* ── 3D CANVAS ── */
-.cv-wrap{flex:1;position:relative;background:var(--scene)}
-#c3d{width:100%;height:100%}
-.legend{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);background:var(--card);backdrop-filter:blur(16px);border:1px solid var(--border);border-radius:10px;padding:6px 12px;display:flex;align-items:center;gap:8px;z-index:5}
-.legend .lt{font-size:9px;color:var(--text2);font-weight:600}
-.legend .ll{display:flex;justify-content:space-between;width:130px;font-size:7px;color:var(--text3);font-weight:500}
-
-/* ── RIGHT PANEL ── */
-.slider-group{background:var(--card);border-radius:10px;border:1px solid var(--border);padding:10px 12px;margin-bottom:6px}
-.slider-group:last-child{margin-bottom:0}
-.sg-title{font-size:8px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px}
-
-.ctrl{margin-bottom:6px}
-.ctrl:last-child{margin-bottom:0}
-.ctrl-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:3px}
-.ctrl-label{font-size:10px;color:var(--text2);font-weight:500;display:flex;align-items:center;gap:5px}
-.ctrl-label i{width:12px;text-align:center;font-size:10px}
-.ctrl-val{font-size:10px;font-weight:700;font-variant-numeric:tabular-nums;min-width:36px;text-align:right}
-.btn{padding:5px 10px;border-radius:8px;border:none;background:rgba(0,0,0,.04);color:var(--text);font-size:11px;font-weight:500;font-family:inherit;cursor:pointer;display:inline-flex;align-items:center;gap:4px;transition:all .15s}
-.btn:hover{opacity:.8}.btn:active{transform:scale(.97)}
-
-input[type=range]{width:100%;height:4px;appearance:none;-webkit-appearance:none;background:#e5e5ea;border-radius:2px;outline:none;cursor:pointer}
-input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:white;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.18),0 0 0 1px rgba(0,0,0,.04)}
-input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:white;cursor:pointer;border:none;box-shadow:0 1px 4px rgba(0,0,0,.18),0 0 0 1px rgba(0,0,0,.04)}
+/* Reset button */
+.btn-reset{
+    padding:5px 10px;border-radius:8px;border:none;
+    background:rgba(255,59,48,.1);color:var(--red);
+    font-size:10px;font-weight:600;cursor:pointer;font-family:inherit;
+    display:inline-flex;align-items:center;gap:4px;
+    min-height:44px;min-width:44px;justify-content:center;
+}
 
 /* Tabs */
-.tab-bar{display:flex;gap:0;background:rgba(0,0,0,.04);border-radius:8px;padding:2px;margin-bottom:8px}
-.tab-btn{flex:1;padding:5px 0;border-radius:6px;border:none;background:transparent;color:var(--text2);font-size:10px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .2s}
+.tab-bar{display:flex;gap:0;background:rgba(0,0,0,.04);border-radius:10px;padding:2px;margin-bottom:8px}
+.tab-btn{
+    flex:1;padding:8px 0;border-radius:8px;border:none;
+    background:transparent;color:var(--text2);font-size:11px;font-weight:600;
+    cursor:pointer;font-family:inherit;transition:all .2s;min-height:44px;
+}
 .tab-btn.sel{background:var(--card);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.06)}
 .tab-content{display:none}.tab-content.vis{display:block}
 
 /* Stats */
-.sg{display:grid;grid-template-columns:1fr 1fr;gap:4px}
-.st{background:var(--card);border-radius:8px;padding:8px;border:1px solid var(--border)}
-.st .v{font-size:16px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.3px}
-.st .l{font-size:7px;color:var(--text3);margin-top:1px;text-transform:uppercase;letter-spacing:.3px;font-weight:600}
+.sg{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+.st{background:var(--card);border-radius:10px;padding:10px;border:1px solid var(--border)}
+.st .v{font-size:18px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.3px}
+.st .l{font-size:8px;color:var(--text3);margin-top:2px;text-transform:uppercase;letter-spacing:.3px;font-weight:600}
 
-.bone-vis{background:var(--card);border-radius:10px;border:1px solid var(--border);padding:10px}
+.bone-vis{background:var(--card);border-radius:12px;border:1px solid var(--border);padding:10px}
 .bone-vis canvas{display:block;margin:0 auto}
 .bone-info{font-size:9px;color:var(--text2);text-align:center;margin-top:6px;font-weight:500}
-#miniHeat{width:100%;border-radius:8px;border:1px solid var(--border);background:var(--bg)}
+#miniHeat{width:100%;border-radius:10px;border:1px solid var(--border);background:var(--bg)}
 
-/* Loading & Utils */
-.loading{position:fixed;inset:0;background:rgba(255,255,255,.92);backdrop-filter:blur(20px);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:100;transition:opacity .5s}
+/* Loading */
+.loading{
+    position:fixed;inset:0;background:rgba(255,255,255,.92);
+    backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    z-index:100;transition:opacity .5s;
+}
 .loading.done{opacity:0;pointer-events:none}
 .spinner{width:32px;height:32px;border:2.5px solid rgba(0,0,0,.06);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
-.load-msg{margin-top:12px;font-size:12px;color:var(--text2);font-weight:500}
-.toast{position:fixed;bottom:16px;right:16px;background:var(--card);backdrop-filter:blur(16px);border:1px solid var(--border);border-radius:10px;padding:8px 16px;font-size:11px;color:var(--text);font-weight:500;z-index:50;opacity:0;transform:translateY(8px);transition:all .25s;pointer-events:none}
-.toast.show{opacity:1;transform:translateY(0)}
-.footer{padding:10px 14px;text-align:center;font-size:8px;color:var(--text3);border-top:1px solid var(--border)}
+.load-msg{margin-top:12px;font-size:13px;color:var(--text2);font-weight:500}
+.toast{
+    position:fixed;bottom:calc(16px + var(--sai-bottom));left:50%;transform:translateX(-50%) translateY(8px);
+    background:var(--card);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+    border:1px solid var(--border);border-radius:12px;padding:10px 20px;
+    font-size:12px;color:var(--text);font-weight:500;z-index:50;
+    opacity:0;transition:all .25s;pointer-events:none;white-space:nowrap;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* App layout */
+.app{display:flex;flex-direction:column;height:100dvh;overflow:hidden}
 </style>
 </head>
 <body>
 <div class="app">
-    <!-- HEADER -->
-    <div class="hdr">
+    <!-- TOP BAR -->
+    <div class="top-bar">
         <img src="keti.png" alt="KETI">
-        <h1>Smart Seat 3D Control</h1>
-        <span class="tag">10-BONE</span>
+        <h1>Smart Seat</h1>
     </div>
 
-    <div class="content">
-        <!-- LEFT PANEL -->
-        <div class="panel lp">
-            <div class="sec">
-                <div class="sec-t"><i class="fas fa-car"></i> Layout</div>
-                <div class="car-tv">
-                    <svg viewBox="0 0 180 130" fill="none"><rect x="24" y="14" width="132" height="102" rx="22" stroke="var(--border)" stroke-width="1.5"/><path d="M80 8 L90 2 L100 8" stroke="var(--text3)" stroke-width="1" fill="none" stroke-linecap="round"/></svg>
-                    <div class="car-fl">FRONT</div>
-                    <div class="cdot sel" id="d0" style="top:22px;left:36px" onclick="sel(0)">FL</div>
-                    <div class="cdot" id="d1" style="top:22px;right:28px" onclick="sel(1)">FR</div>
-                    <div class="cdot" id="d2" style="bottom:14px;left:36px" onclick="sel(2)">RL</div>
-                    <div class="cdot" id="d3" style="bottom:14px;right:28px" onclick="sel(3)">RR</div>
-                </div>
-            </div>
-            <div class="sec">
-                <div class="sec-t"><i class="fas fa-chair"></i> Seats</div>
-                <div id="cards"></div>
-            </div>
-            <div class="sec">
-                <div class="sec-t"><i class="fas fa-bookmark"></i> Presets</div>
-                <div class="g6" id="presetBtns">
-                    <button class="pb" onclick="goPreset('drive',this)">Drive</button>
-                    <button class="pb" onclick="goPreset('sport',this)">Sport</button>
-                    <button class="pb" onclick="goPreset('relax',this)">Relax</button>
-                    <button class="pb" onclick="goPreset('entry',this)">Entry</button>
-                    <button class="pb" onclick="goPreset('flat',this)">Flat</button>
-                    <button class="pb" onclick="goPreset('hold',this)">Hold</button>
-                </div>
-            </div>
-            <div class="sec">
-                <div class="sec-t"><i class="fas fa-weight-hanging"></i> Occupant</div>
-                <div class="ctrl" style="margin-bottom:0">
-                    <div class="ctrl-row"><span class="ctrl-label">Weight</span><span class="ctrl-val" id="wVal">75 kg</span></div>
-                    <input type="range" min="0" max="130" value="75" id="wSl" oninput="setWt(+this.value)">
-                </div>
-            </div>
-            <div class="footer">KETI — Korea Electronics Technology Institute</div>
+    <!-- 3D CANVAS AREA -->
+    <div class="canvas-area">
+        <div id="c3d"></div>
+        <!-- Seat pills overlay -->
+        <div class="seat-pills-wrap" id="seatPills">
+            <button class="seat-pill sel" onclick="sel(0)"><span class="dot" style="background:#007aff"></span>FL</button>
+            <button class="seat-pill" onclick="sel(1)"><span class="dot" style="background:#34c759"></span>FR</button>
+            <button class="seat-pill" onclick="sel(2)"><span class="dot" style="background:#ff9f0a"></span>RL</button>
+            <button class="seat-pill" onclick="sel(3)"><span class="dot" style="background:#af52de"></span>RR</button>
         </div>
+        <!-- Pressure legend -->
+        <div class="legend">
+            <span class="lt">Pressure</span>
+            <div><canvas id="legCv" width="100" height="8" style="border-radius:4px;display:block"></canvas>
+            <div class="ll"><span>0</span><span>50</span><span>100 kPa</span></div></div>
+        </div>
+    </div>
 
-        <!-- 3D CANVAS -->
-        <div class="cv-wrap">
-            <div id="c3d"></div>
-            <div class="legend">
-                <span class="lt">Pressure</span>
-                <div><canvas id="legCv" width="130" height="8" style="border-radius:4px;display:block"></canvas>
-                <div class="ll"><span>0</span><span>50</span><span>100 kPa</span></div></div>
+    <!-- BOTTOM SHEET -->
+    <div class="bottom-sheet" id="bottomSheet" style="height:45%">
+        <div class="drag-handle" id="dragHandle">
+            <div class="drag-bar"></div>
+            <div class="drag-label">
+                <span class="dot" id="sheetDot" style="background:#007aff"></span>
+                <span id="sheetLabel">FL Driver</span>
+                <i class="fas fa-chevron-up" id="sheetChev" style="font-size:9px;margin-left:2px"></i>
             </div>
         </div>
-
-        <!-- RIGHT PANEL -->
-        <div class="panel rp">
+        <div class="sheet-scroll" id="sheetScroll">
+            <!-- Position -->
             <div class="sec">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-                    <div class="sec-t" style="margin-bottom:0"><i class="fas fa-arrows-alt"></i> Position — <span id="posLabel">FL Driver</span></div>
-                    <button class="btn" onclick="resetPose()" style="font-size:9px;color:var(--red);padding:3px 8px"><i class="fas fa-undo"></i></button>
+                <div class="sec-head">
+                    <div class="sec-t" style="margin-bottom:0"><i class="fas fa-arrows-alt"></i> Position</div>
+                    <button class="btn-reset" onclick="resetPose()"><i class="fas fa-undo"></i> Reset</button>
                 </div>
                 <div class="slider-group">
                     <div class="sg-title">Base</div>
@@ -184,10 +277,12 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;bac
                 <div class="slider-group">
                     <div class="sg-title">Back</div>
                     <div class="ctrl"><div class="ctrl-row"><span class="ctrl-label"><i class="fas fa-couch" style="color:var(--purple)"></i> Recline</span><span class="ctrl-val" id="vRecline">0°</span></div><input type="range" min="0" max="40" value="0" id="sRecline" oninput="setPose('recline',+this.value)"></div>
-                    <div class="ctrl"><div class="ctrl-row"><span class="ctrl-label"><i class="fas fa-arrow-up" style="color:var(--pink)"></i> Headrest ↕</span><span class="ctrl-val" id="vHrH">0</span></div><input type="range" min="0" max="100" value="0" id="sHrH" oninput="setPose('hrH',+this.value)"></div>
+                    <div class="ctrl"><div class="ctrl-row"><span class="ctrl-label"><i class="fas fa-arrow-up" style="color:var(--pink)"></i> Headrest</span><span class="ctrl-val" id="vHrH">0</span></div><input type="range" min="0" max="100" value="0" id="sHrH" oninput="setPose('hrH',+this.value)"></div>
                     <div class="ctrl"><div class="ctrl-row"><span class="ctrl-label"><i class="fas fa-redo" style="color:var(--cyan)"></i> Headrest Tilt</span><span class="ctrl-val" id="vHrT">0°</span></div><input type="range" min="-15" max="15" value="0" id="sHrT" oninput="setPose('hrT',+this.value)"></div>
                 </div>
             </div>
+
+            <!-- Support -->
             <div class="sec">
                 <div class="sec-t"><i class="fas fa-compress-arrows-alt"></i> Support</div>
                 <div class="slider-group">
@@ -196,6 +291,29 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;bac
                     <div class="ctrl"><div class="ctrl-row"><span class="ctrl-label"><i class="fas fa-shield-alt" style="color:var(--purple)"></i> Back Bolster</span><span class="ctrl-val" id="vBBol">0%</span></div><input type="range" min="0" max="100" value="0" id="sBBol" oninput="setPose('bBolster',+this.value)"></div>
                 </div>
             </div>
+
+            <!-- Presets + Weight -->
+            <div class="sec">
+                <div class="sec-t"><i class="fas fa-bookmark"></i> Presets & Weight</div>
+                <div class="preset-weight">
+                    <div class="preset-col">
+                        <div class="g6" id="presetBtns">
+                            <button class="pb" onclick="goPreset('drive',this)">Drive</button>
+                            <button class="pb" onclick="goPreset('sport',this)">Sport</button>
+                            <button class="pb" onclick="goPreset('relax',this)">Relax</button>
+                            <button class="pb" onclick="goPreset('entry',this)">Entry</button>
+                            <button class="pb" onclick="goPreset('flat',this)">Flat</button>
+                            <button class="pb" onclick="goPreset('hold',this)">Hold</button>
+                        </div>
+                    </div>
+                    <div class="weight-col">
+                        <div style="font-size:10px;color:var(--text2);font-weight:600;text-align:center;margin-bottom:4px"><i class="fas fa-weight-hanging"></i> <span id="wVal">75 kg</span></div>
+                        <input type="range" min="0" max="130" value="75" id="wSl" oninput="setWt(+this.value)" style="width:100%">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Analysis (Tabbed) -->
             <div class="sec">
                 <div class="sec-t"><i class="fas fa-chart-area"></i> Analysis</div>
                 <div class="tab-bar">
@@ -203,7 +321,7 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;bac
                     <button class="tab-btn" onclick="switchTab('pressure',this)">Pressure</button>
                 </div>
                 <div class="tab-content vis" id="tab-diagram">
-                    <div class="bone-vis"><canvas id="boneCv" width="260" height="140"></canvas></div>
+                    <div class="bone-vis"><canvas id="boneCv" width="270" height="150"></canvas></div>
                     <div class="bone-info" id="boneInfo">10 bones · 9 axes · v2 GLB</div>
                 </div>
                 <div class="tab-content" id="tab-pressure">
@@ -489,9 +607,10 @@ function resetPose(){
    UI
    ═══════════════════════════════════════════ */
 function sel(i){
-    cur=i;hilite();syncSliders();renderCards();
-    document.querySelectorAll('.cdot').forEach((d,j)=>d.classList.toggle('sel',j===i));
-    document.getElementById('posLabel').textContent=seats[i].label+' '+seats[i].name;
+    cur=i;hilite();syncSliders();
+    document.querySelectorAll('.seat-pill').forEach((p,j)=>p.classList.toggle('sel',j===i));
+    document.getElementById('sheetDot').style.background=COL[i];
+    document.getElementById('sheetLabel').textContent=seats[i].label+' '+seats[i].name;
     document.getElementById('wSl').value=seats[i].weight;
     document.getElementById('wVal').textContent=seats[i].weight+' kg';
     document.getElementById('presetBtns').querySelectorAll('.pb').forEach(b=>b.classList.remove('on'));
@@ -510,14 +629,6 @@ function syncSliders(){
     document.getElementById('sBBol').value=p.bBolster;  document.getElementById('vBBol').textContent=Math.round(p.bBolster)+'%';
 }
 
-function renderCards(){
-    document.getElementById('cards').innerHTML=seats.map((s,i)=>
-        '<div class="sc'+(i===cur?' sel':'')+'" onclick="sel('+i+')">'+
-        '<div class="sc-ico" style="background:'+COL[i]+'15;color:'+COL[i]+'"><i class="fas fa-chair"></i></div>'+
-        '<div><div class="sc-name">'+s.label+' '+s.name+'</div><div class="sc-sub">'+s.weight+' kg</div></div></div>'
-    ).join('');
-}
-
 function updStats(){
     const s=seats[cur];
     document.getElementById('pAvg').textContent=s.avg.toFixed(1);
@@ -530,7 +641,7 @@ function updStats(){
     }
 }
 
-function setWt(w){seats[cur].weight=w;document.getElementById('wVal').textContent=w+' kg';renderCards()}
+function setWt(w){seats[cur].weight=w;document.getElementById('wVal').textContent=w+' kg'}
 
 function switchTab(name,btn){
     document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('sel'));
@@ -549,9 +660,9 @@ function drawBoneDiagram(){
     const dim='#aeaeb2';
 
     // Side View
-    const ox=70,oy=110;
+    const ox=75,oy=120;
     ctx.fillStyle=dim;ctx.font='600 7px Inter';ctx.textAlign='center';
-    ctx.fillText('SIDE',70,10);
+    ctx.fillText('SIDE',75,10);
     ctx.fillStyle=dim;ctx.fillRect(ox-25,oy-2,50,4);
 
     const slideOff=-(p.slide/100)*25,sx=ox+slideOff;
@@ -585,9 +696,9 @@ function drawBoneDiagram(){
     ctx.restore();
 
     // Front View
-    const cx=190,cy=75;
+    const cx=200,cy=80;
     ctx.fillStyle=dim;ctx.font='600 7px Inter';ctx.textAlign='center';
-    ctx.fillText('FRONT',190,10);
+    ctx.fillText('FRONT',200,10);
 
     const cw=50,ch=12;
     ctx.fillStyle='rgba(0,122,255,.1)';ctx.fillRect(cx-cw/2,cy-ch/2,cw,ch);
@@ -619,7 +730,7 @@ function drawBoneDiagram(){
     ctx.fillText('Cushion',cx,cy+16);ctx.fillText('Backrest',cx,bcy-bch/2-4);
 
     ctx.strokeStyle='rgba(0,0,0,.06)';ctx.lineWidth=1;ctx.setLineDash([3,3]);
-    ctx.beginPath();ctx.moveTo(125,15);ctx.lineTo(125,H-5);ctx.stroke();ctx.setLineDash([]);
+    ctx.beginPath();ctx.moveTo(135,15);ctx.lineTo(135,H-5);ctx.stroke();ctx.setLineDash([]);
 }
 
 /* ═══════════════════════════════════════════
@@ -636,7 +747,78 @@ function pRGBA(t){
 
 let tt;
 function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),2000)}
-function drawLeg(){const ctx=document.getElementById('legCv').getContext('2d');for(let x=0;x<130;x++){ctx.fillStyle=pRGBA(x/130);ctx.fillRect(x,0,1,8)}}
+function drawLeg(){const ctx=document.getElementById('legCv').getContext('2d');for(let x=0;x<100;x++){ctx.fillStyle=pRGBA(x/100);ctx.fillRect(x,0,1,8)}}
+
+/* ═══════════════════════════════════════════
+   BOTTOM SHEET TOUCH HANDLING
+   ═══════════════════════════════════════════ */
+(function initBottomSheet(){
+    const sheet=document.getElementById('bottomSheet');
+    const handle=document.getElementById('dragHandle');
+    const scroll=document.getElementById('sheetScroll');
+    const chev=document.getElementById('sheetChev');
+    let startY=0, startH=0, dragging=false;
+    const minH=56;
+    const maxPct=75;
+    const collapsedPct=45;
+
+    function getMaxH(){return window.innerHeight*maxPct/100}
+    function getCollH(){return window.innerHeight*collapsedPct/100}
+
+    handle.addEventListener('touchstart',e=>{
+        dragging=true;
+        startY=e.touches[0].clientY;
+        startH=sheet.offsetHeight;
+        sheet.style.transition='none';
+    },{passive:true});
+
+    document.addEventListener('touchmove',e=>{
+        if(!dragging)return;
+        const dy=startY-e.touches[0].clientY;
+        let newH=Math.max(minH,Math.min(getMaxH(),startH+dy));
+        sheet.style.height=newH+'px';
+    },{passive:true});
+
+    document.addEventListener('touchend',()=>{
+        if(!dragging)return;
+        dragging=false;
+        sheet.style.transition='height .35s cubic-bezier(.32,.72,0,1)';
+        const h=sheet.offsetHeight;
+        const snapCollapsed=minH;
+        const snapExpanded=getCollH();
+        const snapFull=getMaxH();
+        const dC=Math.abs(h-snapCollapsed);
+        const dE=Math.abs(h-snapExpanded);
+        const dF=Math.abs(h-snapFull);
+        if(dC<=dE&&dC<=dF){
+            sheet.style.height=minH+'px';
+            sheet.classList.add('collapsed');
+            chev.className='fas fa-chevron-up';
+        }else if(dF<=dE){
+            sheet.style.height=maxPct+'%';
+            sheet.classList.remove('collapsed');
+            chev.className='fas fa-chevron-down';
+        }else{
+            sheet.style.height=collapsedPct+'%';
+            sheet.classList.remove('collapsed');
+            chev.className='fas fa-chevron-down';
+        }
+    });
+
+    handle.addEventListener('click',()=>{
+        if(sheet.classList.contains('collapsed')){
+            sheet.classList.remove('collapsed');
+            sheet.style.height=collapsedPct+'%';
+            chev.className='fas fa-chevron-down';
+        }else{
+            sheet.classList.add('collapsed');
+            sheet.style.height=minH+'px';
+            chev.className='fas fa-chevron-up';
+        }
+    });
+
+    scroll.addEventListener('touchstart',e=>{e.stopPropagation()},{passive:true});
+})();
 
 /* ═══════════════════════════════════════════
    LOOP
@@ -657,7 +839,7 @@ function animate(){
 /* ═══════════════════════════════════════════
    INIT
    ═══════════════════════════════════════════ */
-initScene();drawLeg();renderCards();syncSliders();animate();
+initScene();drawLeg();syncSliders();animate();
 </script>
 </body>
 </html>
