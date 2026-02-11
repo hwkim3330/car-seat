@@ -431,3 +431,198 @@ function simulatePressure(weight, time) {
 | 메쉬가 안 움직임 | Vertex Group 이름 불일치 | 본 이름과 Vertex Group 이름 정확히 일치 확인 |
 | 애니메이션 안 됨 | AnimationMixer 사용 안함 | 본 직접 조작 방식 사용 (위 코드 참고) |
 | 모델이 검게 보임 | 라이트 부족 | DirectionalLight + AmbientLight 추가 |
+
+---
+
+## V2: 10-Bone 확장 리깅 (add_armature_v2.py)
+
+> v1의 5본 구조에서 **볼스터, 럼바, 백볼스터** 5개 본을 추가하여 10본으로 확장.
+> 메쉬 분할 및 weight painting 적용.
+
+### V2 본 계층 구조
+
+```
+Root (01 Base, 02 Base rim, 03 Base controls)
+└── Slide (전후)
+    └── Cushion (04 Bottom seat — 높이 + 틸트)
+        ├── BolsterL  ★ NEW (05 Bottom sides 좌측 — 좌석 볼스터 조임)
+        ├── BolsterR  ★ NEW (05 Bottom sides 우측 — 좌석 볼스터 조임)
+        └── Backrest (06 Back seat 상부 + 08 Upper neck — 리클라인)
+            ├── Lumbar       ★ NEW (06 Back seat 하부 — 럼바 서포트, weight-painted)
+            ├── BackBolsterL ★ NEW (07 Seat back sides 좌측 — 등 볼스터 조임)
+            ├── BackBolsterR ★ NEW (07 Seat back sides 우측 — 등 볼스터 조임)
+            └── Headrest (09 Header — 높이 + 틸트)
+```
+
+### V2 핵심 변경: 메쉬 분할 스키닝
+
+v1은 모든 버텍스를 하나의 본에 weight 1.0으로 할당 (리지드).
+v2는 **3개 메쉬**에 대해 분할/weight painting 적용:
+
+#### 1. 좌석 볼스터 분할 (05 Bottom sides → BolsterL / BolsterR)
+
+메쉬의 모든 버텍스를 X 좌표로 좌/우 분리:
+
+```python
+# 메쉬 분석 결과: 302 verts, L=151 / Center=0 / R=151 (완벽 대칭)
+for v in mesh_obj.data.vertices:
+    if v.co.x < -0.05:        # 좌측 → BolsterL 본
+        vgL.add([v.index], 1.0, 'REPLACE')
+    elif v.co.x > 0.05:       # 우측 → BolsterR 본
+        vgR.add([v.index], 1.0, 'REPLACE')
+    else:                      # 중앙 → 블렌드
+        vgL.add([v.index], 0.35, 'REPLACE')
+        vgR.add([v.index], 0.35, 'REPLACE')
+        vgC.add([v.index], 0.30, 'REPLACE')  # Cushion
+```
+
+**결과**: BolsterL 본을 +X로 이동하면 좌측 볼스터만 안쪽으로 조여짐.
+
+#### 2. 럼바 서포트 (06 Back seat → Backrest / Lumbar)
+
+등받이 메쉬를 Z 좌표(높이)로 분할. **그라데이션 weight painting**으로 부드러운 변형:
+
+```python
+# 메쉬 분석: 115 verts, Z range 0.058 ~ 2.132
+for v in mesh_obj.data.vertices:
+    z = v.co.z
+    if z < 0.5:           # 하단: 100% Lumbar
+        vgLu.add([v.index], 1.0, 'REPLACE')
+    elif z < 1.0:         # 중간: 그라데이션 (Lumbar ↔ Backrest)
+        t = (z - 0.5) / 0.5   # 0→1 리니어 보간
+        vgLu.add([v.index], 1.0 - t, 'REPLACE')
+        vgB.add([v.index],  t,       'REPLACE')
+    else:                 # 상단: 100% Backrest
+        vgB.add([v.index], 1.0, 'REPLACE')
+```
+
+**결과**: Lumbar 본을 앞으로 밀면 등받이 하단만 불룩하게 변형 (럼바 서포트 효과).
+그라데이션 weight 덕분에 상단과 하단 경계가 부드럽게 이어짐.
+
+#### 3. 등받이 볼스터 분할 (07 Seat back sides → BackBolsterL / BackBolsterR)
+
+좌석 볼스터와 동일한 X 좌표 기반 분할:
+
+```python
+# 메쉬 분석: 337 verts, L=162 / Center=15 / R=160
+# 좌석 볼스터와 같은 로직이지만 Backrest 본에 블렌드
+```
+
+### V2 좌표 변환 (Blender → Three.js)
+
+| 동작 | Blender 코드 | Three.js 코드 | 설명 |
+|------|-------------|---------------|------|
+| 볼스터L 조임 | `location.x += 0.15` | `position.x += 0.15` | X축 보존 |
+| 볼스터R 조임 | `location.x -= 0.15` | `position.x -= 0.15` | X축 보존 |
+| 럼바 밀어냄 | `location.y += 0.3` | `position.z -= 0.3` | Blender +Y → GLTF -Z |
+| 백볼스터L | `location.x += 0.12` | `position.x += 0.12` | X축 보존 |
+| 백볼스터R | `location.x -= 0.12` | `position.x -= 0.12` | X축 보존 |
+
+### V2 실행 방법 (headless)
+
+```bash
+# Blender 5.0+ 필요 (headless 모드로 GUI 없이 실행)
+cd /home/kim/Downloads/car_seat
+blender "20190501_Car seat complete embedded.blend" \
+    --background \
+    --python add_armature_v2.py
+
+# 출력: car_seat_rigged_v2.glb (736 KB)
+# 10 bones, 7 actions
+```
+
+### V2 Three.js 본 제어 코드
+
+```javascript
+// 기존 6축 (v1과 동일)
+case 'slide':   Slide.position.z    = rest.pz - (val/100) * 0.5;
+case 'height':  Cushion.position.y  = rest.py + (val/100) * 0.3;
+case 'tilt':    Cushion.rotation.x  = rest.rx + degToRad(val);
+case 'recline': Backrest.rotation.x = rest.rx + degToRad(val);
+case 'hrH':     Headrest.position.y = rest.py + (val/100) * 0.5;
+case 'hrT':     Headrest.rotation.x = rest.rx + degToRad(val);
+
+// 새로운 3축 (v2 추가)
+case 'bolster':    // 좌석 볼스터 — 좌우 대칭 조임
+    BolsterL.position.x  = rest.px + (val/100) * 0.15;   // 좌→우 (안쪽)
+    BolsterR.position.x  = rest.px - (val/100) * 0.15;   // 우→좌 (안쪽)
+case 'lumbar':     // 럼바 서포트 — 앞으로 밀어냄
+    Lumbar.position.z    = rest.pz - (val/100) * 0.3;    // Blender +Y → GLTF -Z
+case 'bBolster':   // 등받이 볼스터 — 좌우 대칭 조임
+    BackBolsterL.position.x = rest.px + (val/100) * 0.12;
+    BackBolsterR.position.x = rest.px - (val/100) * 0.12;
+```
+
+### V2 프리셋 예시
+
+```javascript
+const PRESETS = {
+    drive:  { slide:0,   height:20, tilt:2,   recline:8,  hrH:30,  hrT:-5,
+              bolster:20,  lumbar:40,  bBolster:15 },
+    sport:  { slide:30,  height:0,  tilt:-3,  recline:3,  hrH:50,  hrT:-8,
+              bolster:80,  lumbar:60,  bBolster:70 },  // 볼스터 꽉 조임
+    hold:   { slide:10,  height:10, tilt:-2,  recline:5,  hrH:40,  hrT:-3,
+              bolster:90,  lumbar:70,  bBolster:85 },  // 최대 서포트
+};
+```
+
+### V2 액션 (GLB 내장 애니메이션)
+
+| 액션 | 대상 본 | 동작 |
+|------|---------|------|
+| Recline | Backrest | X 회전 0→30°→0 |
+| HeadrestAdjust | Headrest | Z 이동 0→+0.4→0 |
+| SlideForAft | Slide | Y 이동 +0.5→-0.5→0 |
+| HeightAdjust | Cushion | Z 이동 0→+0.2→0 |
+| BolsterSqueeze | BolsterL+R | X 이동 ±0.15 (대칭 조임) |
+| LumbarPush | Lumbar | Y 이동 0→+0.3→0 |
+| BackBolsterSqueeze | BackBolsterL+R | X 이동 ±0.12 (대칭 조임) |
+
+---
+
+## 파일 위치 정리 (V2 업데이트)
+
+```
+/home/kim/car-seat-review/
+├── blender/
+│   ├── add_armature.py          ← v1 리깅 스크립트 (5본)
+│   ├── add_armature_v2.py       ← v2 리깅 스크립트 (10본)
+│   └── inspect_meshes.py        ← 메쉬 분석 유틸리티
+├── models/
+│   ├── car-seat-rigged.glb      ← v1 (5본, 698 KB)
+│   └── car-seat-rigged-v2.glb   ← v2 (10본, 736 KB)
+├── libs/
+│   ├── three.min.js             ← Three.js r152
+│   ├── GLTFLoader.js            ← GLTF/GLB 로더
+│   └── OrbitControls.js         ← 카메라 컨트롤
+├── four-seats.html              ← v1: 4좌석 모니터링
+├── four-seats-v2.html           ← v2: SRS 전체 기능 (MON/ACT/APP)
+├── four-seats-v3.html           ← v3: 깔끔한 6축 컨트롤 (5본 GLB)
+├── four-seats-v4.html           ← v4: 10본 9축 컨트롤 (10본 GLB) ★ 최신
+└── RIGGING_GUIDE.md             ← 이 문서
+```
+
+---
+
+## 메쉬 분석 데이터 (inspect_meshes.py 결과)
+
+원본 모델 9개 메쉬의 바운딩박스 및 버텍스 분포:
+
+```
+01 Base          (882 verts)  X: -1.11~1.11  Y: -1.35~1.31  Z: -0.36~0.36
+02 Base rim      (128 verts)  X: -9.11~9.11  Y: -0.82~1.00  Z:  0.17~0.87
+03 Base controls (1306 verts) X:-30.06~30.06  Y: -1.02~1.88  Z:  0.14~1.10
+04 Bottom seat   (283 verts)  X: -0.65~0.65  Y: -1.34~1.14  Z: -0.54~0.24
+05 Bottom sides  (302 verts)  X: -0.89~0.89  Y: -1.18~1.03  Z: -0.18~0.56
+06 Back seat     (115 verts)  X: -0.71~0.71  Y: -2.09~-0.92 Z:  0.06~2.13
+07 Seat back sides(337 verts) X: -1.10~1.10  Y: -2.31~-0.81 Z: -0.23~2.01
+08 Upper neck    (427 verts)  X: -0.88~0.88  Y: -0.35~0.46  Z: -0.42~0.41
+09 Header        (158 verts)  X: -0.58~0.58  Y: -2.32~-1.75 Z:  2.47~3.22
+```
+
+L/R 버텍스 분포 (볼스터 분할 가능 여부 판단):
+```
+05 Bottom sides:    L=151  C=0   R=151  ← 완벽 대칭, 깨끗한 분할
+07 Seat back sides: L=162  C=15  R=160  ← 거의 대칭, 중앙 15개는 블렌드
+06 Back seat:       L=50   C=15  R=50   ← 럼바는 Z축으로 분할 (L/R 아님)
+```
