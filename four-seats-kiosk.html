@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KETI Smart Seat — Exhibition Kiosk</title>
+<script src="libs/three.min.js"></script>
+<script src="libs/OrbitControls.js"></script>
+<script src="libs/GLTFLoader.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+    --bg:#0c0c0c;--surface:rgba(30,30,30,.8);--card:rgba(40,40,40,.9);
+    --border:rgba(255,255,255,.08);--text:#ffffff;--text2:#999999;--text3:#555555;
+    --accent:#c8a44e;--dim:rgba(200,164,78,.1);
+}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);overflow:hidden;-webkit-font-smoothing:antialiased}
+
+/* Fullscreen canvas */
+#c3d{position:fixed;inset:0;width:100vw;height:100vh}
+
+/* Top-left title overlay */
+.title-block{position:fixed;top:28px;left:32px;z-index:10;background:rgba(20,20,20,.65);backdrop-filter:blur(16px);border:1px solid var(--border);border-radius:14px;padding:16px 22px;display:flex;align-items:center;gap:14px}
+.title-block img{height:26px;filter:brightness(1.2)}
+.title-text{display:flex;flex-direction:column}
+.title-text .main{font-size:24px;font-weight:700;letter-spacing:-.5px;line-height:1.1}
+.title-text .sub{font-size:14px;font-weight:500;color:var(--accent);letter-spacing:1.5px;margin-top:2px}
+
+/* Demo toggle — bottom-left */
+.demo-toggle{position:fixed;bottom:310px;left:32px;z-index:12;background:var(--card);backdrop-filter:blur(16px);border:1px solid var(--border);border-radius:10px;padding:10px 16px;display:flex;align-items:center;gap:10px;cursor:pointer;transition:all .3s ease}
+.demo-toggle:hover{border-color:var(--accent)}
+.demo-toggle .label{font-size:12px;font-weight:600;color:var(--text2)}
+.demo-toggle .status{font-size:12px;font-weight:700;color:var(--accent)}
+
+/* Seat indicator — bottom-right */
+.seat-indicator{position:fixed;bottom:310px;right:32px;z-index:12;background:var(--card);backdrop-filter:blur(16px);border:1px solid var(--border);border-radius:10px;padding:12px 18px;text-align:right;transition:all .3s ease}
+.seat-indicator .seat-label{font-size:18px;font-weight:700;letter-spacing:-.3px}
+.seat-indicator .seat-name{font-size:12px;color:var(--text2);margin-top:2px}
+.seat-indicator .preset-name{font-size:11px;color:var(--accent);margin-top:4px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;opacity:0;transition:opacity .3s ease}
+.seat-indicator .preset-name.vis{opacity:1}
+
+/* Bottom panel — floating overlay */
+.bottom-panel{position:fixed;bottom:0;left:0;right:0;z-index:15;background:rgba(20,20,20,.75);backdrop-filter:blur(20px);border-top:1px solid var(--border);border-radius:18px 18px 0 0;transition:transform .4s cubic-bezier(.4,0,.2,1);max-height:290px;overflow-y:auto}
+.bottom-panel.collapsed{transform:translateY(calc(100% - 36px))}
+.bottom-panel::-webkit-scrollbar{width:3px}.bottom-panel::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:2px}
+
+.drag-handle{width:100%;display:flex;justify-content:center;padding:10px 0 6px;cursor:pointer}
+.drag-handle .bar{width:40px;height:4px;border-radius:2px;background:rgba(255,255,255,.2);transition:background .2s}
+.drag-handle:hover .bar{background:var(--accent)}
+
+.panel-content{padding:0 24px 18px}
+
+/* Seat selector pills */
+.seat-pills{display:flex;gap:6px;margin-bottom:12px}
+.seat-pill{flex:1;padding:8px 0;border-radius:8px;border:1.5px solid rgba(255,255,255,.1);background:transparent;color:var(--text2);font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;cursor:pointer;text-align:center;font-family:inherit;transition:all .3s ease}
+.seat-pill.sel{border-color:var(--accent);color:var(--accent);background:var(--dim)}
+
+/* Preset buttons */
+.preset-row{display:flex;gap:6px;margin-bottom:14px}
+.pb{flex:1;padding:7px 0;border-radius:20px;border:1.5px solid rgba(255,255,255,.1);background:transparent;color:var(--text2);font-size:11px;font-weight:600;cursor:pointer;text-align:center;font-family:inherit;transition:all .3s ease}
+.pb:hover{border-color:rgba(255,255,255,.2)}.pb.on{background:var(--accent);color:#0c0c0c;border-color:var(--accent)}
+
+/* Slider grid — 3 columns */
+.slider-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px 14px;margin-bottom:12px}
+.ctrl{display:flex;flex-direction:column;gap:2px}
+.ctrl-row{display:flex;justify-content:space-between;align-items:center}
+.ctrl-label{font-size:10px;color:var(--text2);font-weight:500}
+.ctrl-val{font-size:10px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--accent)}
+
+input[type=range]{width:100%;height:3px;appearance:none;-webkit-appearance:none;background:rgba(255,255,255,.1);border-radius:2px;outline:none;cursor:pointer}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--accent);cursor:pointer;box-shadow:0 0 8px rgba(200,164,78,.35)}
+input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:var(--accent);cursor:pointer;border:none;box-shadow:0 0 8px rgba(200,164,78,.35)}
+
+/* Analysis section */
+.analysis-row{display:flex;gap:12px;align-items:flex-start}
+.tab-bar{display:flex;gap:0;background:rgba(255,255,255,.05);border-radius:8px;padding:2px;margin-bottom:8px}
+.tab-btn{flex:1;padding:5px 12px;border-radius:6px;border:none;background:transparent;color:var(--text3);font-size:10px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .2s}
+.tab-btn.sel{background:var(--card);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.tab-content{display:none}.tab-content.vis{display:block}
+.analysis-left{flex:1;min-width:0}
+.analysis-right{display:flex;gap:8px;align-items:center;flex-shrink:0}
+.st{background:rgba(255,255,255,.04);border-radius:8px;padding:6px 10px;border:1px solid var(--border)}
+.st .v{font-size:15px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--text)}
+.st .l{font-size:7px;color:var(--text3);margin-top:1px;text-transform:uppercase;letter-spacing:.3px;font-weight:600}
+.bone-vis{background:rgba(255,255,255,.03);border-radius:8px;border:1px solid var(--border);padding:6px}
+.bone-vis canvas{display:block;margin:0 auto}
+#miniHeat{border-radius:8px;border:1px solid var(--border);background:rgba(255,255,255,.02)}
+
+/* Pressure legend */
+.legend{position:fixed;bottom:300px;left:50%;transform:translateX(-50%);z-index:11;background:var(--card);backdrop-filter:blur(16px);border:1px solid var(--border);border-radius:10px;padding:6px 14px;display:flex;align-items:center;gap:8px}
+.legend .lt{font-size:9px;color:var(--text2);font-weight:600}
+.legend .ll{display:flex;justify-content:space-between;width:130px;font-size:7px;color:var(--text3);font-weight:500}
+
+/* Loading */
+.loading{position:fixed;inset:0;background:rgba(12,12,12,.95);backdrop-filter:blur(20px);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:100;transition:opacity .6s}
+.loading.done{opacity:0;pointer-events:none}
+.spinner{width:36px;height:36px;border:2.5px solid rgba(255,255,255,.08);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.load-msg{margin-top:14px;font-size:13px;color:var(--text2);font-weight:500}
+.toast{position:fixed;bottom:320px;left:50%;transform:translateX(-50%) translateY(8px);background:var(--card);backdrop-filter:blur(16px);border:1px solid var(--border);border-radius:10px;padding:8px 20px;font-size:12px;color:var(--text);font-weight:500;z-index:50;opacity:0;transition:all .3s ease;pointer-events:none}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* Weight row inside panel */
+.weight-row{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.weight-row label{font-size:10px;color:var(--text2);font-weight:500}
+.weight-row input{flex:1}
+.weight-row .wv{font-size:11px;font-weight:700;color:var(--accent);min-width:40px;text-align:right}
+
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+</style>
+</head>
+<body>
+
+<!-- 3D Canvas (fullscreen) -->
+<div id="c3d"></div>
+
+<!-- Top-left title -->
+<div class="title-block">
+    <img src="keti.png" alt="KETI">
+    <div class="title-text">
+        <div class="main">SMART SEAT</div>
+        <div class="sub">CONTROL SYSTEM</div>
+    </div>
+</div>
+
+<!-- Demo toggle — bottom-left -->
+<div class="demo-toggle" id="demoToggle" onclick="toggleDemo()">
+    <span class="label">Auto Demo</span>
+    <span class="status" id="demoBtn">ON</span>
+</div>
+
+<!-- Seat indicator — bottom-right -->
+<div class="seat-indicator">
+    <div class="seat-label" id="seatLabel" style="color:var(--accent)">FL</div>
+    <div class="seat-name" id="seatName">Driver</div>
+    <div class="preset-name" id="presetLabel">—</div>
+</div>
+
+<!-- Pressure legend -->
+<div class="legend">
+    <span class="lt">Pressure</span>
+    <div><canvas id="legCv" width="130" height="8" style="border-radius:4px;display:block"></canvas>
+    <div class="ll"><span>0</span><span>50</span><span>100 kPa</span></div></div>
+</div>
+
+<!-- Bottom floating panel -->
+<div class="bottom-panel" id="btmPanel">
+    <div class="drag-handle" id="dragHandle"><div class="bar"></div></div>
+    <div class="panel-content">
+        <!-- Seat selector -->
+        <div class="seat-pills" id="seatPills">
+            <button class="seat-pill sel" onclick="userAction();sel(0)">FL</button>
+            <button class="seat-pill" onclick="userAction();sel(1)">FR</button>
+            <button class="seat-pill" onclick="userAction();sel(2)">RL</button>
+            <button class="seat-pill" onclick="userAction();sel(3)">RR</button>
+        </div>
+
+        <!-- Presets -->
+        <div class="preset-row" id="presetBtns">
+            <button class="pb" onclick="userAction();goPreset('drive',this)">Drive</button>
+            <button class="pb" onclick="userAction();goPreset('sport',this)">Sport</button>
+            <button class="pb" onclick="userAction();goPreset('relax',this)">Relax</button>
+            <button class="pb" onclick="userAction();goPreset('entry',this)">Entry</button>
+            <button class="pb" onclick="userAction();goPreset('flat',this)">Flat</button>
+            <button class="pb" onclick="userAction();goPreset('hold',this)">Hold</button>
+        </div>
+
+        <!-- Weight -->
+        <div class="weight-row">
+            <label>Occupant</label>
+            <input type="range" min="0" max="130" value="75" id="wSl" oninput="userAction();setWt(+this.value)">
+            <span class="wv" id="wVal">75 kg</span>
+        </div>
+
+        <!-- Sliders — 3 column grid -->
+        <div class="slider-grid">
+            <div class="ctrl"><div class="ctrl-row"><span class="ctrl-label">Fore/Aft</span><span class="ctrl-val" id="vSlide">0</span></div><input type="range" min="-100" max="100" value="0" id="sSlide" oninput="userAction();setPose('slide',+this.value)"></div>
+            <div class="ctrl"><div class="ctrl-row"><span class="ctrl-label">Height</span><span class="ctrl-val" id="vHeight">0</span></div><input type="range" min="0" max="100" value="0" id="sHeight" oninput="userAction();setPose('height',+this.value)"></div>
+            <div class="ctrl"><div class="ctrl-row"><span class="ctrl-label">Seat Tilt</span><span class="ctrl-val" id="vTilt">0</span></div><input type="range" min="-10" max="10" value="0" id="sTilt" oninput="userAction();setPose('tilt',+this.value)"></div>
+            <div class="ctrl"><div class="ctrl-row"><span class="ctrl-label">Recline</span><span class="ctrl-val" id="vRecline">0</span></div><input type="range" min="0" max="40" value="0" id="sRecline" oninput="userAction();setPose('recline',+this.value)"></div>
+            <div class="ctrl"><div class="ctrl-row"><span class="ctrl-label">Headrest H</span><span class="ctrl-val" id="vHrH">0</span></div><input type="range" min="0" max="100" value="0" id="sHrH" oninput="userAction();setPose('hrH',+this.value)"></div>
+            <div class="ctrl"><div class="ctrl-row"><span class="ctrl-label">Headrest Tilt</span><span class="ctrl-val" id="vHrT">0</span></div><input type="range" min="-15" max="15" value="0" id="sHrT" oninput="userAction();setPose('hrT',+this.value)"></div>
+            <div class="ctrl"><div class="ctrl-row"><span class="ctrl-label">Bolster</span><span class="ctrl-val" id="vBol">0%</span></div><input type="range" min="0" max="100" value="0" id="sBol" oninput="userAction();setPose('bolster',+this.value)"></div>
+            <div class="ctrl"><div class="ctrl-row"><span class="ctrl-label">Lumbar</span><span class="ctrl-val" id="vLum">0%</span></div><input type="range" min="0" max="100" value="0" id="sLum" oninput="userAction();setPose('lumbar',+this.value)"></div>
+            <div class="ctrl"><div class="ctrl-row"><span class="ctrl-label">Back Bolster</span><span class="ctrl-val" id="vBBol">0%</span></div><input type="range" min="0" max="100" value="0" id="sBBol" oninput="userAction();setPose('bBolster',+this.value)"></div>
+        </div>
+
+        <!-- Analysis -->
+        <div class="analysis-row">
+            <div class="analysis-left">
+                <div class="tab-bar">
+                    <button class="tab-btn sel" onclick="switchTab('diagram',this)">Diagram</button>
+                    <button class="tab-btn" onclick="switchTab('pressure',this)">Pressure</button>
+                </div>
+                <div class="tab-content vis" id="tab-diagram">
+                    <div class="bone-vis"><canvas id="boneCv" width="280" height="120"></canvas></div>
+                </div>
+                <div class="tab-content" id="tab-pressure">
+                    <canvas id="miniHeat" width="140" height="140"></canvas>
+                </div>
+            </div>
+            <div class="analysis-right">
+                <div class="st"><div class="v" id="pAvg">0</div><div class="l">Avg kPa</div></div>
+                <div class="st"><div class="v" style="color:#c8a44e" id="pPeak">0</div><div class="l">Peak kPa</div></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="loading" id="loader"><div class="spinner"></div><div class="load-msg" id="lmsg">Loading 3D models...</div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* =============================================
+   CONFIG
+   ============================================= */
+const SEATS=[
+    {id:0,name:'Driver',label:'FL',pos:[-0.45,0,-0.55],weight:75},
+    {id:1,name:'Passenger',label:'FR',pos:[0.45,0,-0.55],weight:65},
+    {id:2,name:'Rear Left',label:'RL',pos:[-0.45,0,0.55],weight:55},
+    {id:3,name:'Rear Right',label:'RR',pos:[0.45,0,0.55],weight:80},
+];
+const COL=['#c8a44e','#e8d5a3','#8a7033','#f0e6cc'];
+const AXES=['slide','height','tilt','recline','hrH','hrT','bolster','lumbar','bBolster'];
+const PRESETS={
+    drive:  {slide:0,  height:20,tilt:2,  recline:8, hrH:30, hrT:-5, bolster:20, lumbar:40, bBolster:15},
+    sport:  {slide:30, height:0, tilt:-3, recline:3, hrH:50, hrT:-8, bolster:80, lumbar:60, bBolster:70},
+    relax:  {slide:-40,height:40,tilt:5,  recline:35,hrH:60, hrT:10, bolster:10, lumbar:50, bBolster:10},
+    entry:  {slide:-80,height:0, tilt:0,  recline:0, hrH:0,  hrT:0,  bolster:0,  lumbar:0,  bBolster:0},
+    flat:   {slide:0,  height:50,tilt:8,  recline:40,hrH:100,hrT:15, bolster:0,  lumbar:30, bBolster:0},
+    hold:   {slide:10, height:10,tilt:-2, recline:5, hrH:40, hrT:-3, bolster:90, lumbar:70, bBolster:85},
+};
+const ZERO={slide:0,height:0,tilt:0,recline:0,hrH:0,hrT:0,bolster:0,lumbar:0,bBolster:0};
+
+const seats=SEATS.map(s=>({
+    ...s, model:null, hl:null, bones:{}, rest:{},
+    p:{...ZERO}, target:null,
+    grid:new Float32Array(256), avg:0, peak:0,
+    hmC:null, hmB:null,
+}));
+
+let cur=0;
+let scene,camera,renderer,controls;
+const clock=new THREE.Clock();
+
+/* =============================================
+   AUTO-DEMO MODE
+   ============================================= */
+let demoMode=true;
+let demoTimer=null;
+let idleTimer=null;
+let activePresetName=null;
+
+function startDemo(){
+    demoTimer=setInterval(()=>{
+        const nextSeat=(cur+1)%4;
+        sel(nextSeat);
+        setTimeout(()=>{
+            const presetKeys=Object.keys(PRESETS);
+            const randomPreset=presetKeys[Math.floor(Math.random()*presetKeys.length)];
+            applyPreset(randomPreset);
+        },1000);
+    },5000);
+}
+
+function stopDemo(){
+    clearInterval(demoTimer);
+    demoTimer=null;
+}
+
+function toggleDemo(){
+    demoMode=!demoMode;
+    if(demoMode) startDemo(); else stopDemo();
+    document.getElementById('demoBtn').textContent=demoMode?'ON':'OFF';
+}
+
+function applyPreset(name){
+    seats[cur].target={...PRESETS[name]};
+    activePresetName=name;
+    const pl=document.getElementById('presetLabel');
+    pl.textContent=name.toUpperCase();
+    pl.classList.add('vis');
+    document.getElementById('presetBtns').querySelectorAll('.pb').forEach(b=>b.classList.toggle('on',b.textContent.toLowerCase()===name));
+}
+
+function userAction(){
+    if(demoMode){demoMode=false;stopDemo();document.getElementById('demoBtn').textContent='OFF'}
+    clearTimeout(idleTimer);
+    if(controls) controls.autoRotate=false;
+    idleTimer=setTimeout(()=>{if(controls) controls.autoRotate=true},10000);
+}
+
+/* =============================================
+   BOTTOM PANEL TOGGLE
+   ============================================= */
+let panelCollapsed=false;
+document.getElementById('dragHandle').addEventListener('click',()=>{
+    panelCollapsed=!panelCollapsed;
+    document.getElementById('btmPanel').classList.toggle('collapsed',panelCollapsed);
+});
+
+/* =============================================
+   THREE.JS SCENE
+   ============================================= */
+function initScene(){
+    const el=document.getElementById('c3d');
+    scene=new THREE.Scene();
+    scene.background=new THREE.Color(0x111111);
+
+    camera=new THREE.PerspectiveCamera(42,el.clientWidth/el.clientHeight,.01,100);
+    camera.position.set(2,2.5,2.8);
+
+    renderer=new THREE.WebGLRenderer({antialias:true});
+    renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+    renderer.setSize(el.clientWidth,el.clientHeight);
+    renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+    renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.6;
+    el.appendChild(renderer.domElement);
+
+    controls=new THREE.OrbitControls(camera,renderer.domElement);
+    controls.enableDamping=true;controls.dampingFactor=.08;
+    controls.target.set(0,.25,0);controls.minDistance=.5;controls.maxDistance=10;controls.maxPolarAngle=Math.PI*.85;
+    controls.autoRotate=true;controls.autoRotateSpeed=0.3;
+
+    // Stop auto-rotate on user interaction, resume after 10s idle
+    renderer.domElement.addEventListener('pointerdown',()=>{userAction()});
+
+    scene.add(new THREE.AmbientLight(0xffffff,0.8));
+    const key=new THREE.DirectionalLight(0xffeedd,2.8);
+    key.position.set(2,8,3);key.castShadow=true;
+    key.shadow.mapSize.set(2048,2048);key.shadow.camera.near=.1;key.shadow.camera.far=20;
+    key.shadow.camera.left=-3;key.shadow.camera.right=3;key.shadow.camera.top=3;key.shadow.camera.bottom=-3;key.shadow.bias=-.001;
+    scene.add(key);
+    scene.add(new THREE.DirectionalLight(0xc8d0ff,.6).translateX(-4).translateY(5).translateZ(-2));
+    scene.add(new THREE.DirectionalLight(0xffffff,.3).translateZ(-6).translateY(2));
+    scene.add(new THREE.HemisphereLight(0xfff8e7,0x111111,.5));
+
+    const grid=new THREE.GridHelper(5,24,0x222222,0x1a1a1a);
+    grid.material.opacity=.5;grid.material.transparent=true;scene.add(grid);
+    const floor=new THREE.Mesh(new THREE.PlaneGeometry(10,10),new THREE.MeshStandardMaterial({color:0x111111,roughness:.95}));
+    floor.rotation.x=-Math.PI/2;floor.position.y=-.005;floor.receiveShadow=true;scene.add(floor);
+
+    buildCar();loadGLB();
+
+    window.addEventListener('resize',()=>{
+        camera.aspect=el.clientWidth/el.clientHeight;camera.updateProjectionMatrix();
+        renderer.setSize(el.clientWidth,el.clientHeight);
+    });
+
+    const rc=new THREE.Raycaster(),v2=new THREE.Vector2();
+    renderer.domElement.addEventListener('click',e=>{
+        const r=renderer.domElement.getBoundingClientRect();
+        v2.x=((e.clientX-r.left)/r.width)*2-1;
+        v2.y=-((e.clientY-r.top)/r.height)*2+1;
+        rc.setFromCamera(v2,camera);
+        for(let i=0;i<seats.length;i++){
+            if(seats[i].model&&rc.intersectObject(seats[i].model,true).length){userAction();sel(i);break;}
+        }
+    });
+}
+
+function buildCar(){
+    const s=new THREE.Shape(),W=.8,FL=-.95,RL=.9,R=.2;
+    s.moveTo(-W+R,FL);s.lineTo(W-R,FL);s.quadraticCurveTo(W,FL,W,FL+R);
+    s.lineTo(W,RL-R);s.quadraticCurveTo(W,RL,W-R,RL);
+    s.lineTo(-W+R,RL);s.quadraticCurveTo(-W,RL,-W,RL-R);
+    s.lineTo(-W,FL+R);s.quadraticCurveTo(-W,FL,-W+R,FL);
+    const m=new THREE.Mesh(new THREE.ShapeGeometry(s),new THREE.MeshStandardMaterial({color:0x333333,transparent:true,opacity:.12,roughness:.8,side:THREE.DoubleSide}));
+    m.rotation.x=-Math.PI/2;m.position.y=.002;scene.add(m);
+    const a=new THREE.Shape();a.moveTo(-.1,-1.02);a.lineTo(0,-1.14);a.lineTo(.1,-1.02);
+    const am=new THREE.Mesh(new THREE.ShapeGeometry(a),new THREE.MeshBasicMaterial({color:0xc8a44e,transparent:true,opacity:.3,side:THREE.DoubleSide}));
+    am.rotation.x=-Math.PI/2;am.position.y=.004;scene.add(am);
+}
+
+function loadGLB(){
+    const loader=new THREE.GLTFLoader();let cnt=0;
+    seats.forEach((seat,i)=>{
+        loader.load('models/car-seat-rigged-v2.glb',gltf=>{
+            const model=gltf.scene;
+            const box=new THREE.Box3().setFromObject(model);
+            const size=box.getSize(new THREE.Vector3());
+            const center=box.getCenter(new THREE.Vector3());
+            const sc=.8/Math.max(size.x,size.y,size.z);
+            model.scale.setScalar(sc);
+            model.position.set(seat.pos[0]-center.x*sc,seat.pos[1]-box.min.y*sc,seat.pos[2]-center.z*sc);
+
+            const fp=new Set(['01 Base','02 Base rim','03 Base controls']);
+            const sp=new Set(['05 Bottom sides','07 Seat back sides']);
+            model.traverse(c=>{
+                if(c.isMesh){
+                    c.castShadow=true;c.receiveShadow=true;
+                    const n=c.name||(c.parent&&c.parent.name)||'';
+                    let col=0x2a2a2e,ro=.55,me=.04;
+                    if(fp.has(n)){col=0x18181c;ro=.25;me=.65}
+                    else if(sp.has(n)){col=0x353538;ro=.48;me=.05}
+                    if(c.material){c.material.color.setHex(col);c.material.roughness=ro;c.material.metalness=me;c.material.needsUpdate=true}
+                    if(c.isSkinnedMesh&&c.skeleton)c.skeleton.bones.forEach(b=>{if(!seat.bones[b.name])seat.bones[b.name]=b});
+                }
+                if(c.isBone&&!seat.bones[c.name])seat.bones[c.name]=c;
+            });
+
+            Object.entries(seat.bones).forEach(([n,b])=>{
+                seat.rest[n]={px:b.position.x,py:b.position.y,pz:b.position.z,rx:b.rotation.x,ry:b.rotation.y,rz:b.rotation.z};
+            });
+
+            scene.add(model);seat.model=model;
+
+            const ring=new THREE.Mesh(new THREE.RingGeometry(.28,.31,32),
+                new THREE.MeshBasicMaterial({color:new THREE.Color(COL[i]),transparent:true,opacity:0,side:THREE.DoubleSide}));
+            ring.rotation.x=-Math.PI/2;ring.position.set(seat.pos[0],.008,seat.pos[2]);
+            scene.add(ring);seat.hl=ring;
+
+            seat.hmC=mkOv(model,.22,.18,{rx:-Math.PI/2,y:1.15,z:-.45});
+            seat.hmB=mkOv(model,.18,.26,{rx:-1.1,y:2.3,z:-1.35});
+
+            cnt++;
+            document.getElementById('lmsg').textContent='Loading... '+cnt+'/4';
+            if(cnt===4){
+                hilite();
+                document.getElementById('loader').classList.add('done');
+            }
+        });
+    });
+}
+
+function mkOv(parent,w,h,p){
+    const cv=document.createElement('canvas');cv.width=64;cv.height=64;
+    const tex=new THREE.CanvasTexture(cv);tex.minFilter=THREE.LinearFilter;
+    const mesh=new THREE.Mesh(new THREE.PlaneGeometry(w,h),
+        new THREE.MeshBasicMaterial({map:tex,transparent:true,opacity:.6,side:THREE.DoubleSide,depthWrite:false}));
+    mesh.rotation.x=p.rx||0;mesh.position.set(p.x||0,p.y||0,p.z||0);
+    parent.add(mesh);
+    return{cv,tex};
+}
+
+function hilite(){
+    seats.forEach((s,i)=>{
+        const on=i===cur;
+        if(s.hl)s.hl.material.opacity=on?.65:.1;
+        if(s.model)s.model.traverse(c=>{
+            if(c.isMesh&&c.material){c.material.emissive=new THREE.Color(on?COL[i]:'#000');c.material.emissiveIntensity=on?.18:0}
+        });
+    });
+}
+
+/* =============================================
+   PRESSURE
+   ============================================= */
+function g2d(x,y,sx,sy){return Math.exp(-(x*x)/(2*sx*sx)-(y*y)/(2*sy*sy))}
+
+function simPress(s,t){
+    const w=s.weight/80,off=s.id*1.7;let sum=0,mx=0,cnt=0;
+    const bolF=s.p.bolster/100*.15;
+    for(let y=0;y<16;y++)for(let x=0;x<16;x++){
+        const nx=(x/15)*2-1,ny=(y/15)*2-1;
+        let v=(g2d(nx+.35-bolF,ny-.1,.28,.32)+g2d(nx-.35+bolF,ny-.1,.28,.32)+g2d(nx+.3-bolF,ny+.25,.22,.4)*.35+g2d(nx-.3+bolF,ny+.25,.22,.4)*.35)*w;
+        v+=Math.sin((t+off)*.3)*.01+(Math.random()-.5)*.005;
+        v=Math.max(0,Math.min(1,v));
+        s.grid[y*16+x]=v;
+        if(v>.01){sum+=v;cnt++;mx=Math.max(mx,v)}
+    }
+    s.avg=cnt>0?(sum/cnt*100):0;s.peak=mx*100;
+}
+
+function updOv(s){
+    [s.hmC,s.hmB].forEach(ov=>{
+        if(!ov)return;
+        const ctx=ov.cv.getContext('2d');ctx.clearRect(0,0,64,64);
+        if(s.weight<1){ov.tex.needsUpdate=true;return}
+        for(let y=0;y<16;y++)for(let x=0;x<16;x++){
+            const v=s.grid[y*16+x];
+            if(v>.02){ctx.fillStyle=pRGBA(v);ctx.fillRect(x*4,y*4,4,4)}
+        }
+        ov.tex.needsUpdate=true;
+    });
+}
+
+/* =============================================
+   9-AXIS BONE CONTROL
+   ============================================= */
+function setPose(axis,val){
+    seats[cur].p[axis]=val;
+    applyBone(seats[cur],axis,val);
+    syncSliders();
+}
+
+function applyBone(s,axis,val){
+    const R=s.rest,B=s.bones,d=THREE.MathUtils.degToRad;
+    switch(axis){
+        case'slide':   if(B.Slide&&R.Slide)       B.Slide.position.z   =R.Slide.pz    -(val/100)*.5; break;
+        case'height':  if(B.Cushion&&R.Cushion)    B.Cushion.position.y =R.Cushion.py  +(val/100)*.3; break;
+        case'tilt':    if(B.Cushion&&R.Cushion)    B.Cushion.rotation.x =R.Cushion.rx  +d(val); break;
+        case'recline': if(B.Backrest&&R.Backrest)  B.Backrest.rotation.x=R.Backrest.rx +d(val); break;
+        case'hrH':     if(B.Headrest&&R.Headrest)  B.Headrest.position.y=R.Headrest.py +(val/100)*.5; break;
+        case'hrT':     if(B.Headrest&&R.Headrest)  B.Headrest.rotation.x=R.Headrest.rx +d(val); break;
+        case'bolster':
+            if(B.BolsterL&&R.BolsterL) B.BolsterL.position.x=R.BolsterL.px+(val/100)*.15;
+            if(B.BolsterR&&R.BolsterR) B.BolsterR.position.x=R.BolsterR.px-(val/100)*.15;
+            break;
+        case'lumbar':
+            if(B.Lumbar&&R.Lumbar) B.Lumbar.position.z=R.Lumbar.pz-(val/100)*.3;
+            break;
+        case'bBolster':
+            if(B.BackBolsterL&&R.BackBolsterL) B.BackBolsterL.position.x=R.BackBolsterL.px+(val/100)*.12;
+            if(B.BackBolsterR&&R.BackBolsterR) B.BackBolsterR.position.x=R.BackBolsterR.px-(val/100)*.12;
+            break;
+    }
+}
+
+function animTargets(dt){
+    seats.forEach(s=>{
+        if(!s.target)return;
+        let done=true;
+        AXES.forEach(k=>{
+            const diff=s.target[k]-s.p[k];
+            if(Math.abs(diff)>.3){s.p[k]+=diff*dt*5;done=false}
+            else s.p[k]=s.target[k];
+            applyBone(s,k,s.p[k]);
+        });
+        if(done)s.target=null;
+    });
+}
+
+function goPreset(name,btn){
+    document.getElementById('presetBtns').querySelectorAll('.pb').forEach(b=>b.classList.remove('on'));
+    btn.classList.add('on');
+    seats[cur].target={...PRESETS[name]};
+    activePresetName=name;
+    const pl=document.getElementById('presetLabel');
+    pl.textContent=name.toUpperCase();
+    pl.classList.add('vis');
+}
+
+function resetPose(){
+    seats[cur].target={...ZERO};
+    activePresetName=null;
+    document.getElementById('presetBtns').querySelectorAll('.pb').forEach(b=>b.classList.remove('on'));
+    document.getElementById('presetLabel').classList.remove('vis');
+    toast('Reset to default');
+}
+
+/* =============================================
+   UI
+   ============================================= */
+function sel(i){
+    cur=i;hilite();syncSliders();
+    document.querySelectorAll('.seat-pill').forEach((d,j)=>d.classList.toggle('sel',j===i));
+    document.getElementById('seatLabel').textContent=seats[i].label;
+    document.getElementById('seatLabel').style.color=COL[i];
+    document.getElementById('seatName').textContent=seats[i].name;
+    document.getElementById('wSl').value=seats[i].weight;
+    document.getElementById('wVal').textContent=seats[i].weight+' kg';
+    document.getElementById('presetBtns').querySelectorAll('.pb').forEach(b=>b.classList.remove('on'));
+    activePresetName=null;
+    document.getElementById('presetLabel').classList.remove('vis');
+}
+
+function syncSliders(){
+    const p=seats[cur].p;
+    document.getElementById('sSlide').value=p.slide;   document.getElementById('vSlide').textContent=Math.round(p.slide);
+    document.getElementById('sHeight').value=p.height;  document.getElementById('vHeight').textContent=Math.round(p.height);
+    document.getElementById('sTilt').value=p.tilt;      document.getElementById('vTilt').textContent=Math.round(p.tilt)+'°';
+    document.getElementById('sRecline').value=p.recline; document.getElementById('vRecline').textContent=Math.round(p.recline)+'°';
+    document.getElementById('sHrH').value=p.hrH;        document.getElementById('vHrH').textContent=Math.round(p.hrH);
+    document.getElementById('sHrT').value=p.hrT;        document.getElementById('vHrT').textContent=Math.round(p.hrT)+'°';
+    document.getElementById('sBol').value=p.bolster;    document.getElementById('vBol').textContent=Math.round(p.bolster)+'%';
+    document.getElementById('sLum').value=p.lumbar;     document.getElementById('vLum').textContent=Math.round(p.lumbar)+'%';
+    document.getElementById('sBBol').value=p.bBolster;  document.getElementById('vBBol').textContent=Math.round(p.bBolster)+'%';
+}
+
+function updStats(){
+    const s=seats[cur];
+    document.getElementById('pAvg').textContent=s.avg.toFixed(1);
+    document.getElementById('pPeak').textContent=s.peak.toFixed(1);
+    const cv=document.getElementById('miniHeat'),ctx=cv.getContext('2d');
+    ctx.clearRect(0,0,cv.width,cv.height);
+    const cellW=cv.width/16,cellH=cv.height/16;
+    for(let y=0;y<16;y++)for(let x=0;x<16;x++){
+        const v=s.grid[y*16+x];
+        if(v>.01){ctx.fillStyle=pRGBA(v);ctx.fillRect(x*cellW,y*cellH,cellW,cellH)}
+    }
+}
+
+function setWt(w){seats[cur].weight=w;document.getElementById('wVal').textContent=w+' kg'}
+
+function switchTab(name,btn){
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('sel'));
+    btn.classList.add('sel');
+    document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('vis'));
+    document.getElementById('tab-'+name).classList.add('vis');
+}
+
+/* =============================================
+   BONE DIAGRAM
+   ============================================= */
+function drawBoneDiagram(){
+    const cv=document.getElementById('boneCv'),ctx=cv.getContext('2d');
+    const W=cv.width,H=cv.height,p=seats[cur].p;
+    ctx.clearRect(0,0,W,H);
+    const dim='#555555';
+
+    // Side View
+    const ox=75,oy=95;
+    ctx.fillStyle=dim;ctx.font='600 7px Inter';ctx.textAlign='center';
+    ctx.fillText('SIDE',75,10);
+    ctx.fillStyle=dim;ctx.fillRect(ox-25,oy-2,50,4);
+
+    const slideOff=-(p.slide/100)*25,sx=ox+slideOff;
+    const cushH=-(p.height/100)*18,cushY=oy-8+cushH;
+    const tiltRad=p.tilt*Math.PI/180;
+
+    ctx.save();ctx.translate(sx,cushY);ctx.rotate(-tiltRad);
+    ctx.fillStyle='rgba(200,164,78,.15)';ctx.fillRect(-20,-3,40,6);
+    ctx.strokeStyle='#c8a44e';ctx.lineWidth=1.5;ctx.strokeRect(-20,-3,40,6);
+    ctx.restore();
+
+    const bx=sx-10,by=cushY-5;
+    const recRad=(20+p.recline)*Math.PI/180,bLen=38;
+    const btx=bx-Math.sin(recRad)*bLen,bty=by-Math.cos(recRad)*bLen;
+    ctx.strokeStyle='#e8d5a3';ctx.lineWidth=3;ctx.lineCap='round';
+    ctx.beginPath();ctx.moveTo(bx,by);ctx.lineTo(btx,bty);ctx.stroke();
+    ctx.fillStyle='#c8a44e';ctx.beginPath();ctx.arc(bx,by,3,0,Math.PI*2);ctx.fill();
+
+    if(p.lumbar>1){
+        const lFrac=.35,lx=bx-Math.sin(recRad)*bLen*lFrac,ly=by-Math.cos(recRad)*bLen*lFrac;
+        const push=p.lumbar/100*8,nx=Math.cos(recRad)*push,ny=-Math.sin(recRad)*push;
+        ctx.fillStyle='rgba(200,164,78,.3)';ctx.beginPath();ctx.arc(lx+nx,ly+ny,4+push*.3,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle='#c8a44e';ctx.beginPath();ctx.arc(lx+nx,ly+ny,2,0,Math.PI*2);ctx.fill();
+    }
+
+    const hrOff=(p.hrH/100)*12,hrTR=p.hrT*Math.PI/180;
+    const hx=btx-Math.sin(recRad)*hrOff,hy=bty-Math.cos(recRad)*hrOff;
+    ctx.save();ctx.translate(hx,hy);ctx.rotate(-recRad-hrTR);
+    ctx.fillStyle='rgba(200,164,78,.15)';ctx.fillRect(-7,-4,14,8);
+    ctx.strokeStyle='#e8d5a3';ctx.lineWidth=1.2;ctx.strokeRect(-7,-4,14,8);
+    ctx.restore();
+
+    // Front View
+    const cx=200,cy=62;
+    ctx.fillStyle=dim;ctx.font='600 7px Inter';ctx.textAlign='center';
+    ctx.fillText('FRONT',200,10);
+
+    const cw=50,ch=12;
+    ctx.fillStyle='rgba(200,164,78,.1)';ctx.fillRect(cx-cw/2,cy-ch/2,cw,ch);
+    ctx.strokeStyle='#c8a44e';ctx.lineWidth=1;ctx.strokeRect(cx-cw/2,cy-ch/2,cw,ch);
+
+    const bolS=p.bolster/100*10;
+    ctx.fillStyle='rgba(138,112,51,.3)';
+    ctx.fillRect(cx-cw/2-6+bolS,cy-ch/2-2,6,ch+4);ctx.strokeStyle='#8a7033';ctx.lineWidth=1;ctx.strokeRect(cx-cw/2-6+bolS,cy-ch/2-2,6,ch+4);
+    ctx.fillStyle='rgba(138,112,51,.3)';
+    ctx.fillRect(cx+cw/2-bolS,cy-ch/2-2,6,ch+4);ctx.strokeStyle='#8a7033';ctx.lineWidth=1;ctx.strokeRect(cx+cw/2-bolS,cy-ch/2-2,6,ch+4);
+    if(p.bolster>5){ctx.fillStyle='#8a7033';ctx.font='bold 9px Inter';ctx.fillText('\u2192',cx-cw/2-12+bolS,cy+3);ctx.fillText('\u2190',cx+cw/2+6-bolS,cy+3)}
+
+    const bcy=cy-30,bcw=44,bch=26;
+    ctx.fillStyle='rgba(200,164,78,.06)';ctx.fillRect(cx-bcw/2,bcy-bch/2,bcw,bch);
+    ctx.strokeStyle='#e8d5a3';ctx.lineWidth=1;ctx.strokeRect(cx-bcw/2,bcy-bch/2,bcw,bch);
+    const bbS=p.bBolster/100*8;
+    ctx.fillStyle='rgba(232,213,163,.2)';
+    ctx.fillRect(cx-bcw/2-5+bbS,bcy-bch/2-1,5,bch+2);ctx.strokeStyle='#e8d5a3';ctx.lineWidth=1;ctx.strokeRect(cx-bcw/2-5+bbS,bcy-bch/2-1,5,bch+2);
+    ctx.fillStyle='rgba(232,213,163,.2)';
+    ctx.fillRect(cx+bcw/2-bbS,bcy-bch/2-1,5,bch+2);ctx.strokeStyle='#e8d5a3';ctx.lineWidth=1;ctx.strokeRect(cx+bcw/2-bbS,bcy-bch/2-1,5,bch+2);
+
+    if(p.lumbar>1){
+        const lPush=p.lumbar/100*6;
+        ctx.fillStyle='rgba(200,164,78,.3)';ctx.beginPath();ctx.arc(cx,bcy+bch/4+2,3+lPush*.5,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle='#c8a44e';ctx.beginPath();ctx.arc(cx,bcy+bch/4+2,2,0,Math.PI*2);ctx.fill();
+    }
+
+    ctx.fillStyle=dim;ctx.font='500 7px Inter';ctx.textAlign='center';
+    ctx.fillText('Cushion',cx,cy+16);ctx.fillText('Backrest',cx,bcy-bch/2-4);
+
+    ctx.strokeStyle='rgba(255,255,255,.06)';ctx.lineWidth=1;ctx.setLineDash([3,3]);
+    ctx.beginPath();ctx.moveTo(135,15);ctx.lineTo(135,H-5);ctx.stroke();ctx.setLineDash([]);
+}
+
+/* =============================================
+   COLORS & UTILS
+   ============================================= */
+function pRGBA(t){
+    t=Math.max(0,Math.min(1,t));let r,g,b;
+    if(t<.25){const f=t/.25;r=0;g=Math.round(f*255);b=255}
+    else if(t<.5){const f=(t-.25)/.25;r=0;g=255;b=Math.round(255*(1-f))}
+    else if(t<.75){const f=(t-.5)/.25;r=Math.round(255*f);g=255;b=0}
+    else{const f=(t-.75)/.25;r=255;g=Math.round(255*(1-f));b=0}
+    return'rgba('+r+','+g+','+b+','+(0.3+t*.7)+')';
+}
+
+let tt;
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),2000)}
+function drawLeg(){const ctx=document.getElementById('legCv').getContext('2d');for(let x=0;x<130;x++){ctx.fillStyle=pRGBA(x/130);ctx.fillRect(x,0,1,8)}}
+
+/* =============================================
+   LOOP
+   ============================================= */
+let lastUI=0;
+function animate(){
+    requestAnimationFrame(animate);
+    const dt=Math.min(clock.getDelta(),.1),t=clock.getElapsedTime();
+
+    seats.forEach(s=>{simPress(s,t);updOv(s)});
+    animTargets(dt);
+    if(seats[cur].target)syncSliders();
+
+    if(t-lastUI>.2){updStats();drawBoneDiagram();lastUI=t}
+    controls.update();renderer.render(scene,camera);
+}
+
+/* =============================================
+   INIT
+   ============================================= */
+initScene();drawLeg();syncSliders();animate();startDemo();
+</script>
+</body>
+</html>
