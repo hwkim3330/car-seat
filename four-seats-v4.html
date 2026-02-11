@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KETI — Smart Seat 10-Bone Control</title>
+<script src="libs/three.min.js"></script>
+<script src="libs/OrbitControls.js"></script>
+<script src="libs/GLTFLoader.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+    --bg:#f5f5f7;--surface:rgba(255,255,255,.82);--card:#fff;
+    --border:rgba(0,0,0,.06);--text:#1d1d1f;--text2:#6e6e73;--text3:#aeaeb2;
+    --accent:#007aff;--dim:rgba(0,122,255,.1);
+    --green:#34c759;--red:#ff3b30;--orange:#ff9f0a;--purple:#af52de;--cyan:#64d2ff;--pink:#ff6482;--teal:#30b0c7;
+    --scene:#f0f0f2;
+}
+body.dark{
+    --bg:#0c0c10;--surface:rgba(255,255,255,.04);--card:rgba(255,255,255,.06);
+    --border:rgba(255,255,255,.06);--text:#e8e8ed;--text2:#86868b;--text3:#48484a;
+    --accent:#0a84ff;--dim:rgba(10,132,255,.15);--scene:#0c0c10;
+}
+body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var(--text);overflow:hidden;-webkit-font-smoothing:antialiased}
+.app{display:flex;flex-direction:column;height:100vh}
+
+.hdr{height:46px;flex-shrink:0;background:var(--card);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 20px;z-index:10}
+.hdr-l{display:flex;align-items:center;gap:10px}
+.hdr-l img{height:22px;opacity:.85}
+.hdr-l h1{font-size:13px;font-weight:600;letter-spacing:-.3px}
+.tag{font-size:8px;font-weight:700;color:var(--accent);background:var(--dim);padding:2px 6px;border-radius:4px;letter-spacing:.5px}
+.hdr-r{display:flex;gap:6px;align-items:center}
+.btn{padding:5px 10px;border-radius:8px;border:none;background:rgba(0,0,0,.04);color:var(--text);font-size:11px;font-weight:500;font-family:inherit;cursor:pointer;display:inline-flex;align-items:center;gap:4px;transition:all .15s}
+body.dark .btn{background:rgba(255,255,255,.06)}
+.btn:hover{opacity:.8}.btn:active{transform:scale(.97)}
+
+.content{flex:1;display:flex;overflow:hidden}
+.panel{flex-shrink:0;overflow-y:auto;background:var(--surface);backdrop-filter:blur(20px)}
+.panel::-webkit-scrollbar{width:3px}.panel::-webkit-scrollbar-thumb{background:rgba(0,0,0,.08);border-radius:2px}
+.lp{width:220px;border-right:1px solid var(--border)}
+.rp{width:290px;border-left:1px solid var(--border)}
+.sec{padding:12px 14px}.sec+.sec{border-top:1px solid var(--border)}
+.sec-t{font-size:9px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px;display:flex;align-items:center;gap:5px}
+.sec-t i{font-size:8px}
+
+.car-tv{position:relative;width:180px;height:130px;margin:0 auto 4px;background:rgba(0,0,0,.015);border-radius:12px;border:1px solid var(--border)}
+body.dark .car-tv{background:rgba(255,255,255,.02)}
+.car-fl{position:absolute;top:5px;left:50%;transform:translateX(-50%);font-size:7px;font-weight:700;color:var(--text3);letter-spacing:1px}
+.cdot{position:absolute;width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;cursor:pointer;transition:all .2s;border:2px solid transparent;background:rgba(52,199,89,.12);color:#248a3d}
+body.dark .cdot{background:rgba(48,209,88,.15);color:#30d158}
+.cdot:hover{transform:scale(1.06)}.cdot.sel{border-color:var(--accent);box-shadow:0 0 0 3px var(--dim)}
+
+.sc{padding:7px 10px;border-radius:10px;cursor:pointer;background:var(--card);border:1.5px solid transparent;margin-bottom:3px;display:flex;align-items:center;gap:8px;transition:all .15s}
+.sc:hover{box-shadow:0 1px 6px rgba(0,0,0,.05)}.sc.sel{border-color:var(--accent)}
+.sc-ico{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:11px}
+.sc-name{font-size:11px;font-weight:600}.sc-sub{font-size:9px;color:var(--text2);margin-top:1px}
+
+.ctrl{margin-bottom:8px}
+.ctrl-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:2px}
+.ctrl-label{font-size:10px;color:var(--text2);font-weight:500;display:flex;align-items:center;gap:5px}
+.ctrl-label i{width:12px;text-align:center;font-size:10px}
+.ctrl-val{font-size:10px;font-weight:700;font-variant-numeric:tabular-nums;min-width:36px;text-align:right}
+input[type=range]{width:100%;height:4px;appearance:none;-webkit-appearance:none;background:#e5e5ea;border-radius:2px;outline:none;cursor:pointer}
+body.dark input[type=range]{background:rgba(255,255,255,.08)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:white;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.15),0 0 0 1px rgba(0,0,0,.04)}
+
+.g6{display:grid;grid-template-columns:repeat(6,1fr);gap:4px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}
+.pb{padding:6px 4px;border-radius:8px;border:none;background:rgba(0,0,0,.03);color:#3a3a3c;font-size:9px;font-weight:600;cursor:pointer;text-align:center;transition:all .15s;font-family:inherit}
+body.dark .pb{background:rgba(255,255,255,.06);color:var(--text2)}
+.pb:hover{opacity:.8}.pb.on{background:var(--accent);color:white}
+
+.sg{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+.st{background:var(--card);border-radius:8px;padding:8px;border:1px solid var(--border)}
+.st .v{font-size:16px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.3px}
+.st .l{font-size:7px;color:var(--text3);margin-top:1px;text-transform:uppercase;letter-spacing:.3px;font-weight:600}
+
+.cv-wrap{flex:1;position:relative;background:var(--scene)}
+#c3d{width:100%;height:100%}
+.legend{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);background:var(--card);backdrop-filter:blur(16px);border:1px solid var(--border);border-radius:10px;padding:6px 12px;display:flex;align-items:center;gap:8px;z-index:5}
+.legend .lt{font-size:9px;color:var(--text2);font-weight:600}
+.legend .ll{display:flex;justify-content:space-between;width:130px;font-size:7px;color:var(--text3);font-weight:500}
+
+.bone-info{font-size:9px;color:var(--text2);text-align:center;margin-top:6px;font-weight:500}
+#miniHeat{width:100%;border-radius:8px;border:1px solid var(--border);background:var(--bg)}
+.bone-vis{background:var(--card);border-radius:10px;border:1px solid var(--border);padding:10px}
+.bone-vis canvas{display:block;margin:0 auto}
+
+.loading{position:fixed;inset:0;background:rgba(255,255,255,.92);backdrop-filter:blur(20px);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:100;transition:opacity .5s}
+body.dark .loading{background:rgba(12,12,16,.95)}
+.loading.done{opacity:0;pointer-events:none}
+.spinner{width:32px;height:32px;border:2.5px solid rgba(0,0,0,.06);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.load-msg{margin-top:12px;font-size:12px;color:var(--text2);font-weight:500}
+.toast{position:fixed;bottom:16px;right:16px;background:var(--card);backdrop-filter:blur(16px);border:1px solid var(--border);border-radius:10px;padding:8px 16px;font-size:11px;color:var(--text);font-weight:500;z-index:50;opacity:0;transform:translateY(8px);transition:all .25s;pointer-events:none}
+.toast.show{opacity:1;transform:translateY(0)}
+.footer{padding:10px 14px;text-align:center;font-size:8px;color:var(--text3);border-top:1px solid var(--border)}
+</style>
+</head>
+<body>
+<div class="app">
+    <div class="hdr">
+        <div class="hdr-l">
+            <img src="keti.png" alt="KETI">
+            <h1>Smart Seat 3D Control</h1>
+            <span class="tag">10-BONE</span>
+        </div>
+        <div class="hdr-r">
+            <button class="btn" onclick="toggleDark()"><i class="fas fa-moon"></i></button>
+            <button class="btn" onclick="screenshot()"><i class="fas fa-camera"></i></button>
+        </div>
+    </div>
+    <div class="content">
+        <!-- LEFT -->
+        <div class="panel lp">
+            <div class="sec">
+                <div class="sec-t"><i class="fas fa-car"></i> Layout</div>
+                <div class="car-tv">
+                    <svg viewBox="0 0 180 130" fill="none"><rect x="24" y="14" width="132" height="102" rx="22" stroke="var(--border)" stroke-width="1.5"/><path d="M80 8 L90 2 L100 8" stroke="var(--text3)" stroke-width="1" fill="none" stroke-linecap="round"/></svg>
+                    <div class="car-fl">FRONT</div>
+                    <div class="cdot sel" id="d0" style="top:22px;left:36px" onclick="sel(0)">FL</div>
+                    <div class="cdot" id="d1" style="top:22px;right:28px" onclick="sel(1)">FR</div>
+                    <div class="cdot" id="d2" style="bottom:14px;left:36px" onclick="sel(2)">RL</div>
+                    <div class="cdot" id="d3" style="bottom:14px;right:28px" onclick="sel(3)">RR</div>
+                </div>
+            </div>
+            <div class="sec">
+                <div class="sec-t"><i class="fas fa-chair"></i> Seats</div>
+                <div id="cards"></div>
+            </div>
+            <div class="sec">
+                <div class="sec-t"><i class="fas fa-video"></i> Camera</div>
+                <div class="g4">
+                    <button class="pb" onclick="camTo('top')">Top</button>
+                    <button class="pb" onclick="camTo('front')">Front</button>
+                    <button class="pb" onclick="camTo('side')">Side</button>
+                    <button class="pb on" onclick="camTo('3q')">3/4</button>
+                </div>
+            </div>
+            <div class="sec">
+                <div class="sec-t"><i class="fas fa-weight-hanging"></i> Occupant</div>
+                <div class="ctrl" style="margin-bottom:0">
+                    <div class="ctrl-row"><span class="ctrl-label">Weight</span><span class="ctrl-val" id="wVal">75 kg</span></div>
+                    <input type="range" min="0" max="130" value="75" id="wSl" oninput="setWt(+this.value)">
+                </div>
+            </div>
+            <div class="footer">KETI — Korea Electronics Technology Institute</div>
+        </div>
+
+        <!-- 3D -->
+        <div class="cv-wrap">
+            <div id="c3d"></div>
+            <div class="legend">
+                <span class="lt">Pressure</span>
+                <div><canvas id="legCv" width="130" height="8" style="border-radius:4px;display:block"></canvas>
+                <div class="ll"><span>0</span><span>50</span><span>100 kPa</span></div></div>
+            </div>
+        </div>
+
+        <!-- RIGHT -->
+        <div class="panel rp">
+            <div class="sec">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                    <div class="sec-t" style="margin-bottom:0"><i class="fas fa-arrows-alt"></i> Position — <span id="posLabel">FL Driver</span></div>
+                    <button class="btn" onclick="resetPose()" style="font-size:9px;color:var(--red);padding:3px 8px"><i class="fas fa-undo"></i></button>
+                </div>
+                <div class="ctrl"><div class="ctrl-row"><span class="ctrl-label"><i class="fas fa-arrows-alt-h" style="color:var(--accent)"></i> Fore / Aft</span><span class="ctrl-val" id="vSlide">0</span></div><input type="range" min="-100" max="100" value="0" id="sSlide" oninput="setPose('slide',+this.value)"></div>
+                <div class="ctrl"><div class="ctrl-row"><span class="ctrl-label"><i class="fas fa-arrows-alt-v" style="color:var(--green)"></i> Height</span><span class="ctrl-val" id="vHeight">0</span></div><input type="range" min="0" max="100" value="0" id="sHeight" oninput="setPose('height',+this.value)"></div>
+                <div class="ctrl"><div class="ctrl-row"><span class="ctrl-label"><i class="fas fa-angle-double-down" style="color:var(--orange)"></i> Seat Tilt</span><span class="ctrl-val" id="vTilt">0°</span></div><input type="range" min="-10" max="10" value="0" id="sTilt" oninput="setPose('tilt',+this.value)"></div>
+                <div class="ctrl"><div class="ctrl-row"><span class="ctrl-label"><i class="fas fa-couch" style="color:var(--purple)"></i> Recline</span><span class="ctrl-val" id="vRecline">0°</span></div><input type="range" min="0" max="40" value="0" id="sRecline" oninput="setPose('recline',+this.value)"></div>
+                <div class="ctrl"><div class="ctrl-row"><span class="ctrl-label"><i class="fas fa-arrow-up" style="color:var(--pink)"></i> Headrest ↕</span><span class="ctrl-val" id="vHrH">0</span></div><input type="range" min="0" max="100" value="0" id="sHrH" oninput="setPose('hrH',+this.value)"></div>
+                <div class="ctrl"><div class="ctrl-row"><span class="ctrl-label"><i class="fas fa-redo" style="color:var(--cyan)"></i> Headrest Tilt</span><span class="ctrl-val" id="vHrT">0°</span></div><input type="range" min="-15" max="15" value="0" id="sHrT" oninput="setPose('hrT',+this.value)"></div>
+            </div>
+            <div class="sec">
+                <div class="sec-t"><i class="fas fa-compress-arrows-alt"></i> Support</div>
+                <div class="ctrl"><div class="ctrl-row"><span class="ctrl-label"><i class="fas fa-compress-alt" style="color:var(--teal)"></i> Seat Bolster</span><span class="ctrl-val" id="vBol">0%</span></div><input type="range" min="0" max="100" value="0" id="sBol" oninput="setPose('bolster',+this.value)"></div>
+                <div class="ctrl"><div class="ctrl-row"><span class="ctrl-label"><i class="fas fa-hand-point-up" style="color:var(--red)"></i> Lumbar</span><span class="ctrl-val" id="vLum">0%</span></div><input type="range" min="0" max="100" value="0" id="sLum" oninput="setPose('lumbar',+this.value)"></div>
+                <div class="ctrl"><div class="ctrl-row"><span class="ctrl-label"><i class="fas fa-shield-alt" style="color:var(--purple)"></i> Back Bolster</span><span class="ctrl-val" id="vBBol">0%</span></div><input type="range" min="0" max="100" value="0" id="sBBol" oninput="setPose('bBolster',+this.value)"></div>
+            </div>
+            <div class="sec">
+                <div class="sec-t"><i class="fas fa-bookmark"></i> Presets</div>
+                <div class="g6" id="presetBtns">
+                    <button class="pb" onclick="goPreset('drive',this)">Drive</button>
+                    <button class="pb" onclick="goPreset('sport',this)">Sport</button>
+                    <button class="pb" onclick="goPreset('relax',this)">Relax</button>
+                    <button class="pb" onclick="goPreset('entry',this)">Entry</button>
+                    <button class="pb" onclick="goPreset('flat',this)">Flat</button>
+                    <button class="pb" onclick="goPreset('hold',this)">Hold</button>
+                </div>
+            </div>
+            <div class="sec">
+                <div class="sec-t"><i class="fas fa-bone"></i> Bone Diagram</div>
+                <div class="bone-vis"><canvas id="boneCv" width="250" height="140"></canvas></div>
+                <div class="bone-info" id="boneInfo">10 bones · 9 axes · v2 GLB</div>
+            </div>
+            <div class="sec">
+                <div class="sec-t"><i class="fas fa-th"></i> Pressure</div>
+                <div class="sg" style="margin-bottom:6px">
+                    <div class="st"><div class="v" id="pAvg">0</div><div class="l">Avg kPa</div></div>
+                    <div class="st"><div class="v" style="color:var(--orange)" id="pPeak">0</div><div class="l">Peak kPa</div></div>
+                </div>
+                <canvas id="miniHeat" width="160" height="160"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="loading" id="loader"><div class="spinner"></div><div class="load-msg" id="lmsg">Loading 3D models...</div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ═══════════════════════════════════════════
+   CONFIG — 10-bone seat with 9 control axes
+   ═══════════════════════════════════════════ */
+const SEATS=[
+    {id:0,name:'Driver',label:'FL',pos:[-0.45,0,-0.55],weight:75},
+    {id:1,name:'Passenger',label:'FR',pos:[0.45,0,-0.55],weight:65},
+    {id:2,name:'Rear Left',label:'RL',pos:[-0.45,0,0.55],weight:55},
+    {id:3,name:'Rear Right',label:'RR',pos:[0.45,0,0.55],weight:80},
+];
+const COL=['#007aff','#34c759','#ff9f0a','#af52de'];
+const AXES=['slide','height','tilt','recline','hrH','hrT','bolster','lumbar','bBolster'];
+const PRESETS={
+    drive:  {slide:0,  height:20,tilt:2,  recline:8, hrH:30, hrT:-5, bolster:20, lumbar:40, bBolster:15},
+    sport:  {slide:30, height:0, tilt:-3, recline:3, hrH:50, hrT:-8, bolster:80, lumbar:60, bBolster:70},
+    relax:  {slide:-40,height:40,tilt:5,  recline:35,hrH:60, hrT:10, bolster:10, lumbar:50, bBolster:10},
+    entry:  {slide:-80,height:0, tilt:0,  recline:0, hrH:0,  hrT:0,  bolster:0,  lumbar:0,  bBolster:0},
+    flat:   {slide:0,  height:50,tilt:8,  recline:40,hrH:100,hrT:15, bolster:0,  lumbar:30, bBolster:0},
+    hold:   {slide:10, height:10,tilt:-2, recline:5, hrH:40, hrT:-3, bolster:90, lumbar:70, bBolster:85},
+};
+const ZERO={slide:0,height:0,tilt:0,recline:0,hrH:0,hrT:0,bolster:0,lumbar:0,bBolster:0};
+
+const seats=SEATS.map(s=>({
+    ...s, model:null, hl:null, bones:{}, rest:{},
+    p:{...ZERO}, target:null,
+    grid:new Float32Array(256), avg:0, peak:0,
+    hmC:null, hmB:null,
+}));
+
+let cur=0;
+let scene,camera,renderer,controls;
+const clock=new THREE.Clock();
+
+/* ═══════════════════════════════════════════
+   THREE.JS SCENE
+   ═══════════════════════════════════════════ */
+function initScene(){
+    const el=document.getElementById('c3d');
+    scene=new THREE.Scene();
+    scene.background=new THREE.Color(0xf0f0f2);
+
+    camera=new THREE.PerspectiveCamera(42,el.clientWidth/el.clientHeight,.01,100);
+    camera.position.set(1.8,2.8,3.0);
+
+    renderer=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});
+    renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+    renderer.setSize(el.clientWidth,el.clientHeight);
+    renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+    renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.8;
+    el.appendChild(renderer.domElement);
+
+    controls=new THREE.OrbitControls(camera,renderer.domElement);
+    controls.enableDamping=true;controls.dampingFactor=.08;
+    controls.target.set(0,.25,0);controls.minDistance=.5;controls.maxDistance=10;controls.maxPolarAngle=Math.PI*.85;
+
+    scene.add(new THREE.AmbientLight(0xffffff,1.2));
+    const key=new THREE.DirectionalLight(0xffffff,2.2);
+    key.position.set(2,8,3);key.castShadow=true;
+    key.shadow.mapSize.set(2048,2048);key.shadow.camera.near=.1;key.shadow.camera.far=20;
+    key.shadow.camera.left=-3;key.shadow.camera.right=3;key.shadow.camera.top=3;key.shadow.camera.bottom=-3;key.shadow.bias=-.001;
+    scene.add(key);
+    scene.add(new THREE.DirectionalLight(0xc8d0ff,.8).translateX(-4).translateY(5).translateZ(-2));
+    scene.add(new THREE.DirectionalLight(0xffffff,.5).translateZ(-6).translateY(2));
+    scene.add(new THREE.HemisphereLight(0xffffff,0xe8e8ea,.6));
+
+    const grid=new THREE.GridHelper(5,24,0xccccce,0xdddddf);
+    grid.material.opacity=.4;grid.material.transparent=true;scene.add(grid);
+    const floor=new THREE.Mesh(new THREE.PlaneGeometry(10,10),new THREE.MeshStandardMaterial({color:0xe8e8ea,roughness:.85}));
+    floor.rotation.x=-Math.PI/2;floor.position.y=-.005;floor.receiveShadow=true;scene.add(floor);
+
+    buildCar();loadGLB();
+
+    window.addEventListener('resize',()=>{
+        camera.aspect=el.clientWidth/el.clientHeight;camera.updateProjectionMatrix();
+        renderer.setSize(el.clientWidth,el.clientHeight);
+    });
+
+    const rc=new THREE.Raycaster(),v2=new THREE.Vector2();
+    renderer.domElement.addEventListener('click',e=>{
+        const r=renderer.domElement.getBoundingClientRect();
+        v2.x=((e.clientX-r.left)/r.width)*2-1;
+        v2.y=-((e.clientY-r.top)/r.height)*2+1;
+        rc.setFromCamera(v2,camera);
+        for(let i=0;i<seats.length;i++){
+            if(seats[i].model&&rc.intersectObject(seats[i].model,true).length){sel(i);break;}
+        }
+    });
+}
+
+function buildCar(){
+    const s=new THREE.Shape(),W=.8,FL=-.95,RL=.9,R=.2;
+    s.moveTo(-W+R,FL);s.lineTo(W-R,FL);s.quadraticCurveTo(W,FL,W,FL+R);
+    s.lineTo(W,RL-R);s.quadraticCurveTo(W,RL,W-R,RL);
+    s.lineTo(-W+R,RL);s.quadraticCurveTo(-W,RL,-W,RL-R);
+    s.lineTo(-W,FL+R);s.quadraticCurveTo(-W,FL,-W+R,FL);
+    const m=new THREE.Mesh(new THREE.ShapeGeometry(s),new THREE.MeshStandardMaterial({color:0xc0c0c2,transparent:true,opacity:.18,roughness:.8,side:THREE.DoubleSide}));
+    m.rotation.x=-Math.PI/2;m.position.y=.002;scene.add(m);
+    const a=new THREE.Shape();a.moveTo(-.1,-1.02);a.lineTo(0,-1.14);a.lineTo(.1,-1.02);
+    const am=new THREE.Mesh(new THREE.ShapeGeometry(a),new THREE.MeshBasicMaterial({color:0x007aff,transparent:true,opacity:.35,side:THREE.DoubleSide}));
+    am.rotation.x=-Math.PI/2;am.position.y=.004;scene.add(am);
+}
+
+function loadGLB(){
+    const loader=new THREE.GLTFLoader();let cnt=0;
+    seats.forEach((seat,i)=>{
+        loader.load('models/car-seat-rigged-v2.glb',gltf=>{
+            const model=gltf.scene;
+            const box=new THREE.Box3().setFromObject(model);
+            const size=box.getSize(new THREE.Vector3());
+            const center=box.getCenter(new THREE.Vector3());
+            const sc=.8/Math.max(size.x,size.y,size.z);
+            model.scale.setScalar(sc);
+            model.position.set(seat.pos[0]-center.x*sc,seat.pos[1]-box.min.y*sc,seat.pos[2]-center.z*sc);
+
+            const fp=new Set(['01 Base','02 Base rim','03 Base controls']);
+            const sp=new Set(['05 Bottom sides','07 Seat back sides']);
+            model.traverse(c=>{
+                if(c.isMesh){
+                    c.castShadow=true;c.receiveShadow=true;
+                    const n=c.name||(c.parent&&c.parent.name)||'';
+                    let col=0x2a2a2e,ro=.55,me=.04;
+                    if(fp.has(n)){col=0x18181c;ro=.25;me=.65}
+                    else if(sp.has(n)){col=0x353538;ro=.48;me=.05}
+                    if(c.material){c.material.color.setHex(col);c.material.roughness=ro;c.material.metalness=me;c.material.needsUpdate=true}
+                    if(c.isSkinnedMesh&&c.skeleton)c.skeleton.bones.forEach(b=>{if(!seat.bones[b.name])seat.bones[b.name]=b});
+                }
+                if(c.isBone&&!seat.bones[c.name])seat.bones[c.name]=c;
+            });
+
+            Object.entries(seat.bones).forEach(([n,b])=>{
+                seat.rest[n]={px:b.position.x,py:b.position.y,pz:b.position.z,rx:b.rotation.x,ry:b.rotation.y,rz:b.rotation.z};
+            });
+
+            scene.add(model);seat.model=model;
+
+            const ring=new THREE.Mesh(new THREE.RingGeometry(.28,.31,32),
+                new THREE.MeshBasicMaterial({color:new THREE.Color(COL[i]),transparent:true,opacity:0,side:THREE.DoubleSide}));
+            ring.rotation.x=-Math.PI/2;ring.position.set(seat.pos[0],.008,seat.pos[2]);
+            scene.add(ring);seat.hl=ring;
+
+            seat.hmC=mkOv(model,.22,.18,{rx:-Math.PI/2,y:1.15,z:-.45});
+            seat.hmB=mkOv(model,.18,.26,{rx:-1.1,y:2.3,z:-1.35});
+
+            cnt++;
+            document.getElementById('lmsg').textContent='Loading... '+cnt+'/4';
+            if(cnt===4){
+                hilite();
+                document.getElementById('loader').classList.add('done');
+                // Log discovered bones
+                const bNames=Object.keys(seats[0].bones).sort();
+                document.getElementById('boneInfo').textContent=bNames.length+' bones · '+AXES.length+' axes · v2 GLB';
+                console.log('Bones found:',bNames);
+            }
+        });
+    });
+}
+
+function mkOv(parent,w,h,p){
+    const cv=document.createElement('canvas');cv.width=64;cv.height=64;
+    const tex=new THREE.CanvasTexture(cv);tex.minFilter=THREE.LinearFilter;
+    const mesh=new THREE.Mesh(new THREE.PlaneGeometry(w,h),
+        new THREE.MeshBasicMaterial({map:tex,transparent:true,opacity:.6,side:THREE.DoubleSide,depthWrite:false}));
+    mesh.rotation.x=p.rx||0;mesh.position.set(p.x||0,p.y||0,p.z||0);
+    parent.add(mesh);
+    return{cv,tex};
+}
+
+function hilite(){
+    seats.forEach((s,i)=>{
+        const on=i===cur;
+        if(s.hl)s.hl.material.opacity=on?.65:.1;
+        if(s.model)s.model.traverse(c=>{
+            if(c.isMesh&&c.material){c.material.emissive=new THREE.Color(on?COL[i]:'#000');c.material.emissiveIntensity=on?.18:0}
+        });
+    });
+}
+
+/* ═══════════════════════════════════════════
+   PRESSURE
+   ═══════════════════════════════════════════ */
+function g2d(x,y,sx,sy){return Math.exp(-(x*x)/(2*sx*sx)-(y*y)/(2*sy*sy))}
+
+function simPress(s,t){
+    const w=s.weight/80,off=s.id*1.7;let sum=0,mx=0,cnt=0;
+    // Bolster effect: squeeze moves pressure center inward
+    const bolF=s.p.bolster/100*.15;
+    for(let y=0;y<16;y++)for(let x=0;x<16;x++){
+        const nx=(x/15)*2-1,ny=(y/15)*2-1;
+        let v=(g2d(nx+.35-bolF,ny-.1,.28,.32)+g2d(nx-.35+bolF,ny-.1,.28,.32)+g2d(nx+.3-bolF,ny+.25,.22,.4)*.35+g2d(nx-.3+bolF,ny+.25,.22,.4)*.35)*w;
+        v+=Math.sin((t+off)*.3)*.01+(Math.random()-.5)*.005;
+        v=Math.max(0,Math.min(1,v));
+        s.grid[y*16+x]=v;
+        if(v>.01){sum+=v;cnt++;mx=Math.max(mx,v)}
+    }
+    s.avg=cnt>0?(sum/cnt*100):0;s.peak=mx*100;
+}
+
+function updOv(s){
+    [s.hmC,s.hmB].forEach(ov=>{
+        if(!ov)return;
+        const ctx=ov.cv.getContext('2d');ctx.clearRect(0,0,64,64);
+        if(s.weight<1){ov.tex.needsUpdate=true;return}
+        for(let y=0;y<16;y++)for(let x=0;x<16;x++){
+            const v=s.grid[y*16+x];
+            if(v>.02){ctx.fillStyle=pRGBA(v);ctx.fillRect(x*4,y*4,4,4)}
+        }
+        ov.tex.needsUpdate=true;
+    });
+}
+
+/* ═══════════════════════════════════════════
+   9-AXIS BONE CONTROL (10 bones)
+   Blender→GLTF: X→X, Y→-Z, Z→Y
+   ═══════════════════════════════════════════ */
+function setPose(axis,val){
+    seats[cur].p[axis]=val;
+    applyBone(seats[cur],axis,val);
+    syncSliders();
+}
+
+function applyBone(s,axis,val){
+    const R=s.rest,B=s.bones,d=THREE.MathUtils.degToRad;
+    switch(axis){
+        // Position axes (6 from v3)
+        case'slide':   if(B.Slide&&R.Slide)       B.Slide.position.z   =R.Slide.pz    -(val/100)*.5; break;
+        case'height':  if(B.Cushion&&R.Cushion)    B.Cushion.position.y =R.Cushion.py  +(val/100)*.3; break;
+        case'tilt':    if(B.Cushion&&R.Cushion)    B.Cushion.rotation.x =R.Cushion.rx  +d(val); break;
+        case'recline': if(B.Backrest&&R.Backrest)  B.Backrest.rotation.x=R.Backrest.rx +d(val); break;
+        case'hrH':     if(B.Headrest&&R.Headrest)  B.Headrest.position.y=R.Headrest.py +(val/100)*.5; break;
+        case'hrT':     if(B.Headrest&&R.Headrest)  B.Headrest.rotation.x=R.Headrest.rx +d(val); break;
+        // Support axes (3 new from v2 GLB)
+        case'bolster':
+            if(B.BolsterL&&R.BolsterL) B.BolsterL.position.x=R.BolsterL.px+(val/100)*.15;  // squeeze inward
+            if(B.BolsterR&&R.BolsterR) B.BolsterR.position.x=R.BolsterR.px-(val/100)*.15;
+            break;
+        case'lumbar':
+            if(B.Lumbar&&R.Lumbar) B.Lumbar.position.z=R.Lumbar.pz-(val/100)*.3;  // Blender +Y → GLTF -Z (forward)
+            break;
+        case'bBolster':
+            if(B.BackBolsterL&&R.BackBolsterL) B.BackBolsterL.position.x=R.BackBolsterL.px+(val/100)*.12;
+            if(B.BackBolsterR&&R.BackBolsterR) B.BackBolsterR.position.x=R.BackBolsterR.px-(val/100)*.12;
+            break;
+    }
+}
+
+function animTargets(dt){
+    seats.forEach(s=>{
+        if(!s.target)return;
+        let done=true;
+        AXES.forEach(k=>{
+            const diff=s.target[k]-s.p[k];
+            if(Math.abs(diff)>.3){s.p[k]+=diff*dt*5;done=false}
+            else s.p[k]=s.target[k];
+            applyBone(s,k,s.p[k]);
+        });
+        if(done)s.target=null;
+    });
+}
+
+function goPreset(name,btn){
+    document.getElementById('presetBtns').querySelectorAll('.pb').forEach(b=>b.classList.remove('on'));
+    btn.classList.add('on');
+    seats[cur].target={...PRESETS[name]};
+}
+
+function resetPose(){
+    seats[cur].target={...ZERO};
+    document.getElementById('presetBtns').querySelectorAll('.pb').forEach(b=>b.classList.remove('on'));
+    toast('Reset to default');
+}
+
+/* ═══════════════════════════════════════════
+   UI
+   ═══════════════════════════════════════════ */
+function sel(i){
+    cur=i;hilite();syncSliders();renderCards();
+    document.querySelectorAll('.cdot').forEach((d,j)=>d.classList.toggle('sel',j===i));
+    document.getElementById('posLabel').textContent=seats[i].label+' '+seats[i].name;
+    document.getElementById('wSl').value=seats[i].weight;
+    document.getElementById('wVal').textContent=seats[i].weight+' kg';
+    document.getElementById('presetBtns').querySelectorAll('.pb').forEach(b=>b.classList.remove('on'));
+}
+
+function syncSliders(){
+    const p=seats[cur].p;
+    document.getElementById('sSlide').value=p.slide;   document.getElementById('vSlide').textContent=Math.round(p.slide);
+    document.getElementById('sHeight').value=p.height;  document.getElementById('vHeight').textContent=Math.round(p.height);
+    document.getElementById('sTilt').value=p.tilt;      document.getElementById('vTilt').textContent=Math.round(p.tilt)+'°';
+    document.getElementById('sRecline').value=p.recline; document.getElementById('vRecline').textContent=Math.round(p.recline)+'°';
+    document.getElementById('sHrH').value=p.hrH;        document.getElementById('vHrH').textContent=Math.round(p.hrH);
+    document.getElementById('sHrT').value=p.hrT;        document.getElementById('vHrT').textContent=Math.round(p.hrT)+'°';
+    document.getElementById('sBol').value=p.bolster;    document.getElementById('vBol').textContent=Math.round(p.bolster)+'%';
+    document.getElementById('sLum').value=p.lumbar;     document.getElementById('vLum').textContent=Math.round(p.lumbar)+'%';
+    document.getElementById('sBBol').value=p.bBolster;  document.getElementById('vBBol').textContent=Math.round(p.bBolster)+'%';
+}
+
+function renderCards(){
+    document.getElementById('cards').innerHTML=seats.map((s,i)=>
+        '<div class="sc'+(i===cur?' sel':'')+'" onclick="sel('+i+')">'+
+        '<div class="sc-ico" style="background:'+COL[i]+'15;color:'+COL[i]+'"><i class="fas fa-chair"></i></div>'+
+        '<div><div class="sc-name">'+s.label+' '+s.name+'</div><div class="sc-sub">'+s.weight+' kg</div></div></div>'
+    ).join('');
+}
+
+function updStats(){
+    const s=seats[cur];
+    document.getElementById('pAvg').textContent=s.avg.toFixed(1);
+    document.getElementById('pPeak').textContent=s.peak.toFixed(1);
+    const cv=document.getElementById('miniHeat'),ctx=cv.getContext('2d');
+    ctx.clearRect(0,0,160,160);
+    for(let y=0;y<16;y++)for(let x=0;x<16;x++){
+        const v=s.grid[y*16+x];
+        if(v>.01){ctx.fillStyle=pRGBA(v);ctx.fillRect(x*10,y*10,10,10)}
+    }
+}
+
+function setWt(w){seats[cur].weight=w;document.getElementById('wVal').textContent=w+' kg';renderCards()}
+
+function camTo(v){
+    let p,t;
+    switch(v){
+        case'top':p={x:0,y:4.5,z:.01};t={x:0,y:0,z:0};break;
+        case'front':p={x:0,y:1.2,z:-3.5};t={x:0,y:.3,z:0};break;
+        case'side':p={x:3.5,y:1.5,z:0};t={x:0,y:.3,z:0};break;
+        default:p={x:1.8,y:2.8,z:3};t={x:0,y:.25,z:0};
+    }
+    gsap.to(camera.position,{...p,duration:.8,ease:'power2.inOut'});
+    gsap.to(controls.target,{...t,duration:.8,ease:'power2.inOut'});
+}
+
+/* ═══════════════════════════════════════════
+   BONE DIAGRAM — side + front cross-section
+   ═══════════════════════════════════════════ */
+function drawBoneDiagram(){
+    const cv=document.getElementById('boneCv'),ctx=cv.getContext('2d');
+    const W=cv.width,H=cv.height,p=seats[cur].p;
+    ctx.clearRect(0,0,W,H);
+
+    const dk=document.body.classList.contains('dark');
+    const fg=dk?'#e8e8ed':'#1d1d1f';
+    const dim=dk?'#48484a':'#aeaeb2';
+
+    // ── Side View (left half) ──
+    const ox=70,oy=110;
+    ctx.fillStyle=dim;ctx.font='600 7px Inter';ctx.textAlign='center';
+    ctx.fillText('SIDE',70,10);
+
+    // Base rail
+    ctx.fillStyle=dim;ctx.fillRect(ox-25,oy-2,50,4);
+
+    const slideOff=-(p.slide/100)*25;
+    const sx=ox+slideOff;
+    const cushH=-(p.height/100)*18;
+    const cushY=oy-8+cushH;
+    const tiltRad=p.tilt*Math.PI/180;
+
+    // Cushion
+    ctx.save();ctx.translate(sx,cushY);ctx.rotate(-tiltRad);
+    ctx.fillStyle='rgba(0,122,255,.15)';ctx.fillRect(-20,-3,40,6);
+    ctx.strokeStyle='#007aff';ctx.lineWidth=1.5;ctx.strokeRect(-20,-3,40,6);
+    ctx.restore();
+
+    // Backrest
+    const bx=sx-10,by=cushY-5;
+    const recRad=(20+p.recline)*Math.PI/180;
+    const bLen=45;
+    const btx=bx-Math.sin(recRad)*bLen;
+    const bty=by-Math.cos(recRad)*bLen;
+    ctx.strokeStyle='#af52de';ctx.lineWidth=3;ctx.lineCap='round';
+    ctx.beginPath();ctx.moveTo(bx,by);ctx.lineTo(btx,bty);ctx.stroke();
+    ctx.fillStyle='#af52de';ctx.beginPath();ctx.arc(bx,by,3,0,Math.PI*2);ctx.fill();
+
+    // Lumbar bulge on backrest
+    if(p.lumbar>1){
+        const lFrac=.35;
+        const lx=bx-Math.sin(recRad)*bLen*lFrac;
+        const ly=by-Math.cos(recRad)*bLen*lFrac;
+        const push=p.lumbar/100*8;
+        const nx=Math.cos(recRad)*push;
+        const ny=-Math.sin(recRad)*push;
+        ctx.fillStyle='rgba(255,59,48,.3)';
+        ctx.beginPath();ctx.arc(lx+nx,ly+ny,4+push*.3,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle='#ff3b30';ctx.beginPath();ctx.arc(lx+nx,ly+ny,2,0,Math.PI*2);ctx.fill();
+    }
+
+    // Headrest
+    const hrOff=(p.hrH/100)*12;
+    const hrTR=p.hrT*Math.PI/180;
+    const hx=btx-Math.sin(recRad)*hrOff;
+    const hy=bty-Math.cos(recRad)*hrOff;
+    ctx.save();ctx.translate(hx,hy);ctx.rotate(-recRad-hrTR);
+    ctx.fillStyle='rgba(255,100,130,.2)';ctx.fillRect(-7,-5,14,10);
+    ctx.strokeStyle='#ff6482';ctx.lineWidth=1.2;ctx.strokeRect(-7,-5,14,10);
+    ctx.restore();
+
+    // ── Front Cross-Section (right half) ──
+    const cx=185,cy=75;
+    ctx.fillStyle=dim;ctx.font='600 7px Inter';ctx.textAlign='center';
+    ctx.fillText('FRONT',185,10);
+
+    // Seat cushion cross-section
+    const cw=50,ch=12;
+    ctx.fillStyle='rgba(0,122,255,.1)';
+    ctx.fillRect(cx-cw/2,cy-ch/2,cw,ch);
+    ctx.strokeStyle='#007aff';ctx.lineWidth=1;ctx.strokeRect(cx-cw/2,cy-ch/2,cw,ch);
+
+    // Bolsters (side bumps)
+    const bolS=p.bolster/100*10;
+    // Left bolster
+    ctx.fillStyle='rgba(48,176,199,.3)';
+    ctx.fillRect(cx-cw/2-6+bolS,cy-ch/2-2,6,ch+4);
+    ctx.strokeStyle='#30b0c7';ctx.lineWidth=1;
+    ctx.strokeRect(cx-cw/2-6+bolS,cy-ch/2-2,6,ch+4);
+    // Right bolster
+    ctx.fillStyle='rgba(48,176,199,.3)';
+    ctx.fillRect(cx+cw/2-bolS,cy-ch/2-2,6,ch+4);
+    ctx.strokeStyle='#30b0c7';ctx.lineWidth=1;
+    ctx.strokeRect(cx+cw/2-bolS,cy-ch/2-2,6,ch+4);
+
+    // Arrows showing squeeze
+    if(p.bolster>5){
+        ctx.fillStyle='#30b0c7';ctx.font='bold 9px Inter';
+        ctx.fillText('→',cx-cw/2-12+bolS,cy+3);
+        ctx.fillText('←',cx+cw/2+6-bolS,cy+3);
+    }
+
+    // Back cross-section (above cushion)
+    const bcy=cy-35,bcw=44,bch=30;
+    ctx.fillStyle='rgba(175,82,222,.08)';
+    ctx.fillRect(cx-bcw/2,bcy-bch/2,bcw,bch);
+    ctx.strokeStyle='#af52de';ctx.lineWidth=1;ctx.strokeRect(cx-bcw/2,bcy-bch/2,bcw,bch);
+
+    // Back bolsters
+    const bbS=p.bBolster/100*8;
+    ctx.fillStyle='rgba(175,82,222,.25)';
+    ctx.fillRect(cx-bcw/2-5+bbS,bcy-bch/2-1,5,bch+2);
+    ctx.strokeStyle='#af52de';ctx.lineWidth=1;
+    ctx.strokeRect(cx-bcw/2-5+bbS,bcy-bch/2-1,5,bch+2);
+    ctx.fillStyle='rgba(175,82,222,.25)';
+    ctx.fillRect(cx+bcw/2-bbS,bcy-bch/2-1,5,bch+2);
+    ctx.strokeStyle='#af52de';ctx.lineWidth=1;
+    ctx.strokeRect(cx+bcw/2-bbS,bcy-bch/2-1,5,bch+2);
+
+    // Lumbar push dot in front view
+    if(p.lumbar>1){
+        const lPush=p.lumbar/100*6;
+        ctx.fillStyle='rgba(255,59,48,.3)';
+        ctx.beginPath();ctx.arc(cx,bcy+bch/4+2,3+lPush*.5,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle='#ff3b30';ctx.beginPath();ctx.arc(cx,bcy+bch/4+2,2,0,Math.PI*2);ctx.fill();
+    }
+
+    // Labels
+    ctx.fillStyle=dim;ctx.font='500 7px Inter';ctx.textAlign='center';
+    ctx.fillText('Cushion',cx,cy+16);
+    ctx.fillText('Backrest',cx,bcy-bch/2-4);
+
+    // Divider line
+    ctx.strokeStyle=dk?'rgba(255,255,255,.06)':'rgba(0,0,0,.06)';
+    ctx.lineWidth=1;ctx.setLineDash([3,3]);
+    ctx.beginPath();ctx.moveTo(125,15);ctx.lineTo(125,H-5);ctx.stroke();
+    ctx.setLineDash([]);
+}
+
+/* ═══════════════════════════════════════════
+   COLORS
+   ═══════════════════════════════════════════ */
+function pRGBA(t){
+    t=Math.max(0,Math.min(1,t));let r,g,b;
+    if(t<.25){const f=t/.25;r=0;g=Math.round(f*255);b=255}
+    else if(t<.5){const f=(t-.25)/.25;r=0;g=255;b=Math.round(255*(1-f))}
+    else if(t<.75){const f=(t-.5)/.25;r=Math.round(255*f);g=255;b=0}
+    else{const f=(t-.75)/.25;r=255;g=Math.round(255*(1-f));b=0}
+    return'rgba('+r+','+g+','+b+','+(0.3+t*.7)+')';
+}
+
+/* ═══════════════════════════════════════════
+   DARK MODE & UTILS
+   ═══════════════════════════════════════════ */
+function toggleDark(){
+    document.body.classList.toggle('dark');
+    const dk=document.body.classList.contains('dark');
+    scene.background=new THREE.Color(dk?0x0c0c10:0xf0f0f2);
+    toast(dk?'Dark mode':'Light mode');
+}
+
+let tt;
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),2000)}
+function screenshot(){renderer.render(scene,camera);const a=document.createElement('a');a.download='seat-'+Date.now()+'.png';a.href=renderer.domElement.toDataURL('image/png');a.click();toast('Screenshot saved')}
+function drawLeg(){const ctx=document.getElementById('legCv').getContext('2d');for(let x=0;x<130;x++){ctx.fillStyle=pRGBA(x/130);ctx.fillRect(x,0,1,8)}}
+
+/* ═══════════════════════════════════════════
+   LOOP
+   ═══════════════════════════════════════════ */
+let lastUI=0;
+function animate(){
+    requestAnimationFrame(animate);
+    const dt=Math.min(clock.getDelta(),.1),t=clock.getElapsedTime();
+
+    seats.forEach(s=>{simPress(s,t);updOv(s)});
+    animTargets(dt);
+    if(seats[cur].target)syncSliders();
+
+    if(t-lastUI>.2){updStats();drawBoneDiagram();lastUI=t}
+    controls.update();renderer.render(scene,camera);
+}
+
+/* ═══════════════════════════════════════════
+   INIT
+   ═══════════════════════════════════════════ */
+initScene();drawLeg();renderCards();syncSliders();animate();
+</script>
+</body>
+</html>
