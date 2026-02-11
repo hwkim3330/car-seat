@@ -531,7 +531,7 @@ function updateOverlay(seat,type){
 }
 
 function updateHighlights(){
-    seats.forEach((s,i)=>{const sel=i===selected;if(s.highlight)s.highlight.material.opacity=sel?.7:.12;if(s.model)s.model.traverse(c=>{if(c.isMesh&&c.material){c.material.emissive=new THREE.Color(sel?COLORS[i]:'#000');c.material.emissiveIntensity=sel?.18:0}})});
+    seats.forEach((s,i)=>{const sel=i===selected;if(s.highlight)s.highlight.material.opacity=sel?.7:.12;if(s.model)s.model.traverse(c=>{if(c.isMesh&&c.material&&c.material.isMeshStandardMaterial){c.material.emissive.setHex(sel?parseInt(COLORS[i].slice(1),16):0);c.material.emissiveIntensity=sel?.18:0}})});
 }
 
 // ════════════════════════════════════════════════

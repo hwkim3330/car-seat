@@ -398,7 +398,7 @@ const ZERO = { slide:0, height:0, tilt:0, recline:0, hrH:0, hrT:0, bolster:0, lu
 const seats = SEATS.map(s => ({
   ...s,
   model: null, hl: null, bones: {}, rest: {},
-  p: { ...ZERO },
+  pos: { ...ZERO },
   target: null,
   wt: s.weight,
   grid: new Float32Array(256),
@@ -640,8 +640,8 @@ function hilite() {
     const on = (i === cur);
     if (s.hl) s.hl.material.opacity = on ? 0.65 : 0.1;
     if (s.model) s.model.traverse(c => {
-      if (c.isMesh && c.material) {
-        c.material.emissive = new THREE.Color(on ? COL[i] : '#000');
+      if (c.isMesh && c.material && c.material.isMeshStandardMaterial) {
+        c.material.emissive.setHex(on ? parseInt(COL[i].slice(1), 16) : 0);
         c.material.emissiveIntensity = on ? 0.18 : 0;
       }
     });
@@ -659,7 +659,7 @@ function simPress(s, t) {
   const w = s.wt / 80;
   const off = s.id * 1.7;
   let sum = 0, mx = 0, cnt = 0;
-  const bolF = s.p.bolster / 100 * 0.15;
+  const bolF = s.pos.bolster / 100 * 0.15;
 
   for (let y = 0; y < 16; y++) {
     for (let x = 0; x < 16; x++) {
@@ -704,13 +704,13 @@ function updOv(s) {
    9-AXIS BONE CONTROL
    =================================================== */
 function setPose(seatIdx, axis, val) {
-  seats[seatIdx].p[axis] = val;
+  seats[seatIdx].pos[axis] = val;
   applyBone(seats[seatIdx], axis, val);
 
   if (applyAll) {
     seats.forEach((s, i) => {
       if (i !== seatIdx) {
-        s.p[axis] = val;
+        s.pos[axis] = val;
         applyBone(s, axis, val);
       }
     });
@@ -759,14 +759,14 @@ function animTargets(dt) {
     if (!s.target) return;
     let done = true;
     Object.keys(AXES).forEach(k => {
-      const diff = s.target[k] - s.p[k];
+      const diff = s.target[k] - s.pos[k];
       if (Math.abs(diff) > 0.3) {
-        s.p[k] += diff * dt * 5;
+        s.pos[k] += diff * dt * 5;
         done = false;
       } else {
-        s.p[k] = s.target[k];
+        s.pos[k] = s.target[k];
       }
-      applyBone(s, k, s.p[k]);
+      applyBone(s, k, s.pos[k]);
     });
     if (done) s.target = null;
   });
@@ -803,7 +803,7 @@ function exportData() {
     Object.keys(AXES).forEach(k => {
       const unit = (k === 'tilt' || k === 'recline' || k === 'hrT') ? '\u00b0' :
                    (k === 'bolster' || k === 'lumbar' || k === 'bBolster') ? '%' : '';
-      text += '  ' + AXES[k].label.padEnd(12) + ': ' + (Math.round(s.p[k] * 10) / 10) + unit + '\n';
+      text += '  ' + AXES[k].label.padEnd(12) + ': ' + (Math.round(s.pos[k] * 10) / 10) + unit + '\n';
     });
     text += 'Pressure:\n';
     text += '  Average : ' + s.avg.toFixed(1) + '%\n';
@@ -837,7 +837,7 @@ function renderCards() {
     ['slide', 'height', 'tilt'].forEach(k => {
       const ax = AXES[k];
       const unit = (k === 'tilt') ? '\u00b0' : '';
-      baseHTML += buildSliderRow(i, k, ax, s.p[k], unit);
+      baseHTML += buildSliderRow(i, k, ax, s.pos[k], unit);
     });
 
     // Build Back sliders (recline, hrH, hrT)
@@ -845,14 +845,14 @@ function renderCards() {
     ['recline', 'hrH', 'hrT'].forEach(k => {
       const ax = AXES[k];
       const unit = (k === 'recline' || k === 'hrT') ? '\u00b0' : '';
-      backHTML += buildSliderRow(i, k, ax, s.p[k], unit);
+      backHTML += buildSliderRow(i, k, ax, s.pos[k], unit);
     });
 
     // Build Support sliders (bolster, lumbar, bBolster)
     let supportHTML = '';
     ['bolster', 'lumbar', 'bBolster'].forEach(k => {
       const ax = AXES[k];
-      supportHTML += buildSliderRow(i, k, ax, s.p[k], '%');
+      supportHTML += buildSliderRow(i, k, ax, s.pos[k], '%');
     });
 
     card.innerHTML =
@@ -920,7 +920,7 @@ function syncSliders() {
       if (!el) return;
       const unit = (k === 'tilt' || k === 'recline' || k === 'hrT') ? '\u00b0' :
                    (k === 'bolster' || k === 'lumbar' || k === 'bBolster') ? '%' : '';
-      el.textContent = Math.round(s.p[k]) + unit;
+      el.textContent = Math.round(s.pos[k]) + unit;
     });
   });
 }
@@ -1002,7 +1002,7 @@ function drawRadar() {
     ctx.beginPath();
     axisKeys.forEach((key, i) => {
       const ax = AXES[key];
-      const norm = Math.max(0, Math.min(1, (s.p[key] - ax.min) / (ax.max - ax.min)));
+      const norm = Math.max(0, Math.min(1, (s.pos[key] - ax.min) / (ax.max - ax.min)));
       const a = i * 2 * Math.PI / N - Math.PI / 2;
       const x = cx + R * norm * Math.cos(a);
       const y = cy + R * norm * Math.sin(a);
@@ -1018,7 +1018,7 @@ function drawRadar() {
     // Draw vertex dots
     axisKeys.forEach((key, i) => {
       const ax = AXES[key];
-      const norm = Math.max(0, Math.min(1, (s.p[key] - ax.min) / (ax.max - ax.min)));
+      const norm = Math.max(0, Math.min(1, (s.pos[key] - ax.min) / (ax.max - ax.min)));
       const a = i * 2 * Math.PI / N - Math.PI / 2;
       const x = cx + R * norm * Math.cos(a);
       const y = cy + R * norm * Math.sin(a);

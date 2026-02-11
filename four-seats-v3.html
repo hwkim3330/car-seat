@@ -366,7 +366,7 @@ function hilite(){
         const on=i===cur;
         if(s.hl)s.hl.material.opacity=on?.65:.1;
         if(s.model)s.model.traverse(c=>{
-            if(c.isMesh&&c.material){c.material.emissive=new THREE.Color(on?COL[i]:'#000');c.material.emissiveIntensity=on?.18:0}
+            if(c.isMesh&&c.material&&c.material.isMeshStandardMaterial){c.material.emissive.setHex(on?parseInt(COL[i].slice(1),16):0);c.material.emissiveIntensity=on?.18:0}
         });
     });
 }
